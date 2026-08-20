@@ -29,9 +29,19 @@ UA = {"User-Agent": "EditorAutomatico"}
 
 
 def _raiz():
-    """Onde mora o version.json — no código ou dentro do .app empacotado."""
+    """Onde mora o version.json DO CÓDIGO QUE ESTÁ RODANDO.
+
+    ⚠️ A ordem aqui é o bug mais escorregadio que a atualização leve produziu.
+    `sys._MEIPASS` aponta para o PACOTE INSTALADO; depois de uma atualização
+    leve, o app roda o código novo mas o pacote continua com o `version.json`
+    velho. Lendo o pacote primeiro, o app rodava a 0.19 e se declarava 0.18 —
+    então a versão nova NUNCA parecia instalada: o aviso de atualizar voltava a
+    cada abertura, e atualizar de novo não resolvia nada.
+
+    `aqui` é a pasta do código em execução (a externa, quando há uma). É essa a
+    versão verdadeira."""
     aqui = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    for base in (getattr(sys, "_MEIPASS", None), aqui,
+    for base in (aqui, getattr(sys, "_MEIPASS", None),
                  os.path.dirname(sys.executable)):
         if base and os.path.isfile(os.path.join(base, "version.json")):
             return base

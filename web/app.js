@@ -1198,6 +1198,7 @@ async function rodarDecupagem(pid) {
 async function telaContas() {
   const s = E.servicos;
   const claudeHtml = await cartaoClaude();
+  const gptHtml = await cartaoChatGPT();
   moldura(`
     <div class="topo">
       <div><h1>Contas</h1>
@@ -1221,6 +1222,7 @@ async function telaContas() {
     </div>
     <div class="cartao">
       ${claudeHtml}
+      ${gptHtml}
       ${s.servicos.filter((x) => x.id !== 'claude').map((x) => cartaoServico(x)).join('')}
     </div>`);
 
@@ -1229,6 +1231,7 @@ async function telaContas() {
     await post('/api/conta/sair'); iniciar();
   };
   ligarClaude();
+  ligarChatGPT();
   document.querySelectorAll('[data-testar]').forEach((b) => {
     b.onclick = async () => {
       const id = b.dataset.testar;
@@ -1303,6 +1306,58 @@ async function cartaoClaude() {
       <button class="bt discreto" id="claude-trocar">Trocar método</button>
     </div>
   </div>`;
+}
+
+// O ChatGPT é uma CONTA como as outras — tem que estar aqui, não só escondido
+// no seletor do chat. Foi onde o usuário foi procurar, e com razão.
+async function cartaoChatGPT() {
+  let d;
+  try { d = await api('/api/ia'); } catch (e) { return ''; }
+  const p = (d.provedores || []).find((x) => x.id === 'chatgpt');
+  if (!p) return '';
+  const assinatura = p.metodo === 'sessao';
+  return `<div class="servico" id="cartao-gpt">
+    <div>
+      <div class="titulo">ChatGPT
+        <span class="pastilha ${p.pronto ? 'ok' : 'erro'}"><i class="ponto"></i>${p.pronto ? 'conectado' : 'não conectado'}</span>
+      </div>
+      <div class="papel">${assinatura ? 'Assinatura, pelo Codex CLI' : 'Chave de API'}${p.origem ? ' · ' + esc(p.origem) : ''}</div>
+      ${p.msg ? `<div class="aviso" style="margin-top:10px">${esc(p.msg)}</div>` : ''}
+      <div id="saida-gpt" style="margin-top:10px"></div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:flex-start">
+      ${assinatura ? `<button class="bt principal" id="gpt-entrar">${p.pronto ? 'Entrar de novo' : 'Entrar com a conta'}</button>`
+                   : `<button class="bt" id="gpt-chave">Colar chave</button>`}
+      <button class="bt discreto" id="gpt-metodo">${assinatura ? 'usar chave' : 'usar assinatura'}</button>
+    </div>
+  </div>`;
+}
+
+function ligarChatGPT() {
+  const en = document.getElementById('gpt-entrar');
+  if (en) en.onclick = async () => {
+    en.disabled = true; en.textContent = 'Abrindo o Terminal…';
+    try {
+      const r = await post('/api/ia/entrar');
+      const cx = document.getElementById('saida-gpt');
+      if (cx) cx.innerHTML = `<span class="pastilha ${r.ok ? 'ok' : 'erro'}"><i class="ponto"></i>${esc(r.msg)}</span>`;
+    } catch (e) { toast(e.message, true); }
+    en.disabled = false; en.textContent = 'Entrar com a conta';
+  };
+  const ch = document.getElementById('gpt-chave');
+  if (ch) ch.onclick = async () => {
+    IA = await api('/api/ia').catch(() => IA);
+    pedirChaveIA({ id: 'chatgpt', nome: 'ChatGPT' });
+  };
+  const mt = document.getElementById('gpt-metodo');
+  if (mt) mt.onclick = async () => {
+    const querAssinatura = mt.textContent.includes('assinatura');
+    try {
+      await post('/api/ia/metodo', { metodo: querAssinatura ? 'sessao' : 'chave' });
+      IA = await api('/api/ia');
+      desenhar();
+    } catch (e) { toast(e.message, true); }
+  };
 }
 
 function ligarClaude() {

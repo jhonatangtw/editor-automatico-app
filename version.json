@@ -1,6 +1,6 @@
 {
-  "version": "0.19.0",
-  "notes": "O app leva as skills de criativo dentro dele e instala na pasta do Claude com um clique: fotorrealismo, Pixar 3D, storyboard, prompts de vídeo e a edição de b-roll. Antes, o Claude do editor respondia sem nenhuma delas.",
+  "version": "0.19.1",
+  "notes": "Dois consertos: o aviso de atualizar que voltava a cada abertura mesmo depois de atualizar, e o ChatGPT que faltava na aba Contas — agora dá para entrar na sua conta por lá, como no Claude.",
   "repo": "jhonatangtw/editor-automatico-app",
   "asset_mac": "EditorAutomatico.dmg",
   "asset_win": "EditorAutomatico-Instalador.exe",
