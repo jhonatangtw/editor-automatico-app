@@ -21,6 +21,13 @@ import base64
 import json
 import os
 import platform
+
+
+def _so():
+    """import tardio: chaves.py é carregado muito cedo no arranque."""
+    from . import so
+    return so
+
 import subprocess
 
 SERVICO = "EditorAutomatico"
@@ -75,7 +82,7 @@ def _mac_apagar(nome):
 # ------------------------------------------------------------ Windows
 
 def _ps(script):
-    r = subprocess.run(["powershell", "-NoProfile", "-Command", script],
+    r = _so().run(["powershell", "-NoProfile", "-Command", script],
                        capture_output=True, text=True)
     return r.stdout.strip() if r.returncode == 0 else ""
 

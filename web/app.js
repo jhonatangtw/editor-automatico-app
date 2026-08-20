@@ -1433,7 +1433,7 @@ async function reconectarToolsPro() {
     <p class="sub" id="rc-txt">Procurando o painel do Tools PRO…</p>`);
   for (let i = 0; i < 6; i++) {
     try {
-      const a = await api('/api/adobe');
+      const a = await api('/api/adobe?forcar=1');
       if (a.utilizavel) {
         v.remove(); toast('Tools PRO em uso.'); pintarAdobe(); return;
       }

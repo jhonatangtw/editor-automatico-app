@@ -320,13 +320,23 @@ def _mcp_config():
     return json.dumps({"mcpServers": {"editor": {"command": cmd, "args": args}}})
 
 
-def mcp_vivo():
+_mcp_cache = {}
+
+
+def mcp_vivo(forcar=False):
     """O servidor MCP sobe e responde? Sem isto o Claude fica SEM as ferramentas
     do app — que foi exatamente o que aconteceu no app empacotado, com a tela
     dizendo que estava tudo conectado."""
+    # ⚠️ Isto SOBE UM PROCESSO. A tela do Adobe chamava a cada pesquisa, e o
+    # laço do "Reconectar" pesquisa seis vezes seguidas — seis servidores MCP
+    # subindo e morrendo por clique. O resultado não muda de minuto a minuto.
+    import time as _t
+    if not forcar and _mcp_cache.get("q") and _t.time() - _mcp_cache["q"][0] < 120:
+        return _mcp_cache["q"][1]
+
     cmd, args = comando_mcp()
     try:
-        p = subprocess.run(
+        p = so.run(
             [cmd] + args, input='{"jsonrpc":"2.0","id":1,"method":"tools/list"}\n',
             capture_output=True, text=True, timeout=30,
             env=conta_claude.ambiente_isolado())
@@ -337,11 +347,15 @@ def mcp_vivo():
                 continue
             t = (d.get("result") or {}).get("tools")
             if t:
-                return {"ok": True, "ferramentas": len(t),
-                        "nomes": [x["name"] for x in t]}
-        return {"ok": False, "msg": "O servidor de ferramentas não respondeu."}
+                r = {"ok": True, "ferramentas": len(t),
+                     "nomes": [x["name"] for x in t]}
+                _mcp_cache["q"] = (_t.time(), r)
+                return r
+        r = {"ok": False, "msg": "O servidor de ferramentas não respondeu."}
     except Exception as e:
-        return {"ok": False, "msg": str(e)[:140]}
+        r = {"ok": False, "msg": str(e)[:140]}
+    _mcp_cache["q"] = (_t.time(), r)
+    return r
 
 
 def _contexto_ambiente(pid):

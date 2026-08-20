@@ -36,17 +36,42 @@ TEMPO = 12
 
 # ---------------------------------------------------------------- descoberta
 
+# Uma única chamada de `/api/adobe` chama `estado()` e `verificar()`, e o
+# `verificar()` chama `estado()` de novo — três varreduras completas por clique,
+# cada uma com `tasklist` e 11 portas. Um cache de 2 segundos não esconde nada
+# (o estado real não muda nesse intervalo) e corta a repetição dentro do mesmo
+# pedido, que era o que fazia a tela do Windows piscar sem parar.
+_cache = {}
+
+
+def _lembrar(chave, segundos, fn):
+    import time as _t
+    agora = _t.time()
+    val = _cache.get(chave)
+    if val and agora - val[0] < segundos:
+        return val[1]
+    novo = fn()
+    _cache[chave] = (agora, novo)
+    return novo
+
+
+def esquecer():
+    _cache.clear()
+
+
 def rodando():
     """Quais apps Adobe estão abertos agora.
 
     O padrão muda de casa: no Mac é a linha de comando inteira (`pgrep -f`), no
     Windows é o NOME do executável, que é o que o `tasklist` sabe filtrar."""
-    saida = {}
-    for chave, mac, win in (("premiere", "Adobe Premiere Pro", "Adobe Premiere Pro.exe"),
-                            ("aftereffects", "Adobe After Effects",
-                             "AfterFX.exe")):
-        saida[chave] = so.processos(win if so.WIN else mac)
-    return saida
+    def olhar():
+        saida = {}
+        for chave, mac, win in (("premiere", "Adobe Premiere Pro", "Adobe Premiere Pro.exe"),
+                                ("aftereffects", "Adobe After Effects",
+                                 "AfterFX.exe")):
+            saida[chave] = so.processos(win if so.WIN else mac)
+        return saida
+    return _lembrar("rodando", 2.0, olhar)
 
 
 def _alvos(porta):
@@ -59,13 +84,15 @@ def _alvos(porta):
 
 def paineis():
     """Painéis CEP alcançáveis. Sem eles não há como falar com o Premiere."""
-    achados = []
-    for p in PORTAS:
-        for t in _alvos(p):
-            if t.get("webSocketDebuggerUrl"):
-                achados.append({"porta": p, "titulo": t.get("title", ""),
-                                "ws": t["webSocketDebuggerUrl"]})
-    return achados
+    def varrer():
+        achados = []
+        for p in PORTAS:
+            for t in _alvos(p):
+                if t.get("webSocketDebuggerUrl"):
+                    achados.append({"porta": p, "titulo": t.get("title", ""),
+                                    "ws": t["webSocketDebuggerUrl"]})
+        return achados
+    return _lembrar("paineis", 2.0, varrer)
 
 
 def _ponte():

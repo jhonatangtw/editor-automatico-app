@@ -1,6 +1,6 @@
 {
-  "version": "0.15.4",
-  "notes": "Conserta o HTTPS no Mac sem Homebrew (era ele que derrubava a checagem de versão e o aviso de atualização), a atualização no Windows com o app aberto, e os acentos do instalador. Botão para instalar o Homebrew num clique.",
+  "version": "0.15.5",
+  "notes": "No Windows, o app abria e fechava janelas pretas o tempo todo — cada consulta ao sistema era um subprocesso sem console. E o Reconectar refazia a varredura três vezes por tentativa, subindo o servidor de ferramentas do zero a cada uma.",
   "repo": "jhonatangtw/editor-automatico-app",
   "asset_mac": "EditorAutomatico.dmg",
   "asset_win": "EditorAutomatico-Instalador.exe",

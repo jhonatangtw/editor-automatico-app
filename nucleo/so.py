@@ -69,12 +69,23 @@ def resolver(cmd):
     return [achado] + list(cmd[1:]) if achado else list(cmd)
 
 
+# ⚠️ **No Windows, subprocesso de app SEM console PISCA uma janela preta.**
+# Cada `tasklist`, cada `reg query`, cada CLI. O "Reconectar ao Tools PRO" faz
+# várias por segundo e a tela do aluno virou um estroboscópio de janelas
+# abrindo e fechando. `CREATE_NO_WINDOW` é o que resolve — e precisa valer para
+# TODA chamada, senão sobra uma piscando.
+def _calado(kw):
+    if WIN:
+        kw.setdefault("creationflags", subprocess.CREATE_NO_WINDOW)
+    return kw
+
+
 def run(cmd, **kw):
-    return subprocess.run(resolver(cmd), **kw)
+    return subprocess.run(resolver(cmd), **_calado(kw))
 
 
 def popen(cmd, **kw):
-    return subprocess.Popen(resolver(cmd), **kw)
+    return subprocess.Popen(resolver(cmd), **_calado(kw))
 
 
 def abrir(caminho):
@@ -96,8 +107,8 @@ def processos(padrao):
     padrão do Windows é o NOME do .exe, não a linha de comando inteira."""
     try:
         if WIN:
-            r = subprocess.run(["tasklist", "/FI", "IMAGENAME eq %s" % padrao],
-                               capture_output=True, text=True, timeout=10)
+            r = run(["tasklist", "/FI", "IMAGENAME eq %s" % padrao],
+                    capture_output=True, text=True, timeout=10)
             return padrao.lower() in (r.stdout or "").lower()
         r = subprocess.run(["pgrep", "-f", padrao], capture_output=True,
                            text=True, timeout=8)
@@ -115,8 +126,10 @@ def terminal(comando, titulo=""):
     import shlex
     try:
         if WIN:
+            # o `start` é quem abre a janela VISÍVEL; este lançador some
             r = subprocess.run(_linha_windows(comando, titulo), shell=True,
-                               capture_output=True, timeout=25)
+                               capture_output=True, timeout=25,
+                               creationflags=subprocess.CREATE_NO_WINDOW)
         else:
             linha = " ".join(shlex.quote(x) for x in comando)
             script = ('tell application "Terminal"\n  activate\n  do script "%s"\n'

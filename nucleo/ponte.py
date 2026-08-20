@@ -83,14 +83,14 @@ def _debug_ligado():
     try:
         if so.WIN:
             for v in CSXS:
-                r = subprocess.run(
+                r = so.run(
                     ["reg", "query", r"HKCU\Software\Adobe\CSXS.%d" % v,
                      "/v", "PlayerDebugMode"], capture_output=True, text=True, timeout=10)
                 if r.returncode == 0 and "1" in r.stdout:
                     return True
             return False
         for v in CSXS:
-            r = subprocess.run(["defaults", "read", "com.adobe.CSXS.%d" % v,
+            r = so.run(["defaults", "read", "com.adobe.CSXS.%d" % v,
                                 "PlayerDebugMode"], capture_output=True, text=True, timeout=10)
             if r.returncode == 0 and r.stdout.strip() in ("1", "1.0", "true"):
                 return True
@@ -104,12 +104,12 @@ def _ligar_debug():
     for v in CSXS:
         try:
             if so.WIN:
-                r = subprocess.run(
+                r = so.run(
                     ["reg", "add", r"HKCU\Software\Adobe\CSXS.%d" % v, "/v",
                      "PlayerDebugMode", "/t", "REG_SZ", "/d", "1", "/f"],
                     capture_output=True, timeout=15)
             else:
-                r = subprocess.run(["defaults", "write", "com.adobe.CSXS.%d" % v,
+                r = so.run(["defaults", "write", "com.adobe.CSXS.%d" % v,
                                     "PlayerDebugMode", "1"],
                                    capture_output=True, timeout=15)
             if r.returncode == 0:

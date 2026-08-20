@@ -424,13 +424,19 @@ class Handler(BaseHTTPRequestHandler):
             if caminho == "/api/claude":
                 return self._json(claude.estado_conta())
             if caminho == "/api/adobe":
+                # o cache serve para não repetir a varredura DENTRO do mesmo
+                # pedido; num clique explícito de Reconectar ele atrapalharia —
+                # o usuário acabou de abrir o painel e receberia a foto velha
+                forcar = "forcar=1" in self.path
+                if forcar:
+                    adobe.esquecer()
                 # Verificado de verdade: painel + ler projeto + ler timeline +
                 # o servidor MCP subir. Dizer "conectada" só porque existe um
                 # painel na porta era o que fazia a tela mentir para o usuário.
                 e = adobe.estado()
                 v = adobe.verificar()
                 e["verificado"] = v
-                e["mcp"] = conversa.mcp_vivo()
+                e["mcp"] = conversa.mcp_vivo(forcar=forcar)
                 e["utilizavel"] = bool(v["leu_timeline"] and e["mcp"]["ok"])
                 return self._json(e)
             if caminho == "/api/conversas":
