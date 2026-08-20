@@ -41,7 +41,7 @@ if "--mcp" in sys.argv:
 from nucleo import (adobe, ambiente, atualizacao, chaves, claude, conta,  # noqa: E402
                     conversa, conversas,
                     decupar, etapas, gerar, montagem, pipeline, plugin,
-                    projetos, qc, servicos, skill, voz)
+                    ponte, projetos, qc, servicos, skill, voz)
 
 WEB = os.path.join(RAIZ, "web")
 
@@ -444,6 +444,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(atualizacao.conferir())
             if caminho == "/api/plugin":
                 return self._json(plugin.estado())
+            if caminho == "/api/ponte":
+                return self._json(ponte.estado())
             if caminho == "/api/ambiente":
                 d = ambiente.conferir()
                 from nucleo import caminho as _cam
@@ -540,6 +542,8 @@ class Handler(BaseHTTPRequestHandler):
                 tid = em_fundo("Baixando a atualização",
                                lambda log: atualizacao.baixar(ao_vivo=log))
                 return self._json({"tarefa": tid})
+            if caminho == "/api/ponte/preparar":
+                return self._json(ponte.preparar())
             if caminho == "/api/plugin/instalar":
                 tid = em_fundo("Instalando o plugin do Premiere",
                                lambda log: plugin.instalar(log))

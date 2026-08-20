@@ -27,7 +27,10 @@ import urllib.request
 
 from . import so
 
-PORTAS = [8862, 8860, 8863, 7842, 8088, 8090, 8092]
+# 8899/8898 são a porta PRÓPRIA do Tools PRO, criada por `ponte.preparar()`.
+# Vem primeiro de propósito: numa máquina que também tenha blinkl ou Higgsfield,
+# é o painel do Tools PRO que queremos, não o do vizinho.
+PORTAS = [8899, 8898, 8901, 8900, 8862, 8860, 8863, 7842, 8088, 8090, 8092]
 TEMPO = 12
 
 
@@ -337,8 +340,24 @@ def verificar():
 
     p = _ponte()
     if not p:
-        r["detalhe"] = ("Nenhum painel do Tools PRO aberto. No Premiere: "
-                        "Janela > Extensões > Tools PRO.")
+        # ⚠️ Antes daqui a mensagem mandava abrir o painel — e o aluno JÁ estava
+        # com ele aberto. Sem `.debug` na extensão não existe porta nenhuma, e
+        # nenhuma quantidade de abrir painel cria uma.
+        from . import ponte
+        e = ponte.estado()
+        if e["plugin_instalado"] and not e["tem_debug"]:
+            r["detalhe"] = ("O painel do Tools PRO não abre porta de conexão nesta "
+                            "máquina — falta preparar a ponte. É um clique, e depois "
+                            "reiniciar o Premiere.")
+            r["preparar_ponte"] = True
+        elif not e["plugin_instalado"]:
+            r["detalhe"] = ("O plugin Tools PRO não está instalado. Vá em Ambiente > "
+                            "Instalar plugin no Premiere.")
+            r["instalar_plugin"] = True
+        else:
+            r["detalhe"] = ("A ponte está preparada mas o painel não respondeu. No "
+                            "Premiere: Janela > Extensões > Tools PRO. Se acabou de "
+                            "preparar, reinicie o Premiere primeiro.")
         return r
     r["ponte"] = True
 

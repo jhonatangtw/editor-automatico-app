@@ -1361,9 +1361,12 @@ async function pintarAdobe() {
     ${!ok ? `<div class="aviso ruim" style="margin-top:12px;font-size:12px">
         ${esc(v.detalhe || (a.mcp && a.mcp.msg) || 'O Claude não consegue usar as ferramentas do editor.')}
       </div>
-      <button class="bt principal" id="reconectar" style="width:100%;margin-top:10px">
-        Reconectar ao Tools PRO</button>
-      ${!v.ponte ? `<button class="bt discreto" id="ir-plugin" style="width:100%;margin-top:8px">
+      ${v.preparar_ponte
+        ? `<button class="bt principal" id="preparar-ponte" style="width:100%;margin-top:10px">
+             Preparar a ponte (1 clique)</button>`
+        : `<button class="bt principal" id="reconectar" style="width:100%;margin-top:10px">
+             Reconectar ao Tools PRO</button>`}
+      ${v.instalar_plugin || !v.ponte ? `<button class="bt discreto" id="ir-plugin" style="width:100%;margin-top:8px">
         Instalar o plugin do Premiere</button>` : ''}` : ''}
     <button class="bt discreto" id="rever-adobe" style="width:100%;margin-top:8px">Conferir de novo</button>`;
 
@@ -1373,6 +1376,27 @@ async function pintarAdobe() {
   if (rc) rc.onclick = () => reconectarToolsPro();
   const ip = document.getElementById('ir-plugin');
   if (ip) ip.onclick = () => { aba = 'ambiente'; projetoAberto = null; desenhar(); };
+  const pp = document.getElementById('preparar-ponte');
+  if (pp) pp.onclick = () => prepararPonte();
+}
+
+// O painel do Tools PRO não abre porta de conexão por padrão: falta o `.debug`
+// na pasta da extensão. Sem ele o app dizia "abra o painel" para quem já estava
+// com o painel aberto — conselho certo, causa errada.
+async function prepararPonte() {
+  const v = modal(`<h2>Preparando a ponte</h2>
+    <p class="sub" id="pp-txt">Escrevendo a configuração na pasta do plugin…</p>`);
+  try {
+    const r = await post('/api/ponte/preparar');
+    v.querySelector('h2').textContent = 'Ponte preparada';
+    v.querySelector('#pp-txt').innerHTML =
+      `O painel do Tools PRO passa a abrir a porta <b>${r.porta}</b>.<br><br>
+       <b>Feche e reabra o Premiere</b> e abra <b>Janela &gt; Extensões &gt; Tools PRO</b>.
+       A porta só nasce quando o Premiere arranca lendo esse arquivo — por isso o
+       reinício não é frescura.`;
+  } catch (e) {
+    v.querySelector('#pp-txt').textContent = e.message;
+  }
 }
 
 async function reconectarToolsPro() {
@@ -1399,6 +1423,8 @@ async function reconectarToolsPro() {
 async function telaAmbiente() {
   const d = await api('/api/ambiente');
   const pl = await api('/api/plugin').catch(() => null);
+  const pn = await api('/api/ponte').catch(() => null);
+  if (pl && pn) pl.ponte = pn;
   const faltando = d.itens.filter((i) => !i.tem && i.essencial && i.instalavel);
 
   moldura(`
@@ -1470,7 +1496,14 @@ function cartaoPlugin(pl) {
           ? `instalado v${esc(pl.instalado)}${pl.ultima ? ` · publicado v${esc(pl.ultima)}` : ''}`
           : 'não encontrado — é ele que deixa o app ler e escrever na sua timeline'}</div>
         ${pl.erro ? `<div class="pl-sub" style="color:var(--ouro)">${esc(pl.erro)}</div>` : ''}
+        ${tem && pl.ponte && !pl.ponte.tem_debug ? `<div class="pl-sub" style="color:var(--broll)">
+          ⚠ A ponte com o Premiere não está preparada — o painel não abre porta de
+          conexão, então o app não consegue escrever na timeline.</div>` : ''}
+        ${tem && pl.ponte && pl.ponte.tem_debug ? `<div class="pl-sub" style="color:var(--ok)">
+          ponte preparada na porta ${pl.ponte.porta}</div>` : ''}
       </div>
+      ${tem && pl.ponte && !pl.ponte.tem_debug
+        ? `<button class="bt principal" id="pl-ponte">Preparar a ponte</button>` : ''}
       <a class="bt discreto" href="${esc(pl.pagina)}" target="_blank" rel="noreferrer">Página</a>
       <button class="bt ${tem && !pl.tem_nova ? '' : 'principal'}" id="pl-instalar"
         style="color:${tem && !pl.tem_nova ? '' : cor}">${rotulo}</button>
@@ -1478,6 +1511,8 @@ function cartaoPlugin(pl) {
 }
 
 function ligarPlugin() {
+  const pb = document.getElementById('pl-ponte');
+  if (pb) pb.onclick = async () => { await prepararPonte(); };
   const b = document.getElementById('pl-instalar');
   if (!b) return;
   b.onclick = () => {
