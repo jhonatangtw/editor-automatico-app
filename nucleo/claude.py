@@ -28,8 +28,7 @@ import subprocess
 import urllib.error
 import urllib.request
 
-from . import chaves
-import subprocess  # noqa: E402
+from . import chaves, so
 
 API = "https://api.anthropic.com/v1/models"
 VERSAO = "2023-06-01"
@@ -122,7 +121,7 @@ def sessao_cli():
 
 def _cli(*args, timeout=40):
     try:
-        r = subprocess.run(("ant",) + args, capture_output=True, text=True, timeout=timeout)
+        r = so.run(("ant",) + args, capture_output=True, text=True, timeout=timeout)
     except FileNotFoundError:
         return None, "sem_cli"
     except Exception as e:
@@ -196,8 +195,8 @@ def entrar():
                 "msg": "Para entrar com a conta é preciso o CLI da Anthropic. "
                        "No Terminal: brew tap anthropics/tap && brew install ant"}
     try:
-        subprocess.Popen(["ant", "auth", "login"],
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        so.popen(["ant", "auth", "login"],
+                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return {"ok": True, "msg": "Abri o navegador. Autorize e volte aqui."}
     except Exception as e:
         return {"ok": False, "msg": str(e)}
@@ -267,7 +266,7 @@ def testar_conta():
         if not tem_claude_cli():
             return {"ok": False, "msg": "O Claude Code não está instalado."}
         try:
-            r = subprocess.run(["claude", "-p", "--output-format", "json", "responda: ok"],
+            r = so.run(["claude", "-p", "--output-format", "json", "responda: ok"],
                                capture_output=True, text=True, timeout=90,
                                env=ambiente_isolado())
             d = json.loads(r.stdout or "{}")

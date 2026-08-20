@@ -1,0 +1,5 @@
+# Só duas dependências, de propósito: cada uma a mais é uma chance a mais do
+# PyInstaller falhar no empacotamento — e empacotar é o passo que decide se o
+# app existe pro aluno ou só pra quem tem terminal.
+pywebview
+keyring

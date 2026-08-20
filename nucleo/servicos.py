@@ -24,7 +24,7 @@ import subprocess
 import urllib.error
 import urllib.request
 
-from . import chaves, claude as _claude
+from . import chaves, claude as _claude, so
 
 # nome do cabeçalho, caminho do teste e onde ler o saldo na resposta
 TABELA = {
@@ -104,6 +104,11 @@ def _http(url, cabecalho, valor, metodo="GET"):
 # ------------------------------------------------------------ Higgsfield
 
 def abrir_no_terminal(comando, titulo=""):
+    from . import so
+    return so.terminal(comando, titulo)
+
+
+def _abrir_no_terminal_mac(comando, titulo=""):
     """Roda um login interativo num Terminal de verdade.
 
     ⚠️ CLI de OAuth precisa de TTY. Disparado por Popen dentro do app, o `mmx`
@@ -132,7 +137,7 @@ def abrir_no_terminal(comando, titulo=""):
 
 def _minimax_status():
     try:
-        r = subprocess.run(["mmx", "auth", "status"], capture_output=True,
+        r = so.run(["mmx", "auth", "status"], capture_output=True,
                            text=True, timeout=40)
     except FileNotFoundError:
         return {"conectado": False,
@@ -170,7 +175,7 @@ def minimax_entrar(chave=None):
     grava direto sem abrir navegador."""
     try:
         if chave:
-            r = subprocess.run(["mmx", "auth", "login", "--api-key", chave],
+            r = so.run(["mmx", "auth", "login", "--api-key", chave],
                                capture_output=True, text=True, timeout=90)
             ok = r.returncode == 0
             return {"ok": ok, "msg": "Chave guardada pelo CLI." if ok
@@ -186,13 +191,13 @@ def minimax_entrar(chave=None):
 
 
 def minimax_sair():
-    subprocess.run(["mmx", "auth", "logout"], capture_output=True)
+    so.run(["mmx", "auth", "logout"], capture_output=True)
     return {"ok": True}
 
 
 def _heygen_status():
     try:
-        r = subprocess.run(["heygen", "auth", "status"], capture_output=True,
+        r = so.run(["heygen", "auth", "status"], capture_output=True,
                            text=True, timeout=40)
     except FileNotFoundError:
         return {"conectado": False,
@@ -229,13 +234,13 @@ def heygen_entrar():
 
 
 def heygen_sair():
-    subprocess.run(["heygen", "auth", "logout"], capture_output=True)
+    so.run(["heygen", "auth", "logout"], capture_output=True)
     return {"ok": True}
 
 
 def _higgs_status():
     try:
-        r = subprocess.run(["higgsfield", "account", "status", "--json"],
+        r = so.run(["higgsfield", "account", "status", "--json"],
                            capture_output=True, text=True, timeout=40)
     except FileNotFoundError:
         return {"conectado": False,
@@ -268,7 +273,7 @@ def higgs_entrar():
 
 
 def higgs_sair():
-    subprocess.run(["higgsfield", "auth", "logout"], capture_output=True)
+    so.run(["higgsfield", "auth", "logout"], capture_output=True)
     return {"ok": True}
 
 

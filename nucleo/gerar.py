@@ -27,7 +27,7 @@ import os
 import re
 import subprocess
 
-from . import projetos
+from . import projetos, so
 
 ESPERA = ["--wait", "--wait-timeout", "50m", "--wait-interval", "20s"]
 
@@ -92,8 +92,8 @@ class Falhou(RuntimeError):
 
 def _cli(args, timeout=3600):
     try:
-        r = subprocess.run(["higgsfield"] + args, capture_output=True,
-                           text=True, timeout=timeout)
+        r = so.run(["higgsfield"] + args, capture_output=True,
+                   text=True, timeout=timeout)
     except FileNotFoundError:
         raise Falhou("O CLI do Higgsfield não está instalado nesta máquina.")
     except subprocess.TimeoutExpired:

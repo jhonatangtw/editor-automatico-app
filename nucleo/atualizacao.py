@@ -19,9 +19,10 @@ Duas decisões que valem a pena registrar:
 import json
 import os
 import ssl
-import subprocess
 import sys
 import urllib.request
+
+from . import so
 
 TEMPO = 20
 UA = {"User-Agent": "EditorAutomatico"}
@@ -86,7 +87,13 @@ def conferir():
         return saida
     saida["ultima"] = d.get("version")
     saida["notas"] = d.get("notes")
-    saida["asset"] = d.get("asset") or eu.get("asset") or "EditorAutomatico.dmg"
+    # cada sistema baixa o SEU instalador. Um asset só significava mandar .dmg
+    # para quem está no Windows — e o aluno abre um arquivo que não abre.
+    chave = "asset_win" if so.WIN else "asset_mac"
+    saida["asset"] = (d.get(chave) or eu.get(chave) or d.get("asset")
+                      or eu.get("asset")
+                      or ("EditorAutomatico-Instalador.exe" if so.WIN
+                          else "EditorAutomatico.dmg"))
     saida["tem_nova"] = maior(saida["ultima"], saida["versao"])
     saida["url"] = "%s/latest/download/%s" % (_base(repo), saida["asset"])
     return saida
@@ -104,7 +111,8 @@ def baixar(destino_dir=None, ao_vivo=None):
 
     destino_dir = destino_dir or os.path.expanduser("~/Downloads")
     os.makedirs(destino_dir, exist_ok=True)
-    alvo = os.path.join(destino_dir, "EditorAutomatico-%s.dmg" % info["ultima"])
+    ext = os.path.splitext(info["asset"])[1] or (".exe" if so.WIN else ".dmg")
+    alvo = os.path.join(destino_dir, "EditorAutomatico-%s%s" % (info["ultima"], ext))
 
     ao_vivo and ao_vivo("baixando a versão %s…" % info["ultima"])
     req = urllib.request.Request(info["url"], headers=UA)
@@ -123,10 +131,9 @@ def baixar(destino_dir=None, ao_vivo=None):
                     ao_vivo("baixando… %d%%" % int(lido * 100 / total))
     os.replace(tmp, alvo)
 
-    aberto = False
-    if sys.platform == "darwin":
-        aberto = subprocess.run(["open", alvo], capture_output=True).returncode == 0
+    aberto = so.abrir(alvo)
+    comofaz = ("Siga o instalador e reabra o app." if so.WIN else
+               "Arraste o Editor Automático para a pasta Aplicativos e reabra o app.")
     return {"ok": True, "arquivo": alvo, "aberto": aberto, "versao": info["ultima"],
-            "msg": ("Baixei a versão %s e abri o instalador. Arraste o Editor "
-                    "Automático para a pasta Aplicativos e reabra o app."
-                    % info["ultima"])}
+            "msg": "Baixei a versão %s e abri o instalador. %s"
+                   % (info["ultima"], comofaz)}

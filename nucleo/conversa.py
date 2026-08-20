@@ -27,7 +27,7 @@ import sys
 import time
 
 from . import (adobe, chaves, claude as conta_claude, conversas, gerar,  # noqa: F401
-               pipeline, projetos)
+               pipeline, projetos, so)
 
 MODELO = "claude-opus-5"
 
@@ -469,7 +469,7 @@ def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False):
         cmd += ["--add-dir", projetos.dir_projeto(pid)]
     cmd += (["--resume", sid] if retomar else ["--session-id", sid])
 
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    proc = so.popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             text=True, bufsize=1, cwd=_casa(cid),
                             env=conta_claude.ambiente_isolado())
 

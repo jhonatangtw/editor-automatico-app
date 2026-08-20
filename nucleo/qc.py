@@ -22,7 +22,7 @@ import os
 import re
 import subprocess
 
-from . import adobe, projetos
+from . import adobe, projetos, so
 
 TOLERANCIA = 0.20      # segundos de folga entre o beat e o clipe na timeline
 VIDEO_EXT = (".mp4", ".mov", ".m4v")
@@ -136,7 +136,7 @@ def auditar_timeline(pid, trilha_apoio=2):
 # ---------------------------------------------------------------- o arquivo
 
 def _ffprobe(caminho):
-    r = subprocess.run(
+    r = so.run(
         ["ffprobe", "-v", "error", "-show_streams", "-show_format", "-of", "json", caminho],
         capture_output=True, text=True, timeout=90)
     if r.returncode != 0:
@@ -151,7 +151,7 @@ def _varredura(caminho, ao_vivo=None):
            "-vf", "blackdetect=d=0.12:pic_th=0.98:pix_th=0.10",
            "-af", "silencedetect=n=-38dB:d=1.0",
            "-f", "null", "-"]
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+    r = so.run(cmd, capture_output=True, text=True, timeout=900)
     saida = r.stderr or ""
     pretos = [{"inicio": round(float(a), 2), "fim": round(float(b), 2)}
               for a, b in re.findall(
@@ -174,7 +174,7 @@ def _mosaico(caminho, destino, duracao):
         return None
     passo = max(duracao / 20.0, 0.4)
     os.makedirs(os.path.dirname(destino), exist_ok=True)
-    r = subprocess.run(
+    r = so.run(
         ["ffmpeg", "-y", "-v", "error", "-i", caminho,
          "-vf", "fps=1/%.3f,scale=200:-1,tile=5x4" % passo,
          "-frames:v", "1", destino],

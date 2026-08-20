@@ -16,7 +16,7 @@ import json
 import os
 import subprocess
 
-from . import projetos
+from . import projetos, so
 
 
 def disponivel():
@@ -34,8 +34,8 @@ def rodar(pid, modelo="medium", ao_vivo=None):
     cmd = ["whisper", video, "--model", modelo, "--word_timestamps", "True",
            "--output_format", "json", "--output_dir", saida_dir, "--verbose", "False"]
 
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                            text=True, bufsize=1)
+    proc = so.popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, bufsize=1)
     for linha in proc.stdout:
         if ao_vivo:
             ao_vivo(linha.rstrip())

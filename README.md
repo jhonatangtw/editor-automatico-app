@@ -7,15 +7,23 @@ confere o resultado antes de liberar a exportação.
 Roda na sua máquina, com as suas contas. O material não sobe para lugar nenhum
 para ser transcrito — o Whisper roda local.
 
-## Instalar (macOS)
+## Instalar
 
-1. Baixe o [instalador mais recente](https://github.com/jhonatangtw/editor-automatico-app/releases/latest/download/EditorAutomatico.dmg).
-2. Arraste o **Editor Automático** para a pasta Aplicativos.
-3. Na primeira abertura: **botão direito no app → Abrir → Abrir**. O app não é
+**macOS** — [baixar o .dmg](https://github.com/jhonatangtw/editor-automatico-app/releases/latest/download/EditorAutomatico.dmg)
+
+1. Abra o `.dmg` e arraste o **Editor Automático** para a pasta Aplicativos.
+2. Na primeira abertura: **botão direito no app → Abrir → Abrir**. O app não é
    assinado com Developer ID, então o macOS avisa uma vez.
 
+**Windows** — [baixar o instalador](https://github.com/jhonatangtw/editor-automatico-app/releases/latest/download/EditorAutomatico-Instalador.exe)
+
+1. Rode o instalador. Ele **não pede senha de administrador** — instala em
+   `%LOCALAPPDATA%` e cria atalho no menu Iniciar e na área de trabalho.
+2. Na primeira execução o SmartScreen avisa (o instalador não é assinado):
+   **Mais informações → Executar assim mesmo**.
+
 Atualizações aparecem sozinhas dentro do app — pill **⬆ Atualizar** no rodapé da
-barra lateral.
+barra lateral, e cada sistema baixa o seu instalador.
 
 ## O plugin do Premiere
 
@@ -61,4 +69,6 @@ python3 -m venv .venv && .venv/bin/pip install pywebview keyring
 .venv/bin/python app.py
 ```
 
-Publicar uma versão: edite `version.json` e rode `./publicar.sh`.
+Publicar uma versão: edite `version.json`, commite e rode `./publicar.sh` — ele
+marca a tag e o GitHub Actions constrói os dois instaladores (o `.exe` só nasce
+numa máquina Windows; o PyInstaller não faz build cruzado).

@@ -178,3 +178,48 @@ botão: baixa o pacote OFFLINE oficial da Release, descompacta e entrega ao
 `INSTALAR-MAC.command` **num Terminal de verdade** — ele liga o PlayerDebugMode
 e instala fontes, e disparado por Popen mudo um passo falha enquanto o app
 relata sucesso.
+
+## Windows (20/08/2026)
+
+O app não era só-Mac por escolha: cada pedaço tinha aprendido o Mac por conta —
+`pgrep` para achar o Premiere, `osascript` para abrir Terminal, `brew` para
+instalar, `/Applications` para procurar programa. `nucleo/so.py` junta as
+diferenças num lugar só; o resto do código não pergunta mais qual é o sistema.
+
+⚠️ **CLI de npm no Windows é `.cmd`.** `subprocess.run(["higgsfield", ...])`
+levanta `FileNotFoundError` com o binário instalado e funcionando — o
+`CreateProcess` não executa `.cmd` por nome. `so.run`/`so.popen` resolvem o
+argv[0] com `shutil.which` (que enxerga o `.cmd` por causa do PATHEXT) antes de
+chamar. É por isso que TODA chamada de CLI passa por eles.
+
+⚠️ **`os.path.expandvars` não expande `%VAR%` fora do Windows** — no Mac o
+posixpath só entende `$VAR`, então um teste aqui veria o literal `%APPDATA%` e
+passaria mentindo. Caminho de Windows se monta com `os.environ`.
+
+⚠️ **PATH no Windows não tem o problema do Mac**: processo aberto pelo Explorer
+HERDA o PATH do usuário. O `caminho.py` só acrescenta os cantos do npm e do pip.
+
+⚠️ **`tasklist` filtra por NOME do executável**, não pela linha de comando. Por
+isso o padrão do Premiere muda de casa: `Adobe Premiere Pro` no Mac,
+`Adobe Premiere Pro.exe` no Windows.
+
+Gerenciador de pacotes: `winget` (vem no Windows 10/11 pela Store). HeyGen CLI e
+`ant` ficam marcados como manuais lá — receita que falha é pior do que aviso
+honesto.
+
+## Os dois instaladores
+
+| | arquivo | como instala |
+|---|---|---|
+| macOS | `EditorAutomatico.dmg` | arrastar para Aplicativos |
+| macOS | `EditorAutomatico.pkg` | assistente, **sem senha de admin** (domínio do usuário) |
+| Windows | `EditorAutomatico-Instalador.exe` | NSIS, `%LOCALAPPDATA%`, **sem admin** |
+
+⚠️ **O PyInstaller não faz build cruzado**: `.exe` só nasce em Windows. Por isso
+`publicar.sh` deixou de construir na mesa e passou a marcar a tag —
+`.github/workflows/publicar.yml` constrói nos dois runners e anexa os três
+arquivos (os dois instaladores + `version.json`) na Release, conferindo no fim
+se as URLs de `latest/download` respondem 200.
+
+⚠️ Nenhum dos dois é assinado (sem Developer ID nem certificado Windows):
+Gatekeeper e SmartScreen avisam na primeira abertura.

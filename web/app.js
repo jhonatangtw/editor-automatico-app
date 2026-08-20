@@ -1410,11 +1410,14 @@ async function telaAmbiente() {
     ${d.pronto ? `<div class="aviso" style="background:rgba(61,214,140,.1);color:var(--ok);border-color:rgba(61,214,140,.2);margin-bottom:16px">
         ✓ Tudo que é essencial está instalado.</div>`
       : `<div class="aviso ruim" style="margin-bottom:16px">Falta: ${esc(d.faltam.join(', '))}</div>`}
-    ${!d.brew ? `<div class="aviso" style="margin-bottom:16px">
+    ${!d.brew ? (d.gerenciador === 'winget' ? `<div class="aviso" style="margin-bottom:16px">
+      O <b>winget</b> não respondeu — sem ele não consigo instalar o FFmpeg sozinho.
+      Ele vem no Windows 10 e 11: abra a Microsoft Store e instale o
+      <b>Instalador de Aplicativo</b>.</div>` : `<div class="aviso" style="margin-bottom:16px">
       O Homebrew não está instalado — sem ele não consigo instalar FFmpeg sozinho.
       Cole no Terminal uma vez:<br>
       <code style="font-size:11px">/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"</code>
-      </div>` : ''}
+      </div>`) : ''}
     ${pl ? cartaoPlugin(pl) : ''}
     <div class="cartao">
       ${d.itens.map((i) => `
@@ -1479,8 +1482,8 @@ function ligarPlugin() {
   if (!b) return;
   b.onclick = () => {
     const v = modal(`<h2>Plugin do Premiere</h2>
-      <p class="sub">Baixando o instalador oficial (~100 MB). Ele abre no Terminal;
-      quando terminar, feche e reabra o Premiere e vá em
+      <p class="sub">Baixando o instalador oficial (~100 MB). Ele abre numa janela
+      de terminal; quando terminar, feche e reabra o Premiere e vá em
       <b>Janela &gt; Extensões &gt; Tools PRO</b>.</p>
       <div class="portao" id="log" style="max-height:200px">começando…</div>`);
     post('/api/plugin/instalar').then((r) => {

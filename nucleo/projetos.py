@@ -16,7 +16,7 @@ import subprocess
 import time
 import unicodedata
 
-from . import pipeline
+from . import pipeline, so
 
 RAIZ = os.path.expanduser("~/Documents/Editor Automático/Projetos")
 
@@ -45,7 +45,7 @@ def _gravar(destino, dados):
 
 def sondar(video):
     """Dimensão, duração e fps pelo ffprobe. Sem isso o plano não tem régua."""
-    r = subprocess.run(
+    r = so.run(
         ["ffprobe", "-v", "error", "-select_streams", "v:0",
          "-show_entries", "stream=width,height,r_frame_rate:format=duration",
          "-of", "json", video],

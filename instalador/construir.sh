@@ -32,8 +32,12 @@ STAGE="$PWD/instalador/stage"
 echo "▸ limpando"
 rm -rf build "$DIST" "$STAGE" ./*.spec
 
+# No CI não existe .venv — lá o Python já vem preparado pelo runner.
+PYI=".venv/bin/pyinstaller"
+[ -x "$PYI" ] || PYI="pyinstaller"
+
 echo "▸ empacotando com PyInstaller ($VER)"
-.venv/bin/pyinstaller \
+"$PYI" \
   --name "$BIN" --windowed --noconfirm --clean \
   --distpath "$DIST" \
   --add-data "web:web" \

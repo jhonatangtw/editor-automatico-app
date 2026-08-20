@@ -1,0 +1,83 @@
+# Publica os DOIS instaladores a cada tag `vX.Y.Z`.
+#
+# O do Windows tem que nascer no Windows: o PyInstaller não faz build cruzado.
+# Antes disso, o app não tinha como existir fora do Mac — não por causa do
+# código, por causa da máquina de build.
+name: publicar
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -r requirements.txt pyinstaller
+      - run: ./instalador/construir.sh
+      - name: nome fixo para o auto-update
+        run: |
+          mkdir -p entrega
+          cp "$(ls -t instalador/saida/*.dmg | head -1)" entrega/EditorAutomatico.dmg
+          # o .pkg (instala sem senha de admin) só sai fora de sandbox — aqui
+          # ele sai. Se um dia não sair, o .dmg segue sendo o canal e a Release
+          # não quebra por causa dele.
+          PKG=$(ls -t instalador/saida/*.pkg 2>/dev/null | head -1 || true)
+          if [ -n "$PKG" ]; then cp "$PKG" entrega/EditorAutomatico.pkg
+          else echo "::warning::o .pkg não foi gerado — Release sai só com o .dmg"; fi
+      - uses: actions/upload-artifact@v4
+        with: {name: mac, path: entrega/}
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -r requirements.txt pyinstaller
+      - name: NSIS
+        run: choco install nsis -y --no-progress
+      - run: powershell -ExecutionPolicy Bypass -File instalador\construir-windows.ps1
+      - run: |
+          mkdir entrega
+          copy instalador\saida\EditorAutomatico-Instalador.exe entrega\
+      - uses: actions/upload-artifact@v4
+        with: {name: windows, path: entrega/}
+
+  soltar:
+    needs: [mac, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: {path: entrega, merge-multiple: true}
+      - name: a Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -e
+          cp version.json entrega/
+          NOTAS=$(python3 -c "import json;print(json.load(open('version.json')).get('notes',''))")
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" entrega/* --clobber
+          else
+            gh release create "$TAG" entrega/* --title "$TAG" --notes "$NOTAS" --latest
+          fi
+      - name: conferir o que o app vai enxergar
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: |
+          set -e
+          for a in EditorAutomatico.dmg EditorAutomatico-Instalador.exe version.json; do
+            code=$(curl -sIL -o /dev/null -w '%{http_code}' \
+              "https://github.com/${{ github.repository }}/releases/latest/download/$a")
+            echo "$a -> $code"
+            [ "$code" = "200" ] || exit 1
+          done

@@ -22,6 +22,7 @@ Duas fontes, nesta ordem:
 
 import os
 import subprocess
+import sys
 
 CONHECIDOS = [
     "/opt/homebrew/bin", "/opt/homebrew/sbin",     # Apple Silicon
@@ -35,6 +36,30 @@ CONHECIDOS = [
 ]
 
 _pronto = False
+
+
+def _windows():
+    """No Windows não existe o problema que este módulo resolve: processo aberto
+    pelo Explorer HERDA o PATH do usuário. Só garantimos os cantos onde o npm e
+    o pip põem executável de usuário, que nem sempre estão no PATH da sessão."""
+    ap = os.environ.get("APPDATA") or ""
+    la = os.environ.get("LOCALAPPDATA") or ""
+    extras = [os.path.join(ap, "npm"),
+              os.path.join(la, "Microsoft", "WindowsApps"),
+              os.path.expanduser(r"~\.local\bin")]
+    # o Python de usuário muda de pasta a cada versão; varre as que existirem
+    base = os.path.join(la, "Programs", "Python")
+    try:
+        for n in sorted(os.listdir(base), reverse=True):
+            extras.append(os.path.join(base, n, "Scripts"))
+    except Exception:
+        pass
+    atual = [x for x in (os.environ.get("PATH") or "").split(os.pathsep) if x]
+    for d in extras:
+        if os.path.isdir(d) and d not in atual:
+            atual.append(d)
+    os.environ["PATH"] = os.pathsep.join(atual)
+    return os.environ["PATH"]
 
 
 def _do_shell():
@@ -60,6 +85,9 @@ def ajustar():
     global _pronto
     if _pronto:
         return os.environ["PATH"]
+    if sys.platform.startswith("win"):
+        _pronto = True
+        return _windows()
 
     atual = [x for x in (os.environ.get("PATH") or "").split(":") if x]
     partes = []

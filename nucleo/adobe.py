@@ -23,8 +23,9 @@ import json
 import os
 import socket
 import struct
-import subprocess
 import urllib.request
+
+from . import so
 
 PORTAS = [8862, 8860, 8863, 7842, 8088, 8090, 8092]
 TEMPO = 12
@@ -33,18 +34,15 @@ TEMPO = 12
 # ---------------------------------------------------------------- descoberta
 
 def rodando():
-    """Quais apps Adobe estão abertos agora."""
+    """Quais apps Adobe estão abertos agora.
+
+    O padrão muda de casa: no Mac é a linha de comando inteira (`pgrep -f`), no
+    Windows é o NOME do executável, que é o que o `tasklist` sabe filtrar."""
     saida = {}
-    for chave, padrao in (("premiere", "Adobe Premiere Pro"),
-                          ("aftereffects", "Adobe After Effects")):
-        try:
-            r = subprocess.run(["pgrep", "-f", padrao], capture_output=True,
-                               text=True, timeout=8)
-            # o crashpad_handler também casa com o padrão; não conta como app
-            pids = [l for l in r.stdout.split() if l]
-            saida[chave] = bool(pids)
-        except Exception:
-            saida[chave] = False
+    for chave, mac, win in (("premiere", "Adobe Premiere Pro", "Adobe Premiere Pro.exe"),
+                            ("aftereffects", "Adobe After Effects",
+                             "AfterFX.exe")):
+        saida[chave] = so.processos(win if so.WIN else mac)
     return saida
 
 

@@ -23,12 +23,14 @@ import subprocess
 import sys
 import zipfile
 
-from . import atualizacao
+from . import atualizacao, so
 
 REPO = "jhonatangtw/editor-black-belt-tools-pro"
 ASSET = "EditorBlackBeltToolsPRO-Instalador.zip"
-CEP = os.path.expanduser(
-    "~/Library/Application Support/Adobe/CEP/extensions/com.editorblackbelt.toolspro")
+CEP = os.path.join(so.CEP, "com.editorblackbelt.toolspro")
+
+# o mesmo pacote traz os dois instaladores; muda só qual deles se chama
+INSTALADOR = ("instalar-windows", ".bat") if so.WIN else ("instalar-mac", ".command")
 PAGINA = "https://github.com/%s/releases/latest" % REPO
 BASE = "https://github.com/%s/releases/latest/download/" % REPO
 
@@ -87,10 +89,6 @@ def _baixar(url, alvo, ao_vivo=None):
 def instalar(ao_vivo=None):
     """Baixa o pacote oficial, descompacta e entrega ao instalador de verdade."""
     diz = ao_vivo or (lambda _: None)
-    if sys.platform != "darwin":
-        return {"ok": False, "msg": "Neste sistema, baixe o instalador pela página "
-                                    "de releases.", "pagina": PAGINA}
-
     pasta = os.path.expanduser("~/Downloads/Editor Black Belt Tools PRO")
     if os.path.isdir(pasta):
         shutil.rmtree(pasta, ignore_errors=True)
@@ -108,29 +106,34 @@ def instalar(ao_vivo=None):
     os.remove(zipe)
 
     # o .command pode vir sem bit de execução dependendo de como foi zipado
+    prefixo, ext = INSTALADOR
     alvo = None
     for raiz, _, arquivos in os.walk(pasta):
         for n in arquivos:
-            if n.lower().startswith("instalar") and n.lower().endswith(".command"):
+            baixo = n.lower()
+            if baixo.startswith(prefixo) and baixo.endswith(ext):
                 alvo = os.path.join(raiz, n)
                 break
         if alvo:
             break
+    manual = "INSTALAR-WINDOWS.bat" if so.WIN else "INSTALAR-MAC.command"
     if not alvo:
-        subprocess.run(["open", pasta], capture_output=True)
+        so.abrir(pasta)
         return {"ok": True, "manual": True, "pasta": pasta,
                 "msg": "Baixei e abri a pasta do instalador. Dê dois cliques no "
-                       "arquivo INSTALAR-MAC.command."}
+                       "arquivo %s." % manual}
 
-    os.chmod(alvo, 0o755)
     diz("abrindo o instalador…")
-    from . import servicos
-    r = servicos.abrir_no_terminal(["bash", alvo], "plugin do Premiere")
+    if so.WIN:
+        r = so.terminal([alvo], "plugin do Premiere")
+    else:
+        os.chmod(alvo, 0o755)
+        r = so.terminal(["bash", alvo], "plugin do Premiere")
     if not r.get("ok"):
-        subprocess.run(["open", pasta], capture_output=True)
+        so.abrir(pasta)
         return {"ok": True, "manual": True, "pasta": pasta,
                 "msg": "Baixei o instalador e abri a pasta. Dê dois cliques em "
-                       "INSTALAR-MAC.command."}
+                       "%s." % manual}
     return {"ok": True, "pasta": pasta, "instalador": alvo,
             "msg": "O instalador do plugin abriu no Terminal. Quando ele terminar, "
                    "FECHE e reabra o Premiere e abra Janela > Extensões > Tools PRO."}
