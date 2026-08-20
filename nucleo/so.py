@@ -124,6 +124,13 @@ def terminal(comando, titulo=""):
     processo morre na hora e o app relata sucesso sobre um processo morto — foi
     exatamente isso que fez os quatro botões de login não funcionarem."""
     import shlex
+    # ⚠️ Abrir um terminal para um comando que não existe é pior do que não
+    # abrir: o aluno vê "command not found" e acha que o app quebrou. Foi o que
+    # aconteceu com o login do HeyGen numa máquina sem o CLI instalado.
+    if comando and not os.path.isabs(str(comando[0])) and not onde(comando[0]):
+        return {"ok": False, "falta": comando[0],
+                "msg": "O “%s” não está instalado nesta máquina. Instale pela aba "
+                       "Ambiente e volte aqui." % comando[0]}
     try:
         if WIN:
             # o `start` é quem abre a janela VISÍVEL; este lançador some

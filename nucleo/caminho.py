@@ -25,6 +25,7 @@ import subprocess
 import sys
 
 CONHECIDOS = [
+    "~/.editorblackbelt/bin",                      # o que o próprio app instala
     "/opt/homebrew/bin", "/opt/homebrew/sbin",     # Apple Silicon
     "/usr/local/bin", "/usr/local/sbin",           # Intel
     "~/.local/bin",                                # claude, heygen
@@ -44,7 +45,8 @@ def _windows():
     o pip põem executável de usuário, que nem sempre estão no PATH da sessão."""
     ap = os.environ.get("APPDATA") or ""
     la = os.environ.get("LOCALAPPDATA") or ""
-    extras = [os.path.join(ap, "npm"),
+    extras = [os.path.expanduser(r"~\.editorblackbelt\bin"),
+              os.path.join(ap, "npm"),
               # é aqui que o winget deixa o ffmpeg — sem esta pasta o app
               # instala e continua dizendo que não achou
               os.path.join(la, "Microsoft", "WinGet", "Links"),

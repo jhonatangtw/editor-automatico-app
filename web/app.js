@@ -144,7 +144,7 @@ function moldura(conteudo) {
     await post('/api/conta/sair'); iniciar();
   };
   const ba = document.getElementById('att');
-  if (ba) ba.onclick = () => (ATT?.tem_nova ? baixarAtualizacao() : procurarAtualizacao());
+  if (ba) ba.onclick = () => (ATT?.tem_nova ? atualizar() : procurarAtualizacao());
 }
 
 // O controle fica SEMPRE visível, mesmo em dia. Quando ele só aparecia havendo
@@ -160,7 +160,9 @@ function controleAtualizacao() {
     return `<button class="att" id="att" title="${esc(ATT.erro)}">
       v${esc(ATT.versao)} · tentar de novo</button>`;
   }
-  return `<button class="att" id="att">v${esc(ATT.versao)} · procurar atualização</button>`;
+  const leve = ATT.rodando_codigo ? ' ⬇' : '';
+  return `<button class="att" id="att" title="${ATT.rodando_codigo
+    ? 'rodando código atualizado sem reinstalar' : ''}">v${esc(ATT.versao)}${leve} · procurar atualização</button>`;
 }
 
 async function procurarAtualizacao() {
@@ -176,6 +178,42 @@ async function procurarAtualizacao() {
     toast(e.message, true);
     desenhar();
   }
+}
+
+// Atualização LEVE: quase toda correção é código, e código o app troca sozinho —
+// ~120 KB e reabrir, sem instalador. Só cai no instalador quando a versão
+// declara que mexeu no que vem dentro do pacote.
+function atualizar() {
+  if (ATT?.modo === 'codigo') return atualizarCodigo();
+  return baixarAtualizacao();
+}
+
+function atualizarCodigo() {
+  const v = modal(`<h2>Atualizando para ${esc(ATT.ultima)}</h2>
+    ${ATT.notas ? `<p class="sub">${esc(ATT.notas)}</p>` : ''}
+    <div class="portao" id="log" style="max-height:160px">baixando…</div>`);
+  post('/api/atualizacao/codigo').then((r) => {
+    const t = setInterval(async () => {
+      const st = await api('/api/tarefas/' + r.tarefa);
+      v.querySelector('#log').textContent = (st.log || []).slice(-3).join('\n') || 'trabalhando…';
+      if (st.estado === 'pronto') {
+        clearInterval(t);
+        v.innerHTML = `<h2>Pronto — versão ${esc(ATT.ultima)}</h2>
+          <p class="sub">${esc(st.resultado?.msg || 'Atualizado.')}</p>
+          <div class="etapa-acoes">
+            <button class="bt principal" id="reabrir">Reabrir agora</button>
+            <button class="bt discreto" id="depois">Depois</button>
+          </div>`;
+        v.querySelector('#reabrir').onclick = () => {
+          post('/api/atualizacao/reabrir').catch(() => {});
+          v.querySelector('.sub').textContent = 'Reabrindo…';
+        };
+        v.querySelector('#depois').onclick = () => v.remove();
+      } else if (st.estado === 'erro') {
+        clearInterval(t); v.remove(); toast(st.erro, true);
+      }
+    }, 700);
+  }).catch((e) => { v.remove(); toast(e.message, true); });
 }
 
 // A troca do .app é do usuário: baixo o .dmg e abro. Substituir por baixo um

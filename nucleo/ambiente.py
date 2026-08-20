@@ -69,6 +69,10 @@ def conferir():
          "essencial": True,
          "instalavel": _tem("py") or _tem("python") if WIN
                        else (_tem("pip3") or _tem("python3"))},
+        {"id": "node", "nome": "Node.js", "tem": _tem("npm"),
+         "para": "é por ele que Claude, Higgsfield e MiniMax se instalam",
+         "essencial": True, "instalavel": brew,
+         "versao": _versao(["node", "--version"]) if _tem("node") else ""},
         {"id": "claude", "nome": "Claude Code", "tem": _tem("claude"),
          "para": "é quem lê a fala e decide a edição — sem ele o app não pensa",
          "essencial": True, "instalavel": npm,
@@ -79,9 +83,7 @@ def conferir():
         {"id": "heygen", "nome": "HeyGen CLI", "tem": _tem("heygen"),
          "para": "avatar falante — o login por CLI gasta crédito de ASSINATURA, "
                  "não a carteira de API",
-         "essencial": False, "instalavel": brew and not WIN,
-         "manual": ("No Windows o HeyGen CLI se instala pelo site deles."
-                    if WIN else None)},
+         "essencial": False, "instalavel": True},
         {"id": "mmx", "nome": "MiniMax CLI", "tem": _tem("mmx"),
          "para": "vídeo, imagem e música da MiniMax (voz não — é ElevenLabs)",
          "essencial": False, "instalavel": npm},
@@ -119,6 +121,7 @@ _WINGET = ["winget", "install", "-e", "--accept-package-agreements",
            "--accept-source-agreements", "--id"]
 
 RECEITAS_MAC = {
+    "node":       [["brew", "install", "node"]],
     "claude":     [["npm", "install", "-g", "@anthropic-ai/claude-code"]],
     "ffmpeg":     [["brew", "install", "ffmpeg"]],
     "ffprobe":    [["brew", "install", "ffmpeg"]],   # vem no mesmo pacote
@@ -126,7 +129,6 @@ RECEITAS_MAC = {
     # torch inteiro (~2GB), que é o que fazia a instalação desistir no meio.
     "whisper":    [["pip3", "install", "--user", "--upgrade", "openai-whisper"]],
     "higgsfield": [["npm", "install", "-g", "@higgsfield/cli"]],
-    "heygen":     [["brew", "install", "heygen"]],
     "mmx":        [["npm", "install", "-g", "mmx-cli"]],
     "ant":        [["brew", "tap", "anthropics/tap"],
                    ["brew", "install", "anthropics/tap/ant"]],
@@ -135,6 +137,7 @@ RECEITAS_MAC = {
 # ⚠️ No Windows os CLI de npm viram `.cmd`. Quem chama tem que passar pelo
 # `so.run`, senão o Python levanta FileNotFoundError com o binário instalado.
 RECEITAS_WIN = {
+    "node":       [_WINGET + ["OpenJS.NodeJS.LTS"]],
     "claude":     [["npm", "install", "-g", "@anthropic-ai/claude-code"]],
     "ffmpeg":     [_WINGET + ["Gyan.FFmpeg"]],
     "ffprobe":    [_WINGET + ["Gyan.FFmpeg"]],
@@ -146,7 +149,80 @@ RECEITAS_WIN = {
 RECEITAS = RECEITAS_WIN if WIN else RECEITAS_MAC
 
 
+BIN = os.path.expanduser("~/.editorblackbelt/bin")
+HEYGEN_REPO = "heygen-com/heygen-cli"
+
+
+def _instalar_heygen(ao_vivo=None):
+    """Baixa o binário oficial do HeyGen e põe em ~/.editorblackbelt/bin.
+
+    ⚠️ A receita antiga era `brew install heygen` — e essa fórmula NÃO EXISTE.
+    Nunca instalou nada em máquina nenhuma; na do aluno o app abriu um Terminal
+    que respondeu "command not found". O CLI se distribui por GitHub Releases,
+    um binário por plataforma, e é isso que dá para instalar sem depender de
+    Homebrew, de Node ou de qualquer outra coisa que o editor não tem."""
+    import json as _json
+    import platform as _plat
+    import tarfile
+    import urllib.request
+    import zipfile
+    from . import rede
+
+    diz = ao_vivo or (lambda _: None)
+    maquina = _plat.machine().lower()
+    arq = "arm64" if maquina in ("arm64", "aarch64") else "amd64"
+    sis = "windows" if WIN else "darwin"
+
+    diz("procurando a versão publicada do HeyGen…")
+    req = urllib.request.Request(
+        "https://api.github.com/repos/%s/releases/latest" % HEYGEN_REPO,
+        headers={"User-Agent": "EditorAutomatico", "Accept": "application/vnd.github+json"})
+    with urllib.request.urlopen(req, timeout=30, context=rede.contexto()) as r:
+        rel = _json.loads(r.read())
+
+    alvo = None
+    for a in rel.get("assets", []):
+        n = a["name"]
+        if sis in n and arq in n and n.endswith((".tar.gz", ".zip")):
+            alvo = a
+            break
+    if not alvo:
+        raise RuntimeError("Não achei o HeyGen para %s/%s na versão %s."
+                           % (sis, arq, rel.get("tag_name")))
+
+    diz("baixando %s…" % alvo["name"])
+    req = urllib.request.Request(alvo["browser_download_url"],
+                                 headers={"User-Agent": "EditorAutomatico"})
+    with urllib.request.urlopen(req, timeout=180, context=rede.contexto()) as r:
+        dados = r.read()
+
+    os.makedirs(BIN, exist_ok=True)
+    import io
+    diz("instalando em %s…" % BIN)
+    if alvo["name"].endswith(".zip"):
+        with zipfile.ZipFile(io.BytesIO(dados)) as z:
+            for n in z.namelist():
+                if os.path.basename(n).lower().startswith("heygen"):
+                    with z.open(n) as f, open(os.path.join(BIN, os.path.basename(n)), "wb") as g:
+                        g.write(f.read())
+    else:
+        with tarfile.open(fileobj=io.BytesIO(dados), mode="r:gz") as t:
+            for m in t.getmembers():
+                if m.isfile() and os.path.basename(m.name).lower().startswith("heygen"):
+                    f = t.extractfile(m)
+                    destino = os.path.join(BIN, os.path.basename(m.name))
+                    with open(destino, "wb") as g:
+                        g.write(f.read())
+                    os.chmod(destino, 0o755)
+
+    if BIN not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = os.environ.get("PATH", "") + os.pathsep + BIN
+    return {"ok": _tem("heygen"), "qual": "heygen", "versao": rel.get("tag_name")}
+
+
 def instalar(qual, ao_vivo=None):
+    if qual == "heygen":
+        return _instalar_heygen(ao_vivo)
     receita = RECEITAS.get(qual)
     if not receita:
         raise RuntimeError("Não sei instalar “%s” automaticamente." % qual)

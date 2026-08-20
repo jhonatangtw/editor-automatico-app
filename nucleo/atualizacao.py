@@ -22,7 +22,7 @@ import ssl
 import sys
 import urllib.request
 
-from . import rede, so
+from . import codigo, rede, so
 
 TEMPO = 20
 UA = {"User-Agent": "EditorAutomatico"}
@@ -105,9 +105,76 @@ def conferir():
     saida["asset"] = (d.get(chave) or eu.get(chave) or d.get("asset")
                       or eu.get("asset") or padrao)
     saida["para"] = chave
+
+    # ATUALIZAÇÃO LEVE: quase toda correção é código, e código o app troca
+    # sozinho. Só cai no instalador quando a versão declara que precisa — isto
+    # é, quando mexeu em dependência binária.
+    pesado = bool(d.get("precisa_instalador"))
+    tem_codigo = bool(d.get("codigo"))
+    saida["modo"] = "instalador" if (pesado or not tem_codigo) else "codigo"
+    saida["porque_instalador"] = ("esta versão mexeu no que vem dentro do "
+                                  "pacote, então precisa reinstalar") if pesado else ""
+    saida["codigo"] = d.get("codigo")
+    saida["codigo_sha256"] = d.get("codigo_sha256")
+    saida["url_codigo"] = ("%s/latest/download/%s" % (_base(repo), d["codigo"])
+                           if tem_codigo else None)
+    saida["rodando_codigo"] = codigo.ativo()
     saida["tem_nova"] = maior(saida["ultima"], saida["versao"])
     saida["url"] = "%s/latest/download/%s" % (_base(repo), saida["asset"])
     return saida
+
+
+def atualizar_codigo(ao_vivo=None):
+    """Baixa só o código e aponta o app para ele. ~1 MB, sem instalador.
+
+    Não substitui nada em uso: grava ao lado e troca o ponteiro. O código antigo
+    continua no disco até a próxima limpeza, então voltar é trocar um arquivo."""
+    diz = ao_vivo or (lambda _: None)
+    info = conferir()
+    if info.get("erro"):
+        raise RuntimeError(info["erro"])
+    if not info["tem_nova"]:
+        return {"ok": True, "nada": True,
+                "msg": "Você já está na versão mais nova (%s)." % info["versao"]}
+    if info["modo"] != "codigo":
+        raise RuntimeError(info.get("porque_instalador") or
+                           "Esta versão precisa do instalador completo.")
+
+    diz("baixando a versão %s…" % info["ultima"])
+    dados = _pegar(info["url_codigo"], timeout=120)
+    diz("conferindo e instalando…")
+    r = codigo.instalar(dados, info["ultima"], info.get("codigo_sha256"))
+    r["msg"] = ("Atualizado para a versão %s. Feche e abra o app para usar — "
+                "não precisa reinstalar nada." % info["ultima"])
+    r["reabrir"] = True
+    return r
+
+
+def reabrir():
+    """Fecha e abre o app de novo, para a versão nova valer."""
+    import subprocess
+    import threading
+    alvo = sys.executable
+    if so.MAC and ".app/Contents/MacOS/" in alvo:
+        alvo = alvo.split(".app/Contents/MacOS/")[0] + ".app"
+        cmd = ["open", "-n", alvo]
+    elif so.WIN:
+        cmd = [alvo]
+    else:
+        cmd = [alvo]
+
+    def sair():
+        import time
+        time.sleep(0.8)
+        try:
+            subprocess.Popen(cmd, close_fds=True)
+        except Exception:
+            pass
+        time.sleep(0.6)
+        os._exit(0)
+
+    threading.Thread(target=sair, daemon=True).start()
+    return {"ok": True, "msg": "Reabrindo o app…"}
 
 
 def baixar(destino_dir=None, ao_vivo=None):

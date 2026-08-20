@@ -1,6 +1,6 @@
 {
-  "version": "0.15.7",
-  "notes": "O Claude Code entrou na lista do Ambiente (o app exigia e nunca ofereceu instalar) e ganhou botão Entrar, que abre o login no Terminal em vez de mandar você digitar comando.",
+  "version": "0.16.0",
+  "notes": "Atualização leve: a partir daqui o app baixa só o código (uns 120 KB) e reabre, em vez de mandar reinstalar. Junto: Node e Claude Code entraram na lista do Ambiente, e o HeyGen passou a instalar de verdade (a receita antiga apontava para uma fórmula do Homebrew que não existe).",
   "repo": "jhonatangtw/editor-automatico-app",
   "asset_mac": "EditorAutomatico.dmg",
   "asset_win": "EditorAutomatico-Instalador.exe",

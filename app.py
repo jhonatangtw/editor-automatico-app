@@ -24,6 +24,45 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 RAIZ = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, RAIZ)
 
+
+def _codigo_externo():
+    """Se existe código baixado mais novo, é ELE que roda.
+
+    O pacote instalado passa a ser também um carregador: correção de código não
+    exige mais reinstalar o app inteiro. Ver `nucleo/codigo.py` para as travas.
+
+    ⚠️ Purgar `sys.modules` antes de entregar o controle não é zelo: sem isso o
+    `nucleo` embutido já estaria carregado e o app novo importaria os módulos
+    VELHOS — metade código novo, metade antigo, e nenhum sintoma óbvio."""
+    try:
+        from nucleo import codigo
+    except Exception:
+        return None
+    d = codigo.ativo()
+    if not d or os.path.realpath(d["pasta"]) == os.path.realpath(RAIZ):
+        return None
+    # ⚠️ A quarentena vale só para a JANELA. O modo --mcp é disparado pelo Claude
+    # várias vezes por conversa e morre logo — ele nunca chega no ponto que
+    # limpa a marca, então marcaria a cada chamada e a abertura seguinte
+    # descartaria uma atualização que estava perfeita.
+    janela = "--mcp" not in sys.argv
+    if janela:
+        if codigo.em_quarentena():
+            codigo.descartar("o código baixado não abriu na tentativa anterior")
+            return None
+        codigo.marcar_tentativa(d["versao"])
+    for m in [m for m in sys.modules if m == "nucleo" or m.startswith("nucleo.")]:
+        del sys.modules[m]
+    sys.path.insert(0, d["pasta"])
+    return d["pasta"]
+
+
+_EXTERNO = _codigo_externo()
+if _EXTERNO:
+    import runpy
+    runpy.run_path(os.path.join(_EXTERNO, "app.py"), run_name="__main__")
+    sys.exit(0)
+
 # ANTES de qualquer import que faça `which`: um .app aberto pelo Finder não
 # herda o PATH do shell, e sem isto NENHUM CLI é encontrado.
 from nucleo import caminho  # noqa: E402
@@ -551,6 +590,12 @@ class Handler(BaseHTTPRequestHandler):
                     conta.estado().get("nome") or "usuário", log))
                 return self._json({"tarefa": tid})
 
+            if caminho == "/api/atualizacao/codigo":
+                tid = em_fundo("Atualizando",
+                               lambda log: atualizacao.atualizar_codigo(log))
+                return self._json({"tarefa": tid})
+            if caminho == "/api/atualizacao/reabrir":
+                return self._json(atualizacao.reabrir())
             if caminho == "/api/atualizacao/baixar":
                 tid = em_fundo("Baixando a atualização",
                                lambda log: atualizacao.baixar(ao_vivo=log))
@@ -620,6 +665,12 @@ def main():
     porta = porta_livre()
     servidor = ThreadingHTTPServer(("127.0.0.1", porta), Handler)
     threading.Thread(target=servidor.serve_forever, daemon=True).start()
+
+    # subiu: se este código veio de uma atualização leve, tira a quarentena.
+    # É este ponto — imports resolvidos e servidor no ar — que prova que o
+    # código baixado presta.
+    from nucleo import codigo as _cod
+    _cod.deu_certo()
     url = "http://127.0.0.1:%d/?t=%s" % (porta, TOKEN)
 
     try:

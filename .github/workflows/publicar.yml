@@ -80,13 +80,40 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with: {path: entrega, merge-multiple: true}
+      # ATUALIZAÇÃO LEVE: um zip só com o código, para o app se atualizar sem
+      # reinstalar. O sha256 vai no version.json da RELEASE (não dentro do zip,
+      # que seria circular) e o app recusa pacote que chegue diferente.
+      - name: pacote de código
+        run: |
+          set -e
+          python3 - <<'PY'
+          import hashlib, json, os, zipfile
+          PULAR = {"__pycache__", ".git", ".venv", "build", "instalador", ".github"}
+          with zipfile.ZipFile("entrega/codigo.zip", "w", zipfile.ZIP_DEFLATED) as z:
+              z.write("app.py"); z.write("version.json")
+              for raiz in ("nucleo", "web"):
+                  for pasta, subs, arqs in os.walk(raiz):
+                      subs[:] = [d for d in subs if d not in PULAR]
+                      for a in arqs:
+                          if a.endswith((".pyc", ".DS_Store")):
+                              continue
+                          z.write(os.path.join(pasta, a))
+          dados = open("entrega/codigo.zip", "rb").read()
+          d = json.load(open("version.json", encoding="utf-8"))
+          d["codigo"] = "codigo.zip"
+          d["codigo_sha256"] = hashlib.sha256(dados).hexdigest()
+          json.dump(d, open("entrega/version.json", "w", encoding="utf-8"),
+                    ensure_ascii=False, indent=2)
+          print("codigo.zip: %.1f KB · sha %s" % (len(dados)/1024, d["codigo_sha256"][:12]))
+          PY
+
       - name: a Release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
           set -e
-          cp version.json entrega/
+          test -f entrega/version.json
           NOTAS=$(python3 -c "import json;print(json.load(open('version.json')).get('notes',''))")
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" entrega/* --clobber
@@ -98,7 +125,7 @@ jobs:
         run: |
           set -e
           for a in EditorAutomatico.dmg EditorAutomatico-Intel.dmg \
-                   EditorAutomatico-Instalador.exe version.json; do
+                   EditorAutomatico-Instalador.exe codigo.zip version.json; do
             code=$(curl -sIL -o /dev/null -w '%{http_code}' \
               "https://github.com/${{ github.repository }}/releases/latest/download/$a")
             echo "$a -> $code"
