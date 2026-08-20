@@ -39,7 +39,9 @@ jobs:
   # traduz Intel→ARM, nunca o contrário — então o Intel precisa do próprio
   # runner. É build separado, não uma flag.
   mac-intel:
-    runs-on: macos-13
+    # ⚠️ `macos-13` foi aposentado: o job fica na fila para sempre em vez de
+    # falhar. O runner Intel vivo é o `macos-15-intel`.
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
