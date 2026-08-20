@@ -4,6 +4,5 @@
   "repo": "jhonatangtw/editor-automatico-app",
   "asset_mac": "EditorAutomatico.dmg",
   "asset_win": "EditorAutomatico-Instalador.exe",
-  "asset_mac_intel": "EditorAutomatico-Intel.dmg",
-  "precisa_instalador": true
+  "asset_mac_intel": "EditorAutomatico-Intel.dmg"
 }

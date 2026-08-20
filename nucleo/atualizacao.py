@@ -109,6 +109,9 @@ def conferir():
     # ATUALIZAÇÃO LEVE: quase toda correção é código, e código o app troca
     # sozinho. Só cai no instalador quando a versão declara que precisa — isto
     # é, quando mexeu em dependência binária.
+    # `precisa_instalador` é só para versão que muda DEPENDÊNCIA BINÁRIA. Arquivo
+    # novo em app.py/nucleo/web/regra viaja no pacote de código — marcar por
+    # cautela faria toda versão virar reinstalação, que é o problema original.
     pesado = bool(d.get("precisa_instalador"))
     tem_codigo = bool(d.get("codigo"))
     saida["modo"] = "instalador" if (pesado or not tem_codigo) else "codigo"
