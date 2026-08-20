@@ -19,7 +19,7 @@ pyinstaller --name $bin --windowed --noconfirm --clean `
   --distpath $dist `
   --add-data "web;web" `
   --add-data "version.json;." `
-  --add-data "regra;regra" `
+  --add-data "skills;skills" `
   --hidden-import webview.platforms.edgechromium `
   --icon marca\icone.ico `
   app.py

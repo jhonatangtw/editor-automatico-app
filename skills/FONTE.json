@@ -1,0 +1,11 @@
+{
+  "origem": "~/.claude/skills",
+  "sincronizado": "2026-08-20",
+  "skills": {
+    "editor-automatico-de-broll": "26916528e5867486",
+    "photorealism-prompts": "d922d2083d8f15ae",
+    "pixar3d": "500330872fdc8d62",
+    "storyboard-viral-3d": "acb40b868598406f",
+    "video-prompt-builder": "2b89d8b63b2afc5b"
+  }
+}

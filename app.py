@@ -89,7 +89,7 @@ if "--mcp" in sys.argv:
 from nucleo import (adobe, ambiente, atualizacao, chaves, claude, conta,  # noqa: E402
                     conversa, conversas,
                     decupar, etapas, gerar, ia, montagem, pipeline, plugin,
-                    ponte, projetos, qc, servicos, skill, voz)
+                    ponte, projetos, qc, servicos, skill, skills, voz)
 
 WEB = os.path.join(RAIZ, "web")
 
@@ -502,6 +502,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(plugin.estado())
             if caminho == "/api/ponte":
                 return self._json(ponte.estado())
+            if caminho == "/api/skills":
+                return self._json(skills.estado())
             if caminho == "/api/ambiente":
                 d = ambiente.conferir()
                 from nucleo import caminho as _cam
@@ -627,6 +629,11 @@ class Handler(BaseHTTPRequestHandler):
             if caminho == "/api/atualizacao/baixar":
                 tid = em_fundo("Baixando a atualização",
                                lambda log: atualizacao.baixar(ao_vivo=log))
+                return self._json({"tarefa": tid})
+            if caminho == "/api/skills/instalar":
+                tid = em_fundo("Instalando as skills",
+                               lambda log: skills.instalar(
+                                   bool(corpo.get("substituir")), log))
                 return self._json({"tarefa": tid})
             if caminho == "/api/ponte/preparar":
                 return self._json(ponte.preparar())

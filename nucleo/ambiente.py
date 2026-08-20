@@ -41,6 +41,21 @@ def _premiere():
     return so.premiere()
 
 
+def _skills():
+    """Quantas das skills do app estão na pasta do Claude do usuário.
+
+    Sem isto a tela dizia "tudo pronto" enquanto o Claude do editor respondia
+    sem repertório nenhum — o mesmo app dando resultado diferente por máquina,
+    e sem aviso."""
+    from . import skills as sk
+    try:
+        e = sk.estado()
+        return {"ok": not e["faltam"], "rotulo": "%d de %d na pasta do Claude"
+                % (e["instaladas"], e["total"]), "faltam": e["faltam"]}
+    except Exception as e:
+        return {"ok": False, "rotulo": str(e)[:40], "faltam": []}
+
+
 def _regra():
     """De onde sai a regra de edição. A tela dizia "tudo pronto" enquanto a peça
     que decide a edição não existia na máquina — agora ela aparece na lista."""
@@ -112,6 +127,12 @@ def conferir():
          "essencial": True, "instalavel": False,
          "manual": None if _regra()["ok"] else "Reinstale o app: ela vem junto.",
          "versao": _regra()["rotulo"]},
+        {"id": "skills", "nome": "Skills do Claude", "tem": _skills()["ok"],
+         "para": "o repertório que o Claude usa — fotorrealismo, Pixar 3D, "
+                 "storyboard, prompts de vídeo e a edição de b-roll",
+         "essencial": False, "instalavel": False,
+         "manual": None if _skills()["ok"] else "Instale pelo botão no card acima.",
+         "versao": _skills()["rotulo"]},
         {"id": "premiere", "nome": "Adobe Premiere Pro", "tem": bool(_premiere()),
          "para": "receber a timeline montada",
          "essencial": False, "manual": "Instale pelo Creative Cloud.",

@@ -35,12 +35,11 @@ SKILL_USUARIO = os.path.expanduser("~/.claude/skills/editor-automatico-de-broll"
 
 
 def _raiz_embutida():
-    aqui = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    for base in (aqui, getattr(sys, "_MEIPASS", None),
-                 os.path.dirname(sys.executable)):
-        if base and os.path.isdir(os.path.join(base, "regra")):
-            return os.path.join(base, "regra")
-    return os.path.join(aqui, "regra")
+    """A cópia da skill que viaja no app. Desde que o app leva a skill INTEIRA
+    (e não só os scripts), não existe mais uma "regra" separada: a fonte
+    embutida e a instalável são o mesmo material."""
+    from . import skills
+    return os.path.join(skills._raiz(), "editor-automatico-de-broll")
 
 
 def _base():
@@ -54,8 +53,8 @@ def origem():
     d = {"pasta": base, "rotulo": rotulo,
          "da_skill": base == SKILL_USUARIO, "sincronizada": None}
     try:
-        with open(os.path.join(_raiz_embutida(), "FONTE.json"), encoding="utf-8") as f:
-            d["sincronizada"] = json.load(f).get("sincronizado")
+        from . import skills
+        d["sincronizada"] = skills.sincronizado()
     except Exception:
         pass
     return d

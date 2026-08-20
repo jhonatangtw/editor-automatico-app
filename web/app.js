@@ -1611,6 +1611,7 @@ async function telaAmbiente() {
   const pl = await api('/api/plugin').catch(() => null);
   const pn = await api('/api/ponte').catch(() => null);
   if (pl && pn) pl.ponte = pn;
+  const sk = await api('/api/skills').catch(() => null);
   const faltando = d.itens.filter((i) => !i.tem && i.essencial && i.instalavel);
 
   moldura(`
@@ -1631,6 +1632,7 @@ async function telaAmbiente() {
       <div style="font-size:11px;opacity:.7;margin-top:6px">Abre o Terminal com o
       instalador oficial. Ele pede a senha do seu Mac — é o instalador pedindo, não o app.</div>
       </div>`) : ''}
+    ${sk ? cartaoSkills(sk) : ''}
     ${pl ? cartaoPlugin(pl) : ''}
     <div class="cartao">
       ${d.itens.map((i) => `
@@ -1671,7 +1673,52 @@ async function telaAmbiente() {
   const bt = document.getElementById('tudo');
   if (bt) bt.onclick = () => rodar(null);
   document.querySelectorAll('[data-inst]').forEach((b) => { b.onclick = () => rodar(b.dataset.inst); });
+  ligarSkills();
   ligarPlugin();
+}
+
+// As skills são o REPERTÓRIO do Claude. Sem elas o mesmo app, com o mesmo
+// Claude, responde com um vocabulário completamente diferente conforme a
+// máquina — e sem aviso nenhum. Por isso a tela mostra quantas ele tem.
+function cartaoSkills(sk) {
+  const falta = sk.faltam.length;
+  return `
+    <div class="plugin">
+      <div class="selo-pl">✦</div>
+      <div style="flex:1;min-width:0">
+        <div class="pl-nome">Skills do Claude</div>
+        <div class="pl-sub">${falta
+          ? `<span style="color:var(--broll)">${falta} de ${sk.total} faltando</span>
+             — sem elas o Claude edita sem o repertório da casa`
+          : `${sk.total} instaladas — fotorrealismo, Pixar 3D, storyboard,
+             prompts de vídeo e a edição de b-roll`}</div>
+        <div class="pl-sub" style="font-size:11px;opacity:.7">${esc(sk.destino)}</div>
+      </div>
+      ${falta ? `<button class="bt principal" id="sk-instalar">Instalar (${falta})</button>`
+              : `<button class="bt discreto" id="sk-instalar">Reinstalar</button>`}
+    </div>`;
+}
+
+function ligarSkills() {
+  const b = document.getElementById('sk-instalar');
+  if (!b) return;
+  b.onclick = () => {
+    const jaTem = b.textContent.trim() === 'Reinstalar';
+    const v = modal(`<h2>Skills do Claude</h2>
+      <p class="sub">${jaTem
+        ? 'Elas já estão na sua pasta. Reinstalar troca pelas versões que vieram no app — a sua cópia atual é guardada ao lado, não apagada.'
+        : 'Vou copiar as skills do app para a pasta do Claude. Nenhuma skill sua é sobrescrita.'}</p>
+      <div class="portao" id="log" style="max-height:160px;margin-top:10px">começando…</div>`);
+    post('/api/skills/instalar', { substituir: jaTem }).then((r) => {
+      const t = setInterval(async () => {
+        const st = await api('/api/tarefas/' + r.tarefa);
+        v.querySelector('#log').textContent = (st.log || []).slice(-4).join('\n') || 'trabalhando…';
+        if (st.estado === 'pronto') {
+          clearInterval(t); v.remove(); toast(st.resultado?.msg || 'Pronto.'); desenhar();
+        } else if (st.estado === 'erro') { clearInterval(t); v.remove(); toast(st.erro, true); }
+      }, 600);
+    }).catch((e) => { v.remove(); toast(e.message, true); });
+  };
 }
 
 // O plugin é a PONTE: sem ele o app não escreve uma linha na timeline. Por isso

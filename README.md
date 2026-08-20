@@ -145,6 +145,30 @@ Nenhum dos quatro caminhos usa SDK: tudo é `urllib`. O app empacota com
 PyInstaller e cada dependência a mais é uma chance a mais de quebrar no pacote
 do aluno.
 
+## As skills que vêm dentro do app
+
+O Claude Code lê as skills de `~/.claude/skills`. Na máquina de quem as escreveu
+isso está cheio; na de um editor, vazio — então o mesmo app, com o mesmo Claude,
+respondia com um repertório completamente diferente conforme quem abria, e sem
+nenhum aviso.
+
+O app leva cinco e as instala com um clique (aba **Ambiente**, card no topo):
+
+| Skill | Para quê |
+|---|---|
+| `editor-automatico-de-broll` | a régua da edição: punch, cadência, marcador, portão |
+| `photorealism-prompts` | prompts de imagem ultrarrealista |
+| `pixar3d` | personagens 3D estilo Pixar para criativo |
+| `storyboard-viral-3d` | storyboard cena a cena |
+| `video-prompt-builder` | shot list e prompts de vídeo |
+
+⚠️ **Nunca sobrescreve uma skill que já existe.** Na máquina do autor as skills
+instaladas são a FONTE, e o retrato que viaja no app é sempre mais velho —
+sobrescrever ali seria apagar o original com uma cópia atrasada. "Reinstalar"
+guarda a sua cópia ao lado, com data, em vez de apagá-la.
+
+Para atualizar o retrato antes de publicar: `./sincronizar-skills.sh`.
+
 ## Para quem vai mexer no código
 
 - `LEIA-ME.md` — arquitetura, decisões e as armadilhas que já custaram caro.

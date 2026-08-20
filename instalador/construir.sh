@@ -42,7 +42,7 @@ echo "▸ empacotando com PyInstaller ($VER)"
   --distpath "$DIST" \
   --add-data "web:web" \
   --add-data "version.json:." \
-  --add-data "regra:regra" \
+  --add-data "skills:skills" \
   --hidden-import webview.platforms.cocoa \
   --osx-bundle-identifier "$ID" \
   --icon marca/icone.icns \
