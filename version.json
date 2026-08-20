@@ -1,6 +1,6 @@
 {
-  "version": "0.15.5",
-  "notes": "No Windows, o app abria e fechava janelas pretas o tempo todo — cada consulta ao sistema era um subprocesso sem console. E o Reconectar refazia a varredura três vezes por tentativa, subindo o servidor de ferramentas do zero a cada uma.",
+  "version": "0.15.6",
+  "notes": "A tela de entrada parou de culpar a internet do usuário: quando falha, agora ela diz a causa real (certificado, firewall ou servidor fora).",
   "repo": "jhonatangtw/editor-automatico-app",
   "asset_mac": "EditorAutomatico.dmg",
   "asset_win": "EditorAutomatico-Instalador.exe",

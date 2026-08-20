@@ -109,7 +109,8 @@ def _chamar(rota, dados):
         headers={"Content-Type": "application/json", "User-Agent": _UA,
                  "Accept": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=20) as r:
+        from . import rede
+        with urllib.request.urlopen(req, timeout=20, context=rede.contexto()) as r:
             return json.loads(r.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         # o Worker devolve JSON também nos 4xx — a mensagem dele é melhor que a minha
@@ -117,10 +118,15 @@ def _chamar(rota, dados):
             return json.loads(e.read().decode("utf-8"))
         except Exception:
             return {"ok": False, "msg": "O servidor respondeu de forma inesperada."}
-    except Exception:
-        # rede fora, firewall de estúdio, Worker em manutenção
-        return {"ok": False, "offline": True,
-                "msg": "Não consegui falar com o servidor. Verifique sua internet."}
+    except Exception as e:
+        # ⚠️ Este `except` engolia TUDO e chutava "verifique sua internet" — e o
+        # que estava acontecendo de verdade num Mac sem Homebrew era falta de
+        # certificado. O aluno foi procurar problema na rede dele por causa
+        # desta frase. Agora a causa vem junto.
+        from . import rede
+        porque = rede.explicar(e)
+        return {"ok": False, "offline": True, "causa": str(e)[:200],
+                "msg": "Não consegui falar com o servidor. %s" % porque}
 
 
 # ---------------------------------------------------------------- uso
