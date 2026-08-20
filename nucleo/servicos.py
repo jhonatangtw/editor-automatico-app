@@ -180,7 +180,7 @@ def minimax_entrar(chave=None):
             ok = r.returncode == 0
             return {"ok": ok, "msg": "Chave guardada pelo CLI." if ok
                     else (r.stderr or r.stdout or "").strip()[:160]}
-        from shutil import which
+        which = so.onde
         if not which("mmx"):
             return {"ok": False, "msg": "O CLI da MiniMax não está instalado. "
                                         "Instale na aba Ambiente."}
@@ -227,7 +227,7 @@ def _heygen_status():
 
 def heygen_entrar():
     """OAuth no navegador — usa crédito de ASSINATURA, não a carteira de API."""
-    from shutil import which
+    which = so.onde
     if not which("heygen"):
         return {"ok": False, "msg": "O CLI do HeyGen não está instalado."}
     return abrir_no_terminal(["heygen", "auth", "login", "--oauth"], "HeyGen")
@@ -266,7 +266,7 @@ def _higgs_status():
 def higgs_entrar():
     """OAuth do Higgsfield. Vai pelo Terminal pelo mesmo motivo dos outros:
     fluxo interativo precisa de TTY."""
-    from shutil import which
+    which = so.onde
     if not which("higgsfield"):
         return {"ok": False, "msg": "O CLI do Higgsfield não está instalado."}
     return abrir_no_terminal(["higgsfield", "auth", "login"], "Higgsfield")

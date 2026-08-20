@@ -201,12 +201,25 @@ def revisar(caminho_plano, estilo_id=None):
 
 def build_ffmpeg(caminho_edicao, cwd):
     """montar.py cospe o comando ffmpeg; quem executa é o chamador, para poder
-    mostrar progresso e cancelar."""
-    import subprocess
-    r = subprocess.run(
-        [sys.executable, os.path.join(_dir("scripts"), "montar.py"),
-         "--config", caminho_edicao],
-        capture_output=True, text=True, cwd=cwd, timeout=120)
-    if r.returncode != 0:
-        raise RegraRecusou((r.stderr or r.stdout or "").strip())
-    return r.stdout
+    mostrar progresso e cancelar.
+
+    ⚠️ Roda em processo pelo mesmo motivo do `revisar()`: com `sys.executable`
+    o app EMPACOTADO chamaria a si mesmo em vez do Python."""
+    mod = _modulo("montar")
+    buf, codigo = io.StringIO(), 0
+    with _trava:
+        velho_argv, velho_cwd = sys.argv, os.getcwd()
+        try:
+            sys.argv = ["montar.py", "--config", caminho_edicao]
+            os.chdir(cwd)
+            with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+                try:
+                    mod.main()
+                except SystemExit as e:
+                    codigo = e.code if isinstance(e.code, int) else (0 if e.code is None else 1)
+        finally:
+            sys.argv = velho_argv
+            os.chdir(velho_cwd)
+    if codigo != 0:
+        raise RegraRecusou(buf.getvalue().strip())
+    return buf.getvalue()

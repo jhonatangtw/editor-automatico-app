@@ -363,7 +363,10 @@ def casar_midia(pid, aprovados):
     quebra assim que o job vai para outra máquina."""
     p = projetos.ler(pid)
     raiz = projetos.dir_projeto(pid)
+    # item aprovado cujo download falhou não tem arquivo: entra como órfão em
+    # vez de virar KeyError no meio da montagem
     por_id = {it["id"]: it for it in aprovados if it.get("arquivo")}
+    sem_arquivo = [it["id"] for it in aprovados if not it.get("arquivo")]
     casados, orfaos = [], []
 
     for b in p["plano"].get("beats", []):
@@ -380,7 +383,8 @@ def casar_midia(pid, aprovados):
 
     projetos.gravar_plano(pid, p["plano"])
     sobrando = [i for i in por_id if i not in {c["id"] for c in casados}]
-    return {"casados": casados, "sem_arquivo": orfaos, "sem_beat": sobrando}
+    return {"casados": casados, "sem_arquivo": orfaos + sem_arquivo,
+            "sem_beat": sobrando}
 
 
 def _aprovados(pid):

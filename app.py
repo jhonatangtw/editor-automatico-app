@@ -57,7 +57,11 @@ def _codigo_externo():
     return d["pasta"]
 
 
-_EXTERNO = _codigo_externo()
+# ⚠️ SÓ quando este arquivo é EXECUTADO. O `mcp_servidor` faz `from app import
+# ...`, e sem esta guarda um simples import entregaria o controle ao código
+# externo com run_name="__main__" — abrindo uma janela e travando ali. Foi o que
+# aconteceu na primeira varredura de rotas que rodei.
+_EXTERNO = _codigo_externo() if __name__ == "__main__" else None
 if _EXTERNO:
     import runpy
     runpy.run_path(os.path.join(_EXTERNO, "app.py"), run_name="__main__")

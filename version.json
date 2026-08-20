@@ -1,6 +1,6 @@
 {
-  "version": "0.16.1",
-  "notes": "A regra de edição passou a viajar dentro do app. Antes ela morava numa pasta que só existe na máquina de quem a escreveu, então o app parava na etapa 4 em qualquer outro computador.",
+  "version": "0.16.2",
+  "notes": "Varredura de bugs: geração paga não se perde mais por queda de rede no download, o carregador do código novo deixou de disparar em import, e duas chamadas que rodariam o próprio app em vez do Python foram corrigidas.",
   "repo": "jhonatangtw/editor-automatico-app",
   "asset_mac": "EditorAutomatico.dmg",
   "asset_win": "EditorAutomatico-Instalador.exe",

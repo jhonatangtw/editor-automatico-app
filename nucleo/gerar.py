@@ -317,10 +317,13 @@ def imagens(pid, corpo, log=None):
         d = _json_cli(args + ESPERA)
         url = _extrair_url(d)
         alvo = os.path.join(pasta, "%s.png" % b.get("id"))
-        _baixar(url, alvo)
-        itens.append({"id": b.get("id"), "arquivo": alvo, "url": url,
-                      "intencao": intencao, "fala": b.get("fala", ""),
-                      "inicio": b.get("inicio"), "fim": b.get("fim")})
+        it = {"id": b.get("id"), "arquivo": alvo, "url": url,
+              "intencao": intencao, "fala": b.get("fala", ""),
+              "inicio": b.get("inicio"), "fim": b.get("fim")}
+        if not _guardar(url, alvo, it):
+            log and log("%s: a imagem foi gerada mas o download falhou — "
+                        "a URL ficou guardada" % b.get("id"))
+        itens.append(it)
 
     return {"itens": itens, "ancora": ancora, "motor": motor,
             "custo_gasto": round(len(itens) * (custo_vivo(motor) or 0), 1)}
@@ -367,10 +370,13 @@ def animar(pid, corpo, aprovadas, log=None):
         d = _json_cli(args + ESPERA)
         url = _extrair_url(d)
         alvo = os.path.join(pasta, "%s.mp4" % it["id"])
-        _baixar(url, alvo)
-        itens.append({"id": it["id"], "arquivo": alvo, "url": url,
-                      "modelo": modelo, "duracao": dur, "porque": porque,
-                      "custo": custo_vivo(modelo, duration=dur)})
+        novo_it = {"id": it["id"], "arquivo": alvo, "url": url,
+                   "modelo": modelo, "duracao": dur, "porque": porque,
+                   "custo": custo_vivo(modelo, duration=dur)}
+        if not _guardar(url, alvo, novo_it):
+            log and log("%s: o vídeo foi gerado mas o download falhou — "
+                        "a URL ficou guardada" % it["id"])
+        itens.append(novo_it)
 
     return {"itens": itens,
             "custo_gasto": round(sum(x["custo"] or 0 for x in itens), 1)}
@@ -398,6 +404,24 @@ def _extrair_url(d):
         raise Falhou("A geração terminou mas não veio arquivo. Confira em "
                      "`higgsfield generate list` — o crédito pode ter saído.")
     return achadas[0]
+
+
+def _guardar(url, destino, item):
+    """Baixa o resultado JÁ PAGO — e se o download falhar, guarda a URL.
+
+    ⚠️ Antes, uma falha de rede aqui derrubava a etapa inteira por exceção. A
+    geração já tinha sido cobrada, o arquivo existia no servidor do Higgsfield,
+    e o app não guardava nem o endereço: rodar de novo era pagar de novo. Agora
+    o item volta marcado, com a URL, e o crédito não se perde por causa de uma
+    queda de dois segundos."""
+    try:
+        _baixar(url, destino)
+        item["arquivo"] = destino
+        return True
+    except Exception as e:
+        item["arquivo"] = None
+        item["erro_download"] = str(e)[:160]
+        return False
 
 
 def _baixar(url, destino):

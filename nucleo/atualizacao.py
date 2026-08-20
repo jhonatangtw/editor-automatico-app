@@ -159,12 +159,13 @@ def reabrir():
     import threading
     alvo = sys.executable
     if so.MAC and ".app/Contents/MacOS/" in alvo:
-        alvo = alvo.split(".app/Contents/MacOS/")[0] + ".app"
-        cmd = ["open", "-n", alvo]
-    elif so.WIN:
+        cmd = ["open", "-n", alvo.split(".app/Contents/MacOS/")[0] + ".app"]
+    elif getattr(sys, "frozen", False):
         cmd = [alvo]
     else:
-        cmd = [alvo]
+        # em desenvolvimento `sys.executable` é o Python: sem o script junto,
+        # "reabrir" abriria um interpretador vazio
+        cmd = [alvo, os.path.join(_raiz(), "app.py")]
 
     def sair():
         import time
