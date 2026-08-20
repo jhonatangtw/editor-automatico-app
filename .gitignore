@@ -12,3 +12,6 @@ instalador/saida/
 # rascunhos locais
 *.log
 *.parcial
+
+# artefatos de release (o .dmg vive nas Releases)
+instalador/release/

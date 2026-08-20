@@ -461,8 +461,20 @@ def montar(pid, corpo=None, log=None):
     if prep["trilhas_criadas"] == -1:
         alertas.append("Não consegui criar a trilha V%d — usando as que existem." % trilha)
     if not prep["v1"]:
-        alertas.append("A V1 está vazia: o punch não tem em que clipe pegar. "
-                       "Ponha o body na V1 e rode esta etapa de novo.")
+        # Sequência vazia é caso normal: o editor abre uma nova e manda montar.
+        # Sem isto o app parava e mandava ele fazer à mão a parte mais boba.
+        corpo_body = projetos.ler(pid)["plano"]["fonte"]
+        arq = corpo_body["body"]
+        if os.path.isfile(arq):
+            diz("a V1 está vazia — pondo o body nela…")
+            _rodar(IMPORTAR, {"arquivos": [arq], "bin": BIN}, 180)
+            _rodar(POSICIONAR, {"trilha": 1, "bin": BIN, "limpar": False,
+                                "itens": [{"id": "BODY", "arquivo": arq, "inicio": 0.0,
+                                           "fim": corpo_body.get("duracao") or 0}]}, 180)
+            prep = _rodar(PREPARAR, {"trilhas_video": trilha}, 60)
+        if not prep["v1"]:
+            alertas.append("A V1 continua vazia: o punch não tem em que clipe pegar. "
+                           "Ponha o body na V1 e rode esta etapa de novo.")
 
     arquivos = [i["arquivo"] for i in pm["inserts"]]
     diz("importando %d b-roll(s)…" % len(arquivos))
@@ -531,6 +543,7 @@ def montar(pid, corpo=None, log=None):
         "trilha_apoio": "V%d" % trilha,
         "trilhas_criadas": prep["trilhas_criadas"],
         "importados": imp["novos"],
+        "body_na_v1": len(prep["v1"]),
         "inserts_pedidos": len(pm["inserts"]),
         "inserts_postos": len(postos),
         "itens": pos["itens"],
