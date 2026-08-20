@@ -15,3 +15,6 @@ instalador/saida/
 
 # artefatos de release (o .dmg vive nas Releases)
 instalador/release/
+
+# cópias locais dos instaladores publicados (vivem nas Releases)
+instalador/instaladores/
