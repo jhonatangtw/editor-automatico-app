@@ -1,6 +1,6 @@
 {
   "version": "0.15.3",
-  "notes": "O painel do Tools PRO passa a abrir porta própria de conexão. Antes o app só falava com o Premiere em máquina que tivesse outros painéis instalados — em qualquer outra ele dizia para abrir um painel que já estava aberto.",
+  "notes": "O painel do Tools PRO passa a abrir porta própria de conexão — antes o app só falava com o Premiere em máquina que tivesse outros painéis instalados. E o controle de atualização agora fica sempre visível no rodapé, mostrando a versão instalada.",
   "repo": "jhonatangtw/editor-automatico-app",
   "asset_mac": "EditorAutomatico.dmg",
   "asset_win": "EditorAutomatico-Instalador.exe",

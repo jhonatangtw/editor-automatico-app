@@ -129,11 +129,9 @@ function moldura(conteudo) {
             <span class="glifo">${g}</span>${t}</button>`).join('')}
       </nav>
       <div class="rodape">
-        ${ATT?.tem_nova ? `<button class="att" id="att" title="${esc(ATT.notas || '')}">
-          ⬆ Atualizar para ${esc(ATT.ultima)}</button>` : ''}
+        ${controleAtualizacao()}
         <div class="quem"><b>${esc(E?.conta?.nome || 'Conectado')}</b>
-          ${E?.conta?.offline ? 'modo offline' : 'sessão ativa'}
-          ${ATT?.versao ? `<span class="versao">v${esc(ATT.versao)}</span>` : ''}</div>
+          ${E?.conta?.offline ? 'modo offline' : 'sessão ativa'}</div>
         <button class="sair" id="sair">Sair</button>
       </div>
     </aside>
@@ -146,7 +144,38 @@ function moldura(conteudo) {
     await post('/api/conta/sair'); iniciar();
   };
   const ba = document.getElementById('att');
-  if (ba) ba.onclick = baixarAtualizacao;
+  if (ba) ba.onclick = () => (ATT?.tem_nova ? baixarAtualizacao() : procurarAtualizacao());
+}
+
+// O controle fica SEMPRE visível, mesmo em dia. Quando ele só aparecia havendo
+// versão nova, quem estava atualizado via um rodapé mudo e concluía que não
+// dava para atualizar — foi exatamente o que aconteceu no plugin antes.
+function controleAtualizacao() {
+  if (!ATT) return `<button class="att buscando" id="att">procurando atualização…</button>`;
+  if (ATT.tem_nova) {
+    return `<button class="att nova" id="att" title="${esc(ATT.notas || '')}">
+      ⬆ Atualizar para ${esc(ATT.ultima)}</button>`;
+  }
+  if (ATT.erro) {
+    return `<button class="att" id="att" title="${esc(ATT.erro)}">
+      v${esc(ATT.versao)} · tentar de novo</button>`;
+  }
+  return `<button class="att" id="att">v${esc(ATT.versao)} · procurar atualização</button>`;
+}
+
+async function procurarAtualizacao() {
+  const b = document.getElementById('att');
+  if (b) { b.textContent = 'procurando…'; b.classList.add('buscando'); }
+  try {
+    ATT = await api('/api/atualizacao');
+    desenhar();
+    if (ATT.tem_nova) toast('Saiu a versão ' + ATT.ultima + '.');
+    else if (ATT.erro) toast(ATT.erro, true);
+    else toast('Você já está na versão mais nova (' + ATT.versao + ').');
+  } catch (e) {
+    toast(e.message, true);
+    desenhar();
+  }
 }
 
 // A troca do .app é do usuário: baixo o .dmg e abro. Substituir por baixo um
@@ -1559,8 +1588,8 @@ async function iniciar() {
   // depois de desenhar, nunca antes: sem internet o app abre igual
   api('/api/atualizacao').then((a) => {
     ATT = a;
-    if (a.tem_nova) desenhar();
-  }).catch(() => {});
+    desenhar();          // sempre: é o que tira o rodapé mudo
+  }).catch(() => { ATT = { versao: '?', erro: 'não consegui conferir' }; desenhar(); });
 }
 
 iniciar();
