@@ -2,13 +2,30 @@
 
 ## Instalar
 
+**No Mac** — repare em qual dos dois arquivos você baixa: menu  → *Sobre este Mac*.
+Se diz **Chip Apple**, é o `.dmg` normal; se diz **Processador Intel**, é o
+`-Intel.dmg`. O de Apple Silicon simplesmente não abre num Mac Intel.
+
 1. Abra o `.dmg` e arraste o **Editor Automático** para Aplicativos — ou dê dois cliques no `.pkg`.
 2. Na primeira abertura o macOS vai reclamar que o app não é de desenvolvedor identificado.
    **Botão direito no app → Abrir → Abrir.** Só na primeira vez.
-3. Entre com a **mesma conta do Tools PRO**. Se ainda não tem, crie por dentro do app —
-   o acesso passa por aprovação.
 
-O app **não pede senha de administrador** para instalar.
+**No Windows**
+
+1. Rode o `EditorAutomatico-Instalador.exe`. Ele cria atalho no menu Iniciar e na
+   área de trabalho.
+2. O SmartScreen avisa na primeira vez: **Mais informações → Executar assim mesmo**.
+
+Nos dois, entre com a **mesma conta do Tools PRO**. Se ainda não tem, crie por
+dentro do app — o acesso passa por aprovação.
+
+O app **não pede senha de administrador** em nenhum dos dois sistemas.
+
+## Atualizar
+
+Quando sai versão nova, aparece **⬆ Atualizar** no rodapé da barra lateral. Um
+clique baixa o instalador **da sua máquina** (Mac Apple Silicon, Mac Intel ou
+Windows — o app sabe qual) e abre. Nada de procurar link.
 
 ## O que precisa estar na máquina
 
@@ -18,6 +35,10 @@ O app **não pede senha de administrador** para instalar.
 | `whisper` | decupar a fala | não dá para decupar |
 | `higgsfield` | gerar b-roll | não dá para gerar |
 | `ant` (opcional) | entrar com a conta Claude sem chave | use chave de API |
+
+No Mac o app instala o que falta com o **Homebrew**; no Windows, com o **winget**
+(que já vem no Windows 10 e 11). O HeyGen CLI e o `ant` não têm instalação
+automática no Windows — lá, use a chave de API na tela de Contas.
 
 O app mostra na tela o que está faltando em vez de quebrar no meio.
 
@@ -51,8 +72,8 @@ O app para em **aguardando aprovação** e espera — quem conclui é sempre voc
 | 8 | Animação dos B-rolls | 💳 só as aprovadas viram vídeo |
 | 9 | **Aprovação dos vídeos** | portão |
 | 10 | Letterings, voz e legendas | 💳 só depois do visual aprovado |
-| 11 | Montagem no Premiere | Tools PRO: posiciona, muda áudio do b-roll, punch-in, trilhas |
-| 12 | **Controle de qualidade** | quadro a quadro; a exportação libera só na aprovação final |
+| 11 | Montagem no Premiere | importa, põe o b-roll na V2 aparado na fala, punch-in e marcadores |
+| 12 | **Controle de qualidade** | timeline × plano e o arquivo exportado; a exportação libera só na aprovação final |
 
 💳 = consome crédito das **suas** contas.
 
@@ -75,6 +96,13 @@ derrubar deixaria imagem aprovada que não corresponde mais — caro e silencios
 
 Trocar o ritmo do criativo é trocar o seletor. O plano roda em qualquer estilo,
 porque nada de acabamento mora no plano e nada de conteúdo mora no estilo.
+
+## O plugin do Premiere
+
+A montagem (etapa 11) e metade do QC (etapa 12) só funcionam com o **Tools PRO**
+aberto dentro do Premiere — é ele a ponte. Instale pela aba **Ambiente**, no card
+do topo, e depois deixe o painel aberto em **Janela → Extensões → Tools PRO**.
+Fechou o painel, a ponte some; o app avisa em vez de dar erro.
 
 ## Onde ficam seus arquivos
 
