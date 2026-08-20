@@ -1,6 +1,6 @@
 {
-  "version": "0.17.0",
-  "notes": "Você escolhe quem responde: Claude ou ChatGPT, num seletor embaixo do campo de mensagem. O ChatGPT entra pela API oficial da OpenAI, com streaming e com as mesmas ferramentas do app — e passa pelos mesmos portões do pipeline.",
+  "version": "0.17.1",
+  "notes": "O caminho \"chave de API\" do Claude voltou a existir no app empacotado: ele dependia de um SDK que nunca foi empacotado junto. Agora o app não carrega SDK nenhum.",
   "repo": "jhonatangtw/editor-automatico-app",
   "asset_mac": "EditorAutomatico.dmg",
   "asset_win": "EditorAutomatico-Instalador.exe",

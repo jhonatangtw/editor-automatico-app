@@ -262,13 +262,57 @@ class SemAcesso(RuntimeError):
     pass
 
 
-def _cliente():
-    """Só é chamado no método 'chave'. Nunca cai aqui por conta própria."""
-    import anthropic
-    k = chaves.ler("claude")
-    if not k:
-        raise SemAcesso("Sem chave de API guardada. Vá em Contas.")
-    return anthropic.Anthropic(api_key=k)
+MENSAGENS = "https://api.anthropic.com/v1/messages"
+
+
+def _pedir_anthropic(corpo):
+    """Uma chamada à API do Claude, em HTTP puro.
+
+    ⚠️ Isto usava o SDK `anthropic` — que NUNCA esteve no requirements.txt. No
+    app empacotado o import estourava `ModuleNotFoundError`, e o caminho da
+    chave de API simplesmente não existia para quem instalou pelo instalador.
+    Ninguém tinha batido porque todo mundo entra pela sessão. Agora o app não
+    carrega SDK nenhum: nem o da Anthropic, nem o da OpenAI.
+
+    Os cabeçalhos vêm do `claude.py`, que já sabe montar chave de API OU token
+    de conta — reescrever aqui daria duas verdades sobre a mesma credencial."""
+    import urllib.error
+    import urllib.request
+
+    from . import rede
+
+    cab, origem = conta_claude._cabecalhos()
+    if not cab:
+        raise SemAcesso("Sem credencial do Claude. Vá em Contas.")
+    cab = dict(cab, **{"Content-Type": "application/json"})
+
+    req = urllib.request.Request(MENSAGENS, method="POST",
+                                 data=json.dumps(corpo).encode("utf-8"),
+                                 headers=cab)
+    try:
+        with urllib.request.urlopen(req, timeout=300, context=rede.contexto()) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        try:
+            d = json.loads(e.read().decode("utf-8", "ignore"))
+            msg = ((d.get("error") or {}).get("message") or "").strip()
+        except Exception:
+            msg = ""
+        if e.code == 401:
+            raise SemAcesso("A credencial do Claude foi recusada (%s). Reconecte "
+                            "na aba Contas." % origem)
+        if e.code == 400 and "credit balance" in msg.lower():
+            raise SemAcesso(
+                "A conta de API do Claude está sem crédito. ⚠️ Se você tem "
+                "assinatura, troque o método para “sessão do Claude Code” — um "
+                "perfil do `ant` costuma estar apontando para outra org.")
+        if e.code == 429:
+            raise SemAcesso("A Anthropic recusou por limite de uso. " + msg)
+        if e.code in (500, 502, 503, 529):
+            raise SemAcesso("A Anthropic está fora do ar agora. Tente em alguns minutos.")
+        raise SemAcesso("A Anthropic recusou (HTTP %s). %s" % (e.code, msg))
+    except Exception as e:
+        raise SemAcesso("Não consegui falar com a Anthropic: " + rede.explicar(e))
 
 
 # ---------------------------------------------------------------- sessão
@@ -619,43 +663,56 @@ def falar(cid, texto, anexos=None, quem="usuário", ao_vivo=None, provedor=None)
 
 
 def _laco_api(cid, pid, msgs, quem, ao_vivo):
-    """Caminho da chave de API — tool use nativo do SDK."""
-    cliente = _cliente()
+    """Caminho da chave de API — tool use pela API, sem SDK."""
     contexto = _contexto_ambiente(pid)
     api_msgs = [{"role": m["role"], "content": m["content"]}
                 for m in msgs if m.get("role") in ("user", "assistant")
                 and m.get("provedor") in (None, "claude")]
 
     for _ in range(12):
-        r = cliente.messages.create(model=MODELO, max_tokens=8000,
-                                    system=SISTEMA + "\n\n" + contexto,
-                                    tools=FERRAMENTAS, messages=api_msgs)
-        api_msgs.append({"role": "assistant", "content": r.content})
+        r = _pedir_anthropic({"model": MODELO, "max_tokens": 8000,
+                              "system": SISTEMA + "\n\n" + contexto,
+                              "tools": FERRAMENTAS, "messages": api_msgs})
+        blocos = r.get("content") or []
+        api_msgs.append({"role": "assistant", "content": blocos})
 
-        if r.stop_reason != "tool_use":
-            msgs.append({"role": "assistant",
-                         "content": "".join(b.text for b in r.content if b.type == "text"),
+        def _texto(bs):
+            return "".join(b.get("text", "") for b in bs if b.get("type") == "text")
+
+        if r.get("stop_reason") != "tool_use":
+            msgs.append({"role": "assistant", "content": _texto(blocos),
                          "provedor": "claude", "quando": time.time()})
             break
 
-        parcial = "".join(b.text for b in r.content if b.type == "text").strip()
+        parcial = _texto(blocos).strip()
         if parcial:
             msgs.append({"role": "assistant", "content": parcial,
                          "provedor": "claude", "quando": time.time()})
 
         resultados = []
-        for b in r.content:
-            if b.type != "tool_use":
+        for b in blocos:
+            if b.get("type") != "tool_use":
                 continue
+            nome, entrada = b.get("name"), b.get("input") or {}
+            i = None
+            if ao_vivo:
+                i = 0
+                ao_vivo({"tipo": "ferramenta", "nome": nome,
+                         "resumo": _resumo_entrada(nome, entrada), "estado": "rodando"})
             try:
-                saida, erro = _executar(pid, b.name, b.input or {}, quem), False
+                saida, erro = _executar(pid, nome, entrada, quem), False
                 if saida.get("criado") and not pid:
                     pid = saida["criado"]
             except Exception as e:
                 saida, erro = {"erro": str(e)}, True
-            msgs.append({"role": "ferramenta", "nome": b.name, "entrada": b.input,
+            if ao_vivo:
+                ao_vivo({"tipo": "ferramenta", "nome": nome,
+                         "resumo": _resumo_entrada(nome, entrada),
+                         "estado": "erro" if erro else "ok",
+                         "saida": _resumo_saida(saida), "indice": i, "atualiza": True})
+            msgs.append({"role": "ferramenta", "nome": nome, "entrada": entrada,
                          "saida": saida, "provedor": "claude", "quando": time.time()})
-            resultados.append({"type": "tool_result", "tool_use_id": b.id,
+            resultados.append({"type": "tool_result", "tool_use_id": b.get("id"),
                                "content": json.dumps(saida, ensure_ascii=False,
                                                      default=str)[:6000],
                                "is_error": erro})
