@@ -9,7 +9,11 @@ para ser transcrito — o Whisper roda local.
 
 ## Instalar
 
-**macOS** — [baixar o .dmg](https://github.com/jhonatangtw/editor-automatico-app/releases/latest/download/EditorAutomatico.dmg)
+**macOS** — [Apple Silicon (M1/M2/M3…)](https://github.com/jhonatangtw/editor-automatico-app/releases/latest/download/EditorAutomatico.dmg) · [Intel](https://github.com/jhonatangtw/editor-automatico-app/releases/latest/download/EditorAutomatico-Intel.dmg)
+
+> Em dúvida: menu  → Sobre este Mac. Se disser **Chip Apple**, é o primeiro;
+> se disser **Processador Intel**, é o segundo. O app baixa o certo sozinho nas
+> atualizações seguintes.
 
 1. Abra o `.dmg` e arraste o **Editor Automático** para a pasta Aplicativos.
 2. Na primeira abertura: **botão direito no app → Abrir → Abrir**. O app não é

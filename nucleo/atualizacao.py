@@ -69,6 +69,17 @@ def _base(repo):
     return "https://github.com/%s/releases" % repo
 
 
+def _qual_asset():
+    """Qual instalador serve ESTA máquina, e o nome de reserva se o
+    version.json publicado for antigo e não trouxer a chave."""
+    if so.WIN:
+        return "asset_win", "EditorAutomatico-Instalador.exe"
+    import platform
+    if platform.machine() in ("x86_64", "AMD64", "i386"):
+        return "asset_mac_intel", "EditorAutomatico-Intel.dmg"
+    return "asset_mac", "EditorAutomatico.dmg"
+
+
 def conferir():
     """A versão publicada bate na de dentro? Nunca levanta — devolve o erro."""
     eu = local()
@@ -87,13 +98,13 @@ def conferir():
         return saida
     saida["ultima"] = d.get("version")
     saida["notas"] = d.get("notes")
-    # cada sistema baixa o SEU instalador. Um asset só significava mandar .dmg
-    # para quem está no Windows — e o aluno abre um arquivo que não abre.
-    chave = "asset_win" if so.WIN else "asset_mac"
+    # cada máquina baixa o SEU instalador. Não é só Mac × Windows: o .dmg do
+    # Apple Silicon NÃO abre num Mac Intel (o Rosetta traduz Intel→ARM, nunca o
+    # contrário), então o processador também escolhe.
+    chave, padrao = _qual_asset()
     saida["asset"] = (d.get(chave) or eu.get(chave) or d.get("asset")
-                      or eu.get("asset")
-                      or ("EditorAutomatico-Instalador.exe" if so.WIN
-                          else "EditorAutomatico.dmg"))
+                      or eu.get("asset") or padrao)
+    saida["para"] = chave
     saida["tem_nova"] = maior(saida["ultima"], saida["versao"])
     saida["url"] = "%s/latest/download/%s" % (_base(repo), saida["asset"])
     return saida

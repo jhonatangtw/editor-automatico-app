@@ -1,7 +1,8 @@
 {
-  "version": "0.15.0",
-  "notes": "Instalador para Windows (.exe) além do .dmg do Mac, e o app deixou de ser só-Mac por dentro: PATH, processos do Premiere, terminal, gerenciador de pacotes e CLIs de npm agora têm caminho nos dois sistemas.",
+  "version": "0.15.1",
+  "notes": "Instalador separado para Mac Intel — o .dmg do Apple Silicon não abre lá.",
   "repo": "jhonatangtw/editor-automatico-app",
   "asset_mac": "EditorAutomatico.dmg",
-  "asset_win": "EditorAutomatico-Instalador.exe"
+  "asset_win": "EditorAutomatico-Instalador.exe",
+  "asset_mac_intel": "EditorAutomatico-Intel.dmg"
 }

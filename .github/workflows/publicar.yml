@@ -35,6 +35,26 @@ jobs:
       - uses: actions/upload-artifact@v4
         with: {name: mac, path: entrega/}
 
+  # ⚠️ `macos-latest` é arm64. Mac Intel NÃO roda binário arm64 — o Rosetta
+  # traduz Intel→ARM, nunca o contrário — então o Intel precisa do próprio
+  # runner. É build separado, não uma flag.
+  mac-intel:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -r requirements.txt pyinstaller
+      - run: ./instalador/construir.sh
+      - name: nomes fixos para o auto-update
+        run: |
+          mkdir -p entrega
+          cp "$(ls -t instalador/saida/*.dmg | head -1)" entrega/EditorAutomatico-Intel.dmg
+          PKG=$(ls -t instalador/saida/*.pkg 2>/dev/null | head -1 || true)
+          if [ -n "$PKG" ]; then cp "$PKG" entrega/EditorAutomatico-Intel.pkg; fi
+      - uses: actions/upload-artifact@v4
+        with: {name: mac-intel, path: entrega/}
+
   windows:
     runs-on: windows-latest
     steps:
@@ -52,7 +72,7 @@ jobs:
         with: {name: windows, path: entrega/}
 
   soltar:
-    needs: [mac, windows]
+    needs: [mac, mac-intel, windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -75,7 +95,8 @@ jobs:
         env: {GH_TOKEN: "${{ github.token }}"}
         run: |
           set -e
-          for a in EditorAutomatico.dmg EditorAutomatico-Instalador.exe version.json; do
+          for a in EditorAutomatico.dmg EditorAutomatico-Intel.dmg \
+                   EditorAutomatico-Instalador.exe version.json; do
             code=$(curl -sIL -o /dev/null -w '%{http_code}' \
               "https://github.com/${{ github.repository }}/releases/latest/download/$a")
             echo "$a -> $code"
