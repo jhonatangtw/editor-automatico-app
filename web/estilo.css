@@ -527,3 +527,43 @@ label { display: block; font-size: 12px; color: var(--texto-2); margin-bottom: 5
 }
 .plugin .pl-nome{ font-weight:600; }
 .plugin .pl-sub{ color:var(--texto-3); font-size:12px; margin-top:3px; }
+
+/* ---------------------------------------------------------------- seletor de IA
+   Fica colado no campo de mensagem, como um seletor de modelo: é ali que se
+   decide quem responde, no momento de escrever. */
+.ia-seletor{
+  display:flex; gap:6px; align-items:center;
+  margin-top:8px; padding-top:8px; border-top:1px solid var(--linha);
+}
+.ia-op{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:5px 11px; border-radius:999px;
+  border:1px solid var(--linha); background:transparent;
+  color:var(--texto-3); font:500 12px/1 inherit; cursor:pointer;
+}
+.ia-op:hover{ color:var(--texto-2); background:rgba(255,255,255,.04); }
+.ia-op .ia-ponto{
+  width:6px; height:6px; border-radius:50%;
+  background:var(--texto-3); flex:none;
+}
+.ia-op.ativa{
+  border-color:rgba(212,175,55,.4); background:rgba(212,175,55,.12);
+  color:var(--ouro); font-weight:600;
+}
+.ia-op.ativa .ia-ponto{ background:var(--ouro); }
+/* sem credencial: continua clicável — o clique é justamente o que abre o pedido */
+.ia-op.sem{ opacity:.55; }
+.ia-op.sem .ia-ponto{ background:var(--broll); }
+
+/* quem respondeu, dentro da bolha */
+.quem-ia{
+  display:block; font-size:10px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--texto-3); margin-bottom:6px;
+}
+
+/* texto chegando em streaming */
+.bolha.vivo{ opacity:.92; }
+.bolha.vivo::after{
+  content:'▍'; color:var(--ouro); animation:piscar 1s steps(2) infinite;
+}
+@keyframes piscar{ 50%{ opacity:0 } }

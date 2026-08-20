@@ -1,6 +1,6 @@
 {
-  "version": "0.16.3",
-  "notes": "Ícone próprio: uma faixa preta sobre o dourado da marca, no Dock e na barra de tarefas. Como o ícone é gravado dentro do executável, esta é uma versão de instalador.",
+  "version": "0.17.0",
+  "notes": "Você escolhe quem responde: Claude ou ChatGPT, num seletor embaixo do campo de mensagem. O ChatGPT entra pela API oficial da OpenAI, com streaming e com as mesmas ferramentas do app — e passa pelos mesmos portões do pipeline.",
   "repo": "jhonatangtw/editor-automatico-app",
   "asset_mac": "EditorAutomatico.dmg",
   "asset_win": "EditorAutomatico-Instalador.exe",

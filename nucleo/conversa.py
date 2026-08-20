@@ -553,15 +553,22 @@ def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False):
     return fala, passos
 
 
-def falar(cid, texto, anexos=None, quem="usuário", ao_vivo=None):
-    """Uma rodada de conversa.
+def falar(cid, texto, anexos=None, quem="usuário", ao_vivo=None, provedor=None):
+    """Uma rodada de conversa, com a IA que o usuário escolheu.
 
-    No método 'sessao' isto é uma mensagem para a sessão do Claude Code — com
-    contexto, memória, skills e ferramentas. O app não interpreta nem filtra
-    nada: só entrega o ambiente junto e guarda o que voltou."""
-    metodo = conta_claude.metodo()
-    if metodo is None:
-        raise SemAcesso("Escolha como entrar no Claude, na aba Contas.")
+    No Claude por 'sessao' isto é uma mensagem para a sessão do Claude Code —
+    com contexto, memória, skills e ferramentas. O app não interpreta nem filtra
+    nada: só entrega o ambiente junto e guarda o que voltou. No ChatGPT é a API
+    oficial com as MESMAS ferramentas do app, por function calling.
+
+    Cada mensagem guarda com QUAL IA ela foi trocada. A tela mostra todas — o
+    histórico não some ao trocar de provedor — mas cada uma só recebe de volta o
+    que foi conversado com ela. Misturar faria uma responder sobre o que a outra
+    fez como se tivesse feito, e ferramenta executada não volta atrás."""
+    from . import ia
+    provedor = provedor or ia.escolhido()
+    if provedor not in ia.PROVEDORES:
+        raise SemAcesso("IA desconhecida: " + str(provedor))
 
     if not cid:
         cid = conversas.criar()
@@ -570,13 +577,34 @@ def falar(cid, texto, anexos=None, quem="usuário", ao_vivo=None):
     conteudo = texto or ""
     if anexos:
         conteudo += "\n\nArquivos anexados:\n" + "\n".join("- " + a for a in anexos)
-    msgs.append({"role": "user", "content": conteudo, "quando": time.time()})
+    msgs.append({"role": "user", "content": conteudo, "provedor": provedor,
+                 "quando": time.time()})
+
+    if provedor == "chatgpt":
+        from . import openai_chat
+        resposta, passos, pid, modelo = openai_chat.conversar(
+            cid, pid, msgs, quem, ao_vivo)
+        msgs.append({"role": "assistant", "content": resposta or "(sem resposta)",
+                     "passos": [p for p in passos if p["tipo"] != "texto"],
+                     "provedor": "chatgpt", "modelo": modelo, "quando": time.time()})
+        if not pid:
+            recentes = projetos.listar()
+            if recentes:
+                pid = recentes[0]["id"]
+                conversas.gravar_meta(cid, projeto=pid)
+        _gravar(cid, msgs)
+        return {"mensagens": msgs, "conversa": cid, "projeto": pid,
+                "provedor": "chatgpt"}
+
+    metodo = conta_claude.metodo()
+    if metodo is None:
+        raise SemAcesso("Escolha como entrar no Claude, na aba Contas.")
 
     if metodo == "sessao":
         resposta, passos = _sessao_claude(cid, pid, conteudo, ao_vivo)
         msgs.append({"role": "assistant", "content": resposta or "(sem resposta)",
                      "passos": [p for p in passos if p["tipo"] != "texto"],
-                     "quando": time.time()})
+                     "provedor": "claude", "quando": time.time()})
         # o projeto pode ter nascido durante a conversa: amarra os dois
         if not pid:
             recentes = projetos.listar()
@@ -584,7 +612,8 @@ def falar(cid, texto, anexos=None, quem="usuário", ao_vivo=None):
                 pid = recentes[0]["id"]
                 conversas.gravar_meta(cid, projeto=pid)
         _gravar(cid, msgs)
-        return {"mensagens": msgs, "conversa": cid, "projeto": pid}
+        return {"mensagens": msgs, "conversa": cid, "projeto": pid,
+                "provedor": "claude"}
 
     return _laco_api(cid, pid, msgs, quem, ao_vivo)
 
@@ -594,7 +623,8 @@ def _laco_api(cid, pid, msgs, quem, ao_vivo):
     cliente = _cliente()
     contexto = _contexto_ambiente(pid)
     api_msgs = [{"role": m["role"], "content": m["content"]}
-                for m in msgs if m.get("role") in ("user", "assistant")]
+                for m in msgs if m.get("role") in ("user", "assistant")
+                and m.get("provedor") in (None, "claude")]
 
     for _ in range(12):
         r = cliente.messages.create(model=MODELO, max_tokens=8000,
@@ -605,12 +635,13 @@ def _laco_api(cid, pid, msgs, quem, ao_vivo):
         if r.stop_reason != "tool_use":
             msgs.append({"role": "assistant",
                          "content": "".join(b.text for b in r.content if b.type == "text"),
-                         "quando": time.time()})
+                         "provedor": "claude", "quando": time.time()})
             break
 
         parcial = "".join(b.text for b in r.content if b.type == "text").strip()
         if parcial:
-            msgs.append({"role": "assistant", "content": parcial, "quando": time.time()})
+            msgs.append({"role": "assistant", "content": parcial,
+                         "provedor": "claude", "quando": time.time()})
 
         resultados = []
         for b in r.content:
@@ -623,7 +654,7 @@ def _laco_api(cid, pid, msgs, quem, ao_vivo):
             except Exception as e:
                 saida, erro = {"erro": str(e)}, True
             msgs.append({"role": "ferramenta", "nome": b.name, "entrada": b.input,
-                         "saida": saida, "quando": time.time()})
+                         "saida": saida, "provedor": "claude", "quando": time.time()})
             resultados.append({"type": "tool_result", "tool_use_id": b.id,
                                "content": json.dumps(saida, ensure_ascii=False,
                                                      default=str)[:6000],
@@ -631,4 +662,4 @@ def _laco_api(cid, pid, msgs, quem, ao_vivo):
         api_msgs.append({"role": "user", "content": resultados})
 
     _gravar(cid, msgs)
-    return {"mensagens": msgs, "conversa": cid, "projeto": pid}
+    return {"mensagens": msgs, "conversa": cid, "projeto": pid, "provedor": "claude"}

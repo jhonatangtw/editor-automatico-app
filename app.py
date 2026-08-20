@@ -88,7 +88,7 @@ if "--mcp" in sys.argv:
 
 from nucleo import (adobe, ambiente, atualizacao, chaves, claude, conta,  # noqa: E402
                     conversa, conversas,
-                    decupar, etapas, gerar, montagem, pipeline, plugin,
+                    decupar, etapas, gerar, ia, montagem, pipeline, plugin,
                     ponte, projetos, qc, servicos, skill, voz)
 
 WEB = os.path.join(RAIZ, "web")
@@ -496,6 +496,8 @@ class Handler(BaseHTTPRequestHandler):
                                    "mensagens": conversas.mensagens(cid) if cid else []})
             if caminho == "/api/atualizacao":
                 return self._json(atualizacao.conferir())
+            if caminho == "/api/ia":
+                return self._json(ia.estado())
             if caminho == "/api/plugin":
                 return self._json(plugin.estado())
             if caminho == "/api/ponte":
@@ -587,11 +589,27 @@ class Handler(BaseHTTPRequestHandler):
             if caminho == "/api/conversas/apagar":
                 return self._json({"ok": conversas.apagar(corpo["conversa"])})
 
+            if caminho == "/api/ia/escolher":
+                return self._json({"escolhido": ia.escolher(corpo["provedor"]),
+                                   "estado": ia.estado()})
+            if caminho == "/api/ia/chave":
+                # a chave entra por aqui e vai para o .env do app, com permissão
+                # de dono. Nunca volta para a tela: as rotas de leitura só dizem
+                # se existe e de onde veio.
+                ia.guardar_chave(corpo["provedor"], corpo.get("valor", ""))
+                return self._json({"ok": True, "estado": ia.estado()})
+            if caminho == "/api/ia/testar":
+                if corpo.get("provedor") == "chatgpt":
+                    from nucleo import openai_chat
+                    return self._json(openai_chat.testar())
+                return self._json(claude.testar_conta())
+
             if caminho == "/api/conversa":
                 cid = corpo.get("conversa")
+                prov = corpo.get("provedor")
                 tid = em_fundo("Conversando", lambda log: conversa.falar(
                     cid, corpo.get("texto", ""), corpo.get("anexos"),
-                    conta.estado().get("nome") or "usuário", log))
+                    conta.estado().get("nome") or "usuário", log, provedor=prov))
                 return self._json({"tarefa": tid})
 
             if caminho == "/api/atualizacao/codigo":
@@ -638,9 +656,11 @@ class Handler(BaseHTTPRequestHandler):
                 if acao == "conversa":
                     # A conversa roda em segundo plano: uma rodada com ferramentas
                     # pode levar minutos, e travar a janela nisso mata o app.
+                    prov = corpo.get("provedor")
                     tid = em_fundo("Conversando", lambda log: conversa.falar(
                         pid, corpo.get("texto", ""), corpo.get("anexos"),
-                        conta.estado().get("nome") or "usuário", log))
+                        conta.estado().get("nome") or "usuário", log,
+                        provedor=prov))
                     return self._json({"tarefa": tid})
 
             # /api/projetos/{pid}/etapa/{eid}/{acao}

@@ -10,6 +10,7 @@ let aba = 'chat';
 let projetoAberto = null;
 let conversaAtual = null;
 let ATT = null;          // versão nova publicada, quando houver
+let IA = null;           // provedores e qual está ativo
 
 // ---------------------------------------------------------------- rede
 async function api(rota, opcoes = {}) {
@@ -371,6 +372,7 @@ async function telaProjeto() {
               placeholder="Fale o que quer fazer… (Enter envia, Shift+Enter quebra linha)"></textarea>
             <button class="bt principal" id="enviar">Enviar</button>
           </div>
+          ${seletorIA()}
           <div class="atalhos">
             ${atalhos(pp).map((a) => `<button class="atalho" data-diz="${esc(a)}">${esc(a)}</button>`).join('')}
           </div>
@@ -409,6 +411,72 @@ function boasVindas(pp) {
   </div></div>`;
 }
 
+// O seletor fica na barra do compositor, colado no campo — é ali que a pessoa
+// decide "quem vai responder isto", no momento em que escreve. Fora dali vira
+// configuração, e configuração ninguém troca no meio do trabalho.
+function seletorIA() {
+  if (!IA) return '';
+  return `<div class="ia-seletor" id="ia-seletor">
+    ${IA.provedores.map((p) => `
+      <button class="ia-op ${p.id === IA.escolhido ? 'ativa' : ''} ${p.pronto ? '' : 'sem'}"
+              data-ia="${p.id}" title="${esc(p.pronto ? p.ferramentas : p.msg)}">
+        <i class="ia-ponto"></i>${esc(p.nome)}</button>`).join('')}
+  </div>`;
+}
+
+function ligarSeletorIA() {
+  document.querySelectorAll('[data-ia]').forEach((b) => {
+    b.onclick = async () => {
+      const id = b.dataset.ia;
+      const p = (IA?.provedores || []).find((x) => x.id === id);
+      if (p && !p.pronto) return pedirChaveIA(p);
+      try {
+        const r = await post('/api/ia/escolher', { provedor: id });
+        IA = r.estado;
+        document.querySelectorAll('[data-ia]').forEach((o) =>
+          o.classList.toggle('ativa', o.dataset.ia === id));
+        toast('Falando com ' + (p ? p.nome : id) + '.');
+      } catch (e) { toast(e.message, true); }
+    };
+  });
+}
+
+// A chave vai direto para o .env do app (permissão de dono) e NUNCA fica no
+// front-end: nem em localStorage, nem em variável de tela.
+function pedirChaveIA(p) {
+  if (p.id !== 'chatgpt') {
+    toast(p.msg || 'Conecte esta IA na aba Contas.', true);
+    aba = 'contas'; projetoAberto = null; desenhar();
+    return;
+  }
+  modal(`<h2>Conectar o ChatGPT</h2>
+    <p class="sub" style="margin-bottom:12px">Cole a chave da OpenAI
+      (<code>sk-…</code>). Ela é gravada em <code>${esc(IA.env)}</code>, só o seu
+      usuário lê, e nunca sai desta máquina.</p>
+    <div class="campo"><input id="ch" type="password" placeholder="sk-..."></div>
+    <p class="sub" style="font-size:11px;margin-top:8px">Prefere variável de
+      ambiente? Exporte <code>OPENAI_API_KEY</code> e reabra o app.</p>
+    <div class="acoes"><button class="bt discreto" data-fechar>Cancelar</button>
+      <button class="bt principal" id="ch-ok">Conectar</button></div>`, (v) => {
+    v.querySelector('[data-fechar]').onclick = () => v.remove();
+    v.querySelector('#ch-ok').onclick = async () => {
+      const valor = v.querySelector('#ch').value.trim();
+      if (!valor) return;
+      const b = v.querySelector('#ch-ok');
+      b.disabled = true; b.textContent = 'Conferindo…';
+      try {
+        await post('/api/ia/chave', { provedor: 'chatgpt', valor });
+        const t = await post('/api/ia/testar', { provedor: 'chatgpt' });
+        if (!t.ok) { toast(t.msg, true); b.disabled = false; b.textContent = 'Conectar'; return; }
+        const r = await post('/api/ia/escolher', { provedor: 'chatgpt' });
+        IA = r.estado; v.remove();
+        toast(t.msg + ' Falando com ChatGPT.');
+        desenhar();
+      } catch (e) { toast(e.message, true); b.disabled = false; b.textContent = 'Conectar'; }
+    };
+  });
+}
+
 function atalhos(pp) {
   const e = pp.etapas.find((x) => x.id === pp.atual) || {};
   if (e.status === 'aguardando_aprovacao')
@@ -435,12 +503,17 @@ function bolha(m) {
       </div></div>`;
   }
   const passos = (m.passos || []).filter((p) => p.tipo === 'ferramenta');
+  const quem = m.provedor === 'chatgpt' ? 'ChatGPT' : m.provedor === 'claude' ? 'Claude' : '';
   return `<div class="msg resposta">
     ${passos.length ? `<div class="passos">${passos.map(passoHtml).join('')}</div>` : ''}
-    <div class="bolha">${marcar(m.content || '')}</div></div>`;
+    <div class="bolha">${quem ? `<span class="quem-ia">${esc(quem)}</span>` : ''}${marcar(m.content || '')}</div></div>`;
 }
 
 function passoHtml(p) {
+  // streaming: a resposta aparece enquanto é escrita, em vez de surgir pronta
+  if (p.tipo === 'parcial') {
+    return p.texto ? `<div class="bolha vivo">${marcar(p.texto)}</div>` : '';
+  }
   if (p.tipo === 'pensando') return `<div class="passo pensando"><span class="passo-bola"></span>pensando…</div>`;
   if (p.tipo === 'aviso')    return `<div class="passo"><span class="passo-bola"></span>${esc(p.texto)}</div>`;
   if (p.tipo !== 'ferramenta') return '';
@@ -537,7 +610,8 @@ function ligarChat(p, pp) {
     rolarFim();
 
     try {
-      const r = await post('/api/conversa', { texto, anexos, conversa: conversaAtual });
+      const r = await post('/api/conversa',
+        { texto, anexos, conversa: conversaAtual, provedor: IA?.escolhido });
       let desenhados = 0;
       const t = setInterval(async () => {
         const s = await api('/api/tarefas/' + r.tarefa);
@@ -592,6 +666,7 @@ function ligarChat(p, pp) {
     });
   };
 
+  ligarSeletorIA();
   entrada.focus();
 }
 
@@ -1383,6 +1458,7 @@ async function telaChatLivre() {
               placeholder="Fale o que quer fazer… (Enter envia, Shift+Enter quebra linha)"></textarea>
             <button class="bt principal" id="enviar">Enviar</button>
           </div>
+          ${seletorIA()}
           <div class="atalhos">
             ${['O que está aberto no Premiere?', 'Analise esta timeline',
                'Quero editar um criativo novo'].map((a) =>
@@ -1645,6 +1721,7 @@ async function iniciar() {
   if (!E.conta.entrou) return telaPorta(E.conta.msg);
   desenhar();
   // depois de desenhar, nunca antes: sem internet o app abre igual
+  api('/api/ia').then((d) => { IA = d; desenhar(); }).catch(() => {});
   api('/api/atualizacao').then((a) => {
     ATT = a;
     desenhar();          // sempre: é o que tira o rodapé mudo
