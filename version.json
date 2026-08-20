@@ -1,6 +1,6 @@
 {
-  "version": "0.15.1",
-  "notes": "Instalador separado para Mac Intel — o .dmg do Apple Silicon não abre lá.",
+  "version": "0.15.2",
+  "notes": "Conserta o botão que instala o plugin do Premiere no Windows: o caminho do instalador ia escapado duas vezes e o cmd recusava um arquivo que existia.",
   "repo": "jhonatangtw/editor-automatico-app",
   "asset_mac": "EditorAutomatico.dmg",
   "asset_win": "EditorAutomatico-Instalador.exe",

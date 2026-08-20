@@ -89,7 +89,11 @@ def _baixar(url, alvo, ao_vivo=None):
 def instalar(ao_vivo=None):
     """Baixa o pacote oficial, descompacta e entrega ao instalador de verdade."""
     diz = ao_vivo or (lambda _: None)
-    pasta = os.path.expanduser("~/Downloads/Editor Black Belt Tools PRO")
+    # os.path.join, não "~/Downloads/...": no Windows a barra normal produz
+    # caminho misto (C:\Users\x/Downloads/...) que funciona em quase tudo e
+    # atrapalha na hora de citar entre aspas.
+    pasta = os.path.join(os.path.expanduser("~"), "Downloads",
+                         "Editor Black Belt Tools PRO")
     if os.path.isdir(pasta):
         shutil.rmtree(pasta, ignore_errors=True)
     os.makedirs(pasta, exist_ok=True)

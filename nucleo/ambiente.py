@@ -166,7 +166,9 @@ def instalar(qual, ao_vivo=None):
             raise RuntimeError("Falhou em: " + " ".join(cmd))
 
     # o PATH do processo já rodando não vê o que acabou de ser instalado
-    novos = ([os.path.expandvars(r"%APPDATA%\npm")] if WIN else
+    novos = ([os.path.join(os.environ.get("APPDATA") or "", "npm"),
+              os.path.join(os.environ.get("LOCALAPPDATA") or "",
+                           "Microsoft", "WinGet", "Links")] if WIN else
              ["/opt/homebrew/bin", "/usr/local/bin",
               os.path.expanduser("~/.npm-global/bin"),
               os.path.expanduser("~/Library/Python/3.9/bin")])

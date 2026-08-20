@@ -43,8 +43,21 @@ GERENCIADOR = "winget" if WIN else "brew"
 
 
 def onde(binario):
-    """`which` que enxerga `.cmd`/`.bat` no Windows."""
-    return shutil.which(binario)
+    """`which` que enxerga `.cmd`/`.bat` no Windows.
+
+    ⚠️ **O Windows tem executável FALSO no PATH.** O "alias de execução de
+    aplicativo" põe um `python.exe` de 0 byte em `WindowsApps` que não roda
+    nada — só abre a Microsoft Store. O `which` acha, o app diria "Python
+    instalado", e a instalação do Whisper abriria uma vitrine de loja em vez de
+    instalar. Stub de tamanho zero não conta como instalado."""
+    achado = shutil.which(binario)
+    if achado and WIN and "windowsapps" in achado.lower():
+        try:
+            if os.path.getsize(achado) == 0:
+                return None
+        except OSError:
+            return None
+    return achado
 
 
 def resolver(cmd):
@@ -102,9 +115,8 @@ def terminal(comando, titulo=""):
     import shlex
     try:
         if WIN:
-            linha = subprocess.list2cmdline(resolver(comando))
-            r = subprocess.run(["cmd", "/c", "start", titulo or "Editor Automatico",
-                                "cmd", "/k", linha], capture_output=True, timeout=25)
+            r = subprocess.run(_linha_windows(comando, titulo), shell=True,
+                               capture_output=True, timeout=25)
         else:
             linha = " ".join(shlex.quote(x) for x in comando)
             script = ('tell application "Terminal"\n  activate\n  do script "%s"\n'
@@ -119,6 +131,28 @@ def terminal(comando, titulo=""):
                        "volte aqui." % (" do " + titulo if titulo else "")}
     except Exception as e:
         return {"ok": False, "msg": str(e)[:160]}
+
+
+def _linha_windows(comando, titulo=""):
+    """A linha que o `cmd` recebe para abrir outro `cmd` com o comando dentro.
+
+    ⚠️ Duas armadilhas de aspas, e as duas já morderam:
+
+    1. **Escapar duas vezes.** Montar a linha com `list2cmdline` e passar numa
+       LISTA para o subprocess faz o Windows rodar o `list2cmdline` de novo: as
+       aspas viram `\"` literais e o cmd responde "não é reconhecido como um
+       comando interno ou externo" apontando para um arquivo que existe. Por
+       isso aqui a linha é montada UMA vez e vai como string, com `shell=True`.
+
+    2. **`cmd /k "caminho com espaço"` engole as aspas** quando o argumento
+       inteiro está entre elas — é regra do próprio cmd. `cmd /k call "..."`
+       não tem essa quirk, e por isso o `call` não é enfeite.
+
+    O primeiro argumento entre aspas depois do `start` é o TÍTULO da janela; sem
+    ele, o start trataria o caminho entre aspas como título e não rodaria nada.
+    """
+    alvo = subprocess.list2cmdline(resolver(comando))
+    return 'start "%s" cmd /k call %s' % (titulo or "Editor Automatico", alvo)
 
 
 def premiere():

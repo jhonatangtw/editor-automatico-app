@@ -45,6 +45,9 @@ def _windows():
     ap = os.environ.get("APPDATA") or ""
     la = os.environ.get("LOCALAPPDATA") or ""
     extras = [os.path.join(ap, "npm"),
+              # é aqui que o winget deixa o ffmpeg — sem esta pasta o app
+              # instala e continua dizendo que não achou
+              os.path.join(la, "Microsoft", "WinGet", "Links"),
               os.path.join(la, "Microsoft", "WindowsApps"),
               os.path.expanduser(r"~\.local\bin")]
     # o Python de usuário muda de pasta a cada versão; varre as que existirem
