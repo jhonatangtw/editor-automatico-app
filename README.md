@@ -69,7 +69,7 @@ vai para a IA marcada, e a escolha fica guardada entre sessões.
 | | Como entra | O que ela alcança |
 |---|---|---|
 | **Claude** | sessão do Claude Code (assinatura) ou chave de API | pipeline completo, **mais** as skills e ferramentas que você já tem no Claude Code |
-| **ChatGPT** | API oficial da OpenAI | as ferramentas do app, por function calling — sem as skills do Claude Code |
+| **ChatGPT** | `codex login` na sua conta (assinatura) ou chave de API | as ferramentas do app por MCP — sem as skills do Claude Code |
 
 Os dois passam pelos **mesmos portões**: se a IA tentar gerar b-roll antes da
 aprovação do planejamento, recebe a recusa e tem que explicar. Não existe
@@ -82,7 +82,29 @@ outra fez como se tivesse feito — e ferramenta já executada não volta atrás
 
 ### Configurar o ChatGPT
 
-A chave nunca fica no código nem no front-end. O app procura nesta ordem:
+**Cada pessoa entra na conta dela**, como no Claude. Dois caminhos:
+
+**1. Assinatura (recomendado).** Instale o Codex CLI pela aba **Ambiente** e
+clique em **ChatGPT** no seletor → *Entrar com a conta do ChatGPT*. Abre o
+Terminal com `codex login`, você autoriza no navegador e pronto.
+
+⚠️ **Isto é dinheiro, não preferência.** Quem assina o ChatGPT já paga pelo
+modelo; usar chave de API cobraria de novo, por fora, pelo mesmo acesso. É a
+mesma regra do HeyGen: login de conta gasta a ASSINATURA, chave gasta a carteira
+de API.
+
+O app conversa por `codex exec --json`, com as ferramentas dele entregues por
+MCP e uma thread por conversa (`codex exec resume`), que é o que dá memória
+entre mensagens.
+
+⚠️ O app roda o Codex com `--dangerously-bypass-approvals-and-sandbox`. Não é
+descuido: sem flag de aprovação o Codex recusa TODA ferramenta, e o
+`codex exec resume` — que é o que dá memória — não aceita o flag estreito
+(`--approve-for-me`) nem herda a política da thread. É o mesmo nível de confiança
+que o app já dá ao Claude Code (`--permission-mode bypassPermissions`).
+
+**2. Chave de API (paga por uso).** Para quem prefere. A chave nunca fica no
+código nem no front-end; o app procura nesta ordem:
 
 1. **variável de ambiente** `OPENAI_API_KEY` — o jeito canônico;
 2. **`~/.editorblackbelt/.env`** (permissão 0600) — copie o `.env.example`;
@@ -106,19 +128,22 @@ a credencial antes de aceitar e grava no `.env` acima.
 Opcionais: `OPENAI_MODEL` (se o modelo não existir na sua conta, o app procura o
 melhor equivalente e avisa qual usou) e `OPENAI_BASE_URL` (Azure ou proxy).
 
-### Por que API e não CLI
+### Os dois caminhos, e por que ambos existem
 
-O CLI da OpenAI é um agente de código, com autenticação e formato de saída
-próprios — seria uma segunda superfície de integração para manter, sem contrato
-estável, e ainda precisaria da nossa camada de ferramentas por outro caminho. A
-API é versionada, documentada, faz streaming e function calling, e não depende
-do site do ChatGPT. Está escrita em `urllib`, sem SDK: o app empacota com
+O desenho é simétrico de propósito:
+
+| | Assinatura | Chave de API |
+|---|---|---|
+| Claude | `claude -p --session-id …` + MCP | API da Anthropic, tool use |
+| ChatGPT | `codex exec [resume] --json` + MCP | API da OpenAI, function calling + streaming |
+
+Pela assinatura o agente roda **de verdade** — com a memória dele, as
+ferramentas do app por MCP e, no caso do Claude, as skills que o usuário já tem
+instaladas. Por chave, o app conduz o laço de ferramentas ele mesmo.
+
+Nenhum dos quatro caminhos usa SDK: tudo é `urllib`. O app empacota com
 PyInstaller e cada dependência a mais é uma chance a mais de quebrar no pacote
 do aluno.
-
-O Claude é o oposto e por isso continua como está: pela assinatura ele roda o
-**Claude Code de verdade**, com as skills do usuário, e recebe as ferramentas do
-app por MCP. Trocar isso por API seria perder o que ele tem de melhor.
 
 ## Para quem vai mexer no código
 

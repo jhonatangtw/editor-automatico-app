@@ -1,6 +1,6 @@
 {
-  "version": "0.17.1",
-  "notes": "O caminho \"chave de API\" do Claude voltou a existir no app empacotado: ele dependia de um SDK que nunca foi empacotado junto. Agora o app não carrega SDK nenhum.",
+  "version": "0.18.0",
+  "notes": "ChatGPT pela SUA assinatura: cada pessoa entra na própria conta com codex login, como já era no Claude. O app conversa pelo Codex CLI com as ferramentas dele por MCP e memória por conversa. A chave de API vira alternativa para quem prefere pagar por uso.",
   "repo": "jhonatangtw/editor-automatico-app",
   "asset_mac": "EditorAutomatico.dmg",
   "asset_win": "EditorAutomatico-Instalador.exe",

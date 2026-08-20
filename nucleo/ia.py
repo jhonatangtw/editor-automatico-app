@@ -8,16 +8,21 @@ seria pior do que não ter. Então:
 
   * **Claude** continua exatamente como está — sessão do Claude Code (ou a chave
     de API, se o usuário escolheu esse método na aba Contas).
-  * **ChatGPT** entra pela **API oficial**, com function calling ligado nas
-    MESMAS ferramentas do app. Ele não tem as skills do Claude Code, e a tela
-    diz isso em vez de deixar o usuário descobrir sozinho.
+  * **ChatGPT** entra de dois jeitos, e o primeiro é o certo para quase todo
+    mundo:
 
-Por que API e não CLI: o CLI da OpenAI é um agente de código com autenticação e
-formato de saída próprios — seria uma segunda superfície de integração para
-manter, sem contrato estável. A API é versionada, documentada, faz streaming e
-function calling, e não depende do site do ChatGPT (que é o que o pedido proíbe).
-Está escrita em `urllib` de propósito: o app empacota com PyInstaller e cada SDK
-a mais é uma chance a mais de quebrar no empacotamento.
+      1. **assinatura, pelo Codex CLI** — cada pessoa faz `codex login` na
+         PRÓPRIA conta do ChatGPT. É o espelho do Claude: o agente roda de
+         verdade e recebe as ferramentas do app por MCP.
+      2. **chave de API** — para quem prefere pagar por uso.
+
+⚠️ **A ordem não é estética, é dinheiro.** Quem tem assinatura do ChatGPT já
+paga pelo modelo; usar chave de API cobraria de novo, por fora, pelo que ele já
+tem. É a mesma lição do HeyGen: login de conta gasta a ASSINATURA, chave gasta a
+carteira de API.
+
+A parte de API está escrita em `urllib` de propósito: o app empacota com
+PyInstaller e cada SDK a mais é uma chance a mais de quebrar no empacotamento.
 
 **A chave nunca aparece no front-end nem no código.** A ordem de busca existe
 porque nenhuma das fontes está garantida numa máquina de aluno:
@@ -165,6 +170,40 @@ def escolher(pid_provedor):
     return pid_provedor
 
 
+def metodo_chatgpt():
+    """'sessao' = conta do ChatGPT pelo Codex CLI. 'chave' = API paga por uso.
+
+    Sem escolha registrada, decide pelo que a máquina tem — e prefere a
+    assinatura, que é o que a pessoa já paga."""
+    try:
+        with open(ESCOLHA, encoding="utf-8") as f:
+            m = json.load(f).get("metodo_chatgpt")
+        if m in ("sessao", "chave"):
+            return m
+    except Exception:
+        pass
+    from . import codex_sessao
+    return "sessao" if codex_sessao.conta().get("ok") else "chave"
+
+
+def definir_metodo_chatgpt(m):
+    if m not in ("sessao", "chave"):
+        raise ValueError("Método desconhecido: " + str(m))
+    os.makedirs(BASE, exist_ok=True)
+    d = {}
+    try:
+        with open(ESCOLHA, encoding="utf-8") as f:
+            d = json.load(f)
+    except Exception:
+        pass
+    d["metodo_chatgpt"] = m
+    tmp = ESCOLHA + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(d, f)
+    os.replace(tmp, ESCOLHA)
+    return m
+
+
 def modelo_chatgpt():
     return (os.environ.get("OPENAI_MODEL") or _do_arquivo_env("OPENAI_MODEL")
             or "gpt-5.1")
@@ -186,12 +225,22 @@ def estado():
                 e.get("msg") or "Conecte o Claude na aba Contas.")
             d["ferramentas"] = "pipeline completo, skills e ferramentas do app"
         else:
-            k, origem = chave(p["id"])
-            d["pronto"] = bool(k)
-            d["origem"] = origem or ""
-            d["modelo"] = modelo_chatgpt()
-            d["msg"] = "" if k else (
-                "Sem a OPENAI_API_KEY. Ponha no ambiente ou em %s." % ENV)
-            d["ferramentas"] = "ferramentas do app (sem as skills do Claude Code)"
+            from . import codex_sessao
+            m = metodo_chatgpt()
+            d["metodo"] = m
+            d["codex"] = codex_sessao.conta()
+            if m == "sessao":
+                d["pronto"] = bool(d["codex"].get("ok"))
+                d["origem"] = d["codex"].get("rotulo", "")
+                d["msg"] = d["codex"].get("msg", "")
+                d["ferramentas"] = "ferramentas do app por MCP, na sua conta do ChatGPT"
+            else:
+                k, origem = chave(p["id"])
+                d["pronto"] = bool(k)
+                d["origem"] = origem or ""
+                d["modelo"] = modelo_chatgpt()
+                d["msg"] = "" if k else (
+                    "Sem a OPENAI_API_KEY. Ponha no ambiente ou em %s." % ENV)
+                d["ferramentas"] = "ferramentas do app, pagas por uso da API"
         saida.append(d)
     return {"provedores": saida, "escolhido": escolhido(), "env": ENV}

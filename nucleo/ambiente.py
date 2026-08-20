@@ -88,6 +88,10 @@ def conferir():
          "para": "é quem lê a fala e decide a edição — sem ele o app não pensa",
          "essencial": True, "instalavel": npm,
          "versao": _versao(["claude", "--version"]) if _tem("claude") else ""},
+        {"id": "codex", "nome": "Codex CLI (ChatGPT)", "tem": _tem("codex"),
+         "para": "falar com o ChatGPT pela SUA assinatura, sem pagar API à parte",
+         "essencial": False, "instalavel": npm,
+         "versao": _versao(["codex", "--version"]) if _tem("codex") else ""},
         {"id": "higgsfield", "nome": "Higgsfield CLI", "tem": _tem("higgsfield"),
          "para": "gerar imagem e b-roll",
          "essencial": True, "instalavel": npm},
@@ -138,6 +142,7 @@ _WINGET = ["winget", "install", "-e", "--accept-package-agreements",
 
 RECEITAS_MAC = {
     "node":       [["brew", "install", "node"]],
+    "codex":      [["npm", "install", "-g", "@openai/codex"]],
     "claude":     [["npm", "install", "-g", "@anthropic-ai/claude-code"]],
     "ffmpeg":     [["brew", "install", "ffmpeg"]],
     "ffprobe":    [["brew", "install", "ffmpeg"]],   # vem no mesmo pacote
@@ -154,6 +159,7 @@ RECEITAS_MAC = {
 # `so.run`, senão o Python levanta FileNotFoundError com o binário instalado.
 RECEITAS_WIN = {
     "node":       [_WINGET + ["OpenJS.NodeJS.LTS"]],
+    "codex":      [["npm", "install", "-g", "@openai/codex"]],
     "claude":     [["npm", "install", "-g", "@anthropic-ai/claude-code"]],
     "ffmpeg":     [_WINGET + ["Gyan.FFmpeg"]],
     "ffprobe":    [_WINGET + ["Gyan.FFmpeg"]],

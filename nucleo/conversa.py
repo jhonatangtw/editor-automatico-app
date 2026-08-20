@@ -625,9 +625,17 @@ def falar(cid, texto, anexos=None, quem="usuário", ao_vivo=None, provedor=None)
                  "quando": time.time()})
 
     if provedor == "chatgpt":
-        from . import openai_chat
-        resposta, passos, pid, modelo = openai_chat.conversar(
-            cid, pid, msgs, quem, ao_vivo)
+        # assinatura primeiro: quem já paga o ChatGPT não devia pagar de novo
+        # por uso de API para falar com o mesmo modelo.
+        if ia.metodo_chatgpt() == "sessao":
+            from . import codex_sessao
+            resposta, passos, _thread = codex_sessao.conversar(
+                cid, pid, conteudo, ao_vivo)
+            modelo = "codex (assinatura)"
+        else:
+            from . import openai_chat
+            resposta, passos, pid, modelo = openai_chat.conversar(
+                cid, pid, msgs, quem, ao_vivo)
         msgs.append({"role": "assistant", "content": resposta or "(sem resposta)",
                      "passos": [p for p in passos if p["tipo"] != "texto"],
                      "provedor": "chatgpt", "modelo": modelo, "quando": time.time()})

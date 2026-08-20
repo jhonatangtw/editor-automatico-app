@@ -449,16 +449,45 @@ function pedirChaveIA(p) {
     aba = 'contas'; projetoAberto = null; desenhar();
     return;
   }
+  // Entrar com a conta vem PRIMEIRO: quem assina o ChatGPT já paga pelo modelo,
+  // e a chave de API cobraria de novo por fora pelo mesmo acesso.
   modal(`<h2>Conectar o ChatGPT</h2>
-    <p class="sub" style="margin-bottom:12px">Cole a chave da OpenAI
-      (<code>sk-…</code>). Ela é gravada em <code>${esc(IA.env)}</code>, só o seu
-      usuário lê, e nunca sai desta máquina.</p>
+    <p class="sub" style="margin-bottom:14px">Entre com a <b>sua conta</b> — é a
+      mesma assinatura que você já usa. Cada pessoa entra na conta dela.</p>
+    <button class="bt principal" id="ch-login" style="width:100%">
+      Entrar com a conta do ChatGPT</button>
+    <p class="sub" style="font-size:11px;margin:8px 0 16px">Abre o Terminal com
+      <code>codex login</code>; você autoriza no navegador e volta.</p>
+    <div class="rotulo" style="margin-bottom:8px">ou pague por uso</div>
+    <p class="sub" style="margin-bottom:10px;font-size:11px">Cole a chave da
+      OpenAI. Ela é gravada em <code>${esc(IA.env)}</code>, só o seu usuário lê,
+      e nunca sai desta máquina.</p>
     <div class="campo"><input id="ch" type="password" placeholder="sk-..."></div>
-    <p class="sub" style="font-size:11px;margin-top:8px">Prefere variável de
-      ambiente? Exporte <code>OPENAI_API_KEY</code> e reabra o app.</p>
     <div class="acoes"><button class="bt discreto" data-fechar>Cancelar</button>
-      <button class="bt principal" id="ch-ok">Conectar</button></div>`, (v) => {
+      <button class="bt" id="ch-ok">Usar chave</button></div>`, (v) => {
     v.querySelector('[data-fechar]').onclick = () => v.remove();
+    v.querySelector('#ch-login').onclick = async () => {
+      const b = v.querySelector('#ch-login');
+      b.disabled = true; b.textContent = 'Abrindo o Terminal…';
+      try {
+        const r = await post('/api/ia/entrar');
+        toast(r.msg, !r.ok);
+        if (r.ok) {
+          await post('/api/ia/metodo', { metodo: 'sessao' });
+          v.remove();
+          // o login termina no Terminal: reconferimos quando ele voltar
+          setTimeout(async () => {
+            IA = await api('/api/ia');
+            if (IA.provedores.find((x) => x.id === 'chatgpt')?.pronto) {
+              await post('/api/ia/escolher', { provedor: 'chatgpt' });
+              IA = await api('/api/ia'); toast('ChatGPT conectado.');
+            }
+            desenhar();
+          }, 12000);
+        }
+      } catch (e) { toast(e.message, true); }
+      b.disabled = false; b.textContent = 'Entrar com a conta do ChatGPT';
+    };
     v.querySelector('#ch-ok').onclick = async () => {
       const valor = v.querySelector('#ch').value.trim();
       if (!valor) return;
@@ -466,6 +495,7 @@ function pedirChaveIA(p) {
       b.disabled = true; b.textContent = 'Conferindo…';
       try {
         await post('/api/ia/chave', { provedor: 'chatgpt', valor });
+        await post('/api/ia/metodo', { metodo: 'chave' });
         const t = await post('/api/ia/testar', { provedor: 'chatgpt' });
         if (!t.ok) { toast(t.msg, true); b.disabled = false; b.textContent = 'Conectar'; return; }
         const r = await post('/api/ia/escolher', { provedor: 'chatgpt' });

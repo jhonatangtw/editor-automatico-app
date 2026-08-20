@@ -598,6 +598,12 @@ class Handler(BaseHTTPRequestHandler):
                 # se existe e de onde veio.
                 ia.guardar_chave(corpo["provedor"], corpo.get("valor", ""))
                 return self._json({"ok": True, "estado": ia.estado()})
+            if caminho == "/api/ia/entrar":
+                from nucleo import codex_sessao
+                return self._json(codex_sessao.entrar())
+            if caminho == "/api/ia/metodo":
+                return self._json({"metodo": ia.definir_metodo_chatgpt(corpo["metodo"]),
+                                   "estado": ia.estado()})
             if caminho == "/api/ia/testar":
                 if corpo.get("provedor") == "chatgpt":
                     from nucleo import openai_chat
