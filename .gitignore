@@ -1,0 +1,14 @@
+# ambiente e artefatos de build — nada disto é fonte
+.venv/
+build/
+dist/
+__pycache__/
+*.pyc
+.DS_Store
+
+# saída do instalador: o .dmg é grande e vive nas Releases, não no repositório
+instalador/saida/
+
+# rascunhos locais
+*.log
+*.parcial

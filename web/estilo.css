@@ -1,0 +1,523 @@
+/* Editor Automático — sistema visual
+   Preto com filete dourado: é a marca Black Belt, não decoração aleatória.
+   As cores de marcador (vermelho/azul/roxo) são as MESMAS da convenção da casa
+   no Premiere — a tela e a timeline falam a mesma língua de propósito. */
+
+:root {
+  --fundo:        #0B0C0E;
+  --superficie:   #131519;
+  --elevada:      #191C22;
+  --borda:        rgba(255,255,255,.07);
+  --borda-forte:  rgba(255,255,255,.13);
+
+  --texto:        #F2F3F5;
+  --texto-2:      #9AA0AA;
+  --texto-3:      #656B75;
+
+  --ouro:         #E5A94E;
+  --ouro-fraco:   rgba(229,169,78,.12);
+
+  --broll:        #E5484D;  /* vermelho — cama de imagem */
+  --lettering:    #4C8DFF;  /* azul */
+  --decisao:      #A97BFF;  /* roxo — decisão humana */
+  --ok:           #3DD68C;
+
+  --r:            10px;
+  --sombra:       0 1px 2px rgba(0,0,0,.5), 0 8px 28px rgba(0,0,0,.35);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--fundo);
+  color: var(--texto);
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------ estrutura */
+/* ⚠️ NÃO reutilizar o nome `app` em outro lugar. Este seletor é o contêiner
+   raiz — height:100vh e display:grid. A mensagem do assistente já se chamou
+   `msg app` e herdava ISTO: cada resposta virava um grid de altura de tela
+   inteira, empurrando e sobrepondo tudo. Por isso a resposta do assistente é
+   `msg resposta`. */
+.app { display: grid; grid-template-columns: 232px 1fr; height: 100vh; }
+
+.rail {
+  background: var(--superficie);
+  border-right: 1px solid var(--borda);
+  display: flex; flex-direction: column;
+  padding: 22px 14px 14px;
+}
+
+.marca { display: flex; align-items: center; gap: 10px; padding: 0 8px 22px; }
+.marca .selo {
+  width: 26px; height: 26px; border-radius: 7px;
+  background: linear-gradient(150deg, var(--ouro), #B4761F);
+  display: grid; place-items: center;
+  font-size: 13px; font-weight: 700; color: #17120A;
+}
+.marca b { font-size: 13.5px; font-weight: 600; letter-spacing: -.01em; }
+.marca span { display: block; font-size: 11px; color: var(--texto-3); font-weight: 400; }
+
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav button {
+  all: unset; cursor: pointer;
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: 8px;
+  color: var(--texto-2); font-size: 13.5px;
+  transition: background .12s, color .12s;
+}
+.nav button:hover { background: rgba(255,255,255,.04); color: var(--texto); }
+.nav button.ativo { background: var(--ouro-fraco); color: var(--ouro); font-weight: 500; }
+.nav .glifo { width: 16px; text-align: center; opacity: .85; }
+
+.rail .rodape { margin-top: auto; padding: 12px 8px 0; border-top: 1px solid var(--borda); }
+.rail .quem { font-size: 12px; color: var(--texto-2); }
+.rail .quem b { display: block; color: var(--texto); font-weight: 500; }
+.rail .sair { all: unset; cursor: pointer; font-size: 11.5px; color: var(--texto-3); margin-top: 6px; }
+.rail .sair:hover { color: var(--broll); }
+
+.palco { overflow-y: auto; padding: 30px 38px 60px; }
+.palco::-webkit-scrollbar { width: 10px; }
+.palco::-webkit-scrollbar-thumb { background: rgba(255,255,255,.09); border-radius: 6px; border: 3px solid var(--fundo); }
+
+/* ------------------------------------------------------------ tipografia */
+h1 { font-size: 21px; font-weight: 600; letter-spacing: -.02em; }
+h2 { font-size: 15px; font-weight: 600; letter-spacing: -.01em; margin-bottom: 3px; }
+.sub { color: var(--texto-2); font-size: 13px; }
+.topo { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 24px; gap: 20px; }
+.rotulo { font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--texto-3); font-weight: 600; }
+
+/* ------------------------------------------------------------ superfícies */
+.cartao {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--r);
+  padding: 18px;
+}
+.cartao + .cartao { margin-top: 12px; }
+.grade { display: grid; gap: 12px; }
+.grade.dois { grid-template-columns: repeat(2, 1fr); }
+
+/* ------------------------------------------------------------ botões */
+.bt {
+  all: unset; cursor: pointer; text-align: center;
+  padding: 8px 15px; border-radius: 8px;
+  font-size: 13px; font-weight: 500;
+  border: 1px solid var(--borda-forte); color: var(--texto);
+  transition: background .12s, border-color .12s, opacity .12s;
+}
+.bt:hover { background: rgba(255,255,255,.05); }
+.bt.principal { background: var(--ouro); color: #17120A; border-color: transparent; font-weight: 600; }
+.bt.principal:hover { background: #F0B75E; }
+.bt.discreto { border-color: transparent; color: var(--texto-2); padding: 8px 10px; }
+.bt.discreto:hover { color: var(--texto); }
+.bt[disabled] { opacity: .38; cursor: not-allowed; }
+.bt.perigo:hover { color: var(--broll); border-color: rgba(229,72,77,.4); }
+
+input, select, textarea {
+  width: 100%; background: var(--fundo);
+  border: 1px solid var(--borda-forte); border-radius: 8px;
+  padding: 9px 11px; color: var(--texto);
+  font: inherit; font-size: 13px;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--ouro); }
+input::placeholder { color: var(--texto-3); }
+label { display: block; font-size: 12px; color: var(--texto-2); margin-bottom: 5px; }
+.campo + .campo { margin-top: 12px; }
+
+/* ------------------------------------------------------------ pastilhas */
+.pastilha {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 8px; border-radius: 20px;
+  font-size: 11px; font-weight: 500;
+  background: rgba(255,255,255,.06); color: var(--texto-2);
+}
+.pastilha.ok  { background: rgba(61,214,140,.13); color: var(--ok); }
+.pastilha.erro{ background: rgba(229,72,77,.13);  color: var(--broll); }
+.pastilha.aviso{background: var(--ouro-fraco);    color: var(--ouro); }
+.ponto { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* ------------------------------------------------------------ projetos */
+.lista-proj { display: grid; gap: 10px; }
+.proj {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 18px;
+  background: var(--superficie); border: 1px solid var(--borda);
+  border-radius: var(--r); padding: 15px 18px; cursor: pointer;
+  transition: border-color .14s, transform .14s, background .14s;
+}
+.proj:hover { border-color: var(--borda-forte); background: var(--elevada); transform: translateY(-1px); }
+.proj .nome { font-size: 14.5px; font-weight: 550; letter-spacing: -.01em; }
+.proj .meta { font-size: 12px; color: var(--texto-3); margin-top: 3px; display: flex; gap: 12px; }
+
+/* ------------------------------------------------------------ etapas */
+.trilho { display: flex; align-items: center; gap: 0; margin: 22px 0 26px; }
+.etapa { display: flex; align-items: center; gap: 8px; color: var(--texto-3); font-size: 12.5px; }
+.etapa .bola {
+  width: 21px; height: 21px; border-radius: 50%;
+  border: 1.5px solid var(--borda-forte);
+  display: grid; place-items: center; font-size: 10.5px; font-weight: 600;
+}
+.etapa.feita .bola { background: var(--ok); border-color: var(--ok); color: #06210F; }
+.etapa.feita { color: var(--texto-2); }
+.etapa.agora .bola { border-color: var(--ouro); color: var(--ouro); }
+.etapa.agora { color: var(--ouro); font-weight: 550; }
+.trilho .fio { flex: 1; height: 1px; background: var(--borda); margin: 0 12px; }
+
+/* ------------------------------------------------------------ timeline */
+.regua-caixa { background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--r); padding: 18px; }
+.regua {
+  position: relative; height: 62px; border-radius: 7px;
+  background: linear-gradient(180deg, #1D2129, #15181D);
+  border: 1px solid var(--borda); overflow: hidden; margin: 14px 0 8px;
+}
+.faixa { position: absolute; top: 0; bottom: 0; opacity: .85; }
+.faixa.insert   { background: var(--broll); }
+.faixa.lettering{ background: var(--lettering); }
+.faixa.copy     { background: var(--decisao); }
+.faixa.sem-midia{ background: repeating-linear-gradient(45deg, rgba(229,72,77,.55) 0 6px, transparent 6px 12px); border: 1px dashed rgba(229,72,77,.7); }
+.eixo { display: flex; justify-content: space-between; font-size: 11px; color: var(--texto-3); font-variant-numeric: tabular-nums; }
+.legenda-cores { display: flex; gap: 16px; margin-top: 12px; font-size: 11.5px; color: var(--texto-2); }
+.legenda-cores i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; margin-right: 6px; }
+
+/* ------------------------------------------------------------ beats */
+.beat {
+  display: grid; grid-template-columns: 70px 1fr auto; gap: 14px; align-items: start;
+  padding: 12px 0; border-top: 1px solid var(--borda);
+}
+.beat .tc { font-size: 12px; color: var(--texto-3); font-variant-numeric: tabular-nums; padding-top: 2px; }
+.beat .intencao { font-size: 13.5px; }
+.beat .fala { font-size: 12.5px; color: var(--texto-2); font-style: italic; margin-top: 3px; }
+.beat .tipo { width: 3px; border-radius: 2px; align-self: stretch; }
+
+/* ------------------------------------------------------------ portão */
+.portao { font: 12px/1.65 ui-monospace, "SF Mono", Menlo, monospace;
+  white-space: pre-wrap; color: var(--texto-2);
+  background: #0E1013; border: 1px solid var(--borda);
+  border-radius: 8px; padding: 16px; max-height: 380px; overflow: auto; }
+
+/* ------------------------------------------------------------ serviços */
+.servico { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center;
+  padding: 15px 0; border-top: 1px solid var(--borda); }
+.servico:first-of-type { border-top: none; }
+.servico .titulo { font-size: 14px; font-weight: 550; display: flex; align-items: center; gap: 9px; }
+.servico .papel { font-size: 12px; color: var(--texto-3); margin-top: 2px; }
+.servico .linha-chave { display: flex; gap: 8px; margin-top: 10px; }
+.servico .linha-chave input { font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+
+/* ------------------------------------------------------------ vazio / avisos */
+.vazio { text-align: center; padding: 70px 20px; color: var(--texto-3); }
+.vazio .icone { font-size: 30px; opacity: .35; margin-bottom: 14px; }
+.vazio h2 { color: var(--texto); margin-bottom: 6px; }
+
+/* BLOCO, não flex: com flex cada pedaço de texto e cada <b> vira um item e a
+   frase quebra em colunas. Todos os usos são texto corrido com negrito. */
+.aviso { display: block; padding: 12px 14px; border-radius: 8px; font-size: 13px; line-height: 1.55;
+  background: var(--ouro-fraco); color: var(--ouro); border: 1px solid rgba(229,169,78,.22); }
+.aviso.ruim { background: rgba(229,72,77,.1); color: #FF9599; border-color: rgba(229,72,77,.25); }
+
+/* ------------------------------------------------------------ modal */
+.veu { position: fixed; inset: 0; background: rgba(0,0,0,.62); backdrop-filter: blur(3px);
+  display: grid; place-items: center; z-index: 50; }
+.modal { background: var(--elevada); border: 1px solid var(--borda-forte);
+  border-radius: 13px; padding: 24px; width: 470px; box-shadow: var(--sombra); }
+.modal h2 { margin-bottom: 16px; }
+.modal .acoes { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+/* ------------------------------------------------------------ entrada */
+.porta { display: grid; place-items: center; height: 100vh; }
+.porta .caixa { width: 380px; }
+.porta .marca { justify-content: center; padding-bottom: 26px; }
+
+@keyframes pulsa { 0%,100% { opacity: 1 } 50% { opacity: .45 } }
+.pulsando { animation: pulsa 1.4s ease-in-out infinite; }
+
+/* ==================================================== pipeline de 12 etapas */
+
+.barra { height: 3px; background: rgba(255,255,255,.06); border-radius: 3px; overflow: hidden; margin-bottom: 22px; }
+.barra-cheia { height: 100%; background: linear-gradient(90deg, #B4761F, var(--ouro)); transition: width .4s ease; }
+
+.pipe { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
+.etapas-col { display: flex; flex-direction: column; gap: 8px; }
+@media (max-width: 1120px) { .pipe { grid-template-columns: 1fr; } }
+
+.etapa-cartao {
+  background: var(--superficie); border: 1px solid var(--borda);
+  border-radius: var(--r); overflow: hidden;
+  transition: border-color .15s, background .15s;
+}
+.etapa-cartao:hover { border-color: var(--borda-forte); }
+.etapa-cartao.aberta { border-color: var(--borda-forte); background: var(--elevada); }
+.etapa-cartao.concluido { opacity: .78; }
+.etapa-cartao.concluido.aberta { opacity: 1; }
+.etapa-cartao.aguardando_aprovacao { border-color: rgba(229,169,78,.4); }
+.etapa-cartao.rejeitado { border-color: rgba(229,72,77,.35); }
+
+.etapa-cab { display: flex; align-items: center; gap: 13px; padding: 14px 16px; cursor: pointer; }
+.etapa-n {
+  width: 25px; height: 25px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center; font-size: 11.5px; font-weight: 600;
+  border: 1.5px solid var(--borda-forte); color: var(--texto-3);
+}
+.etapa-n.concluido { background: var(--ok); border-color: var(--ok); color: #06210F; }
+.etapa-n.aguardando_aprovacao, .etapa-n.em_geracao { border-color: var(--ouro); color: var(--ouro); }
+.etapa-n.rejeitado { border-color: var(--broll); color: var(--broll); }
+
+.etapa-nome { font-size: 14px; font-weight: 550; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.etapa-resumo { font-size: 12px; color: var(--texto-3); margin-top: 2px; }
+
+.credito {
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+  padding: 2px 7px; border-radius: 4px;
+  background: rgba(229,169,78,.14); color: var(--ouro);
+}
+.credito.portao { background: rgba(169,123,255,.14); color: var(--decisao); }
+
+.etapa-corpo { padding: 4px 16px 16px; border-top: 1px solid var(--borda); padding-top: 15px; }
+.etapa-acoes { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+
+.fatos { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 14px; }
+.fatos > div { display: flex; flex-direction: column; gap: 3px; }
+.fatos b { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+
+.rolagem { max-height: 300px; overflow-y: auto; }
+.rolagem::-webkit-scrollbar { width: 8px; }
+.rolagem::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 5px; }
+
+.diverg { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; font-size: 12.5px; border-top: 1px solid var(--borda); }
+.diverg.grave { color: #FF9599; }
+.diverg .tc { font-size: 11px; color: var(--texto-3); font-variant-numeric: tabular-nums; min-width: 46px; }
+.dtipo { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,.07); color: var(--texto-2); }
+.dtipo.ausente { background: rgba(229,72,77,.15); color: #FF9599; }
+.dtipo.sobra   { background: rgba(76,141,255,.15); color: #9DBEFF; }
+.dtipo.trocado { background: var(--ouro-fraco); color: var(--ouro); }
+
+.galeria { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; }
+.item {
+  position: relative; aspect-ratio: 9/16; border-radius: 8px;
+  background: linear-gradient(160deg, #1E222A, #14171C);
+  border: 1px solid var(--borda); display: flex; flex-direction: column;
+  justify-content: space-between; padding: 9px; overflow: hidden;
+}
+.item.aprovou  { border-color: rgba(61,214,140,.55); }
+.item.rejeitou { border-color: rgba(229,72,77,.5); opacity: .5; }
+.item.regerar  { border-color: rgba(229,169,78,.5); }
+.item-id { font-size: 11.5px; font-weight: 600; color: var(--texto-2); }
+.item-acoes { display: flex; gap: 3px; justify-content: center; }
+.item-acoes .bt { padding: 4px 7px; font-size: 12px; }
+.item-selo {
+  position: absolute; top: 0; right: 0;
+  font-size: 9px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700;
+  padding: 3px 7px; border-bottom-left-radius: 7px;
+}
+.item-selo.aprovou  { background: var(--ok); color: #06210F; }
+.item-selo.rejeitou { background: var(--broll); color: #fff; }
+.item-selo.regerar  { background: var(--ouro); color: #17120A; }
+
+.lateral { position: sticky; top: 0; }
+.log { display: flex; gap: 10px; padding: 9px 0; border-top: 1px solid var(--borda); font-size: 12.5px; }
+.log:first-of-type { border-top: none; }
+.log-acao {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .04em; font-weight: 700;
+  padding: 2px 6px; border-radius: 4px; height: fit-content; flex-shrink: 0;
+  background: rgba(255,255,255,.07); color: var(--texto-2);
+}
+.log-acao.ok   { background: rgba(61,214,140,.14); color: var(--ok); }
+.log-acao.erro { background: rgba(229,72,77,.14); color: var(--broll); }
+.log-quem { font-size: 11.5px; color: var(--texto-3); margin-top: 2px; }
+
+/* ==================================================== seletor de motor */
+.motores { display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow-y: auto; }
+.motor {
+  display: flex; align-items: center; gap: 11px; cursor: pointer;
+  padding: 10px 12px; border-radius: 8px;
+  border: 1px solid var(--borda); background: var(--fundo);
+  transition: border-color .12s, background .12s;
+}
+.motor:hover { border-color: var(--borda-forte); }
+.motor.ativo { border-color: var(--ouro); background: var(--ouro-fraco); }
+.motor input { width: auto; margin: 0; accent-color: var(--ouro); }
+.motor-nome { font-size: 13px; font-weight: 550; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.motor-nota { font-size: 11.5px; color: var(--texto-3); margin-top: 2px; }
+.motor-preco { text-align: right; flex-shrink: 0; }
+.motor-preco b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.motor-preco span { font-size: 10.5px; color: var(--texto-3); margin-left: 3px; }
+.motor-total { font-size: 11px; color: var(--ouro); font-weight: 600; margin-top: 1px; }
+
+.resumo-gasto {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  margin-top: 14px; padding: 12px 14px; border-radius: 8px;
+  background: rgba(255,255,255,.03); border: 1px solid var(--borda);
+}
+.resumo-gasto.ruim { border-color: rgba(229,72,77,.3); }
+.resumo-gasto b { font-size: 14px; font-variant-numeric: tabular-nums; }
+
+/* ==================================================== chat */
+.chat-tela { display: grid; grid-template-columns: 1fr 260px; gap: 18px; height: calc(100vh - 60px); }
+@media (max-width: 1080px) { .chat-tela { grid-template-columns: 1fr; } .pipe-lateral { display: none; } }
+
+.chat-col { display: flex; flex-direction: column; min-height: 0; }
+.chat-topo { display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 14px; border-bottom: 1px solid var(--borda); }
+
+/* FLUXO NORMAL, não flex.
+   Uma coluna flex com rolagem encolhe os filhos para caber na altura e as
+   mensagens se sobrepõem — e o comportamento difere entre motores: no Chrome
+   ficava certo, no WebKit do app não. Bloco com margem não tem como sobrepor,
+   em motor nenhum. */
+.conversa { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 22px 4px; display: block; }
+.conversa > * { margin-bottom: 14px; }
+.conversa > *:last-child { margin-bottom: 0; }
+.conversa::-webkit-scrollbar { width: 9px; }
+.conversa::-webkit-scrollbar-thumb { background: rgba(255,255,255,.09); border-radius: 6px; border: 2px solid var(--fundo); }
+
+/* SEM float e SEM flex. O alinhamento é por text-align e a bolha é inline-block.
+   Motivo: no WebKit, `float` + `clear: both` dentro de um bloco com
+   `overflow:hidden` fazia a .msg medir 788px para uma bolha de 46px — a caixa
+   inteira do palco. Inline-block mede pela linha e não tem esse comportamento.
+   (No Chrome os três jeitos rendem igual; por isso só apareceu no app.) */
+.msg { display: block; text-align: left; }
+.msg.eu { text-align: right; }
+.msg.ferramenta { text-align: center; }
+.msg .bolha { display: inline-block; text-align: left; vertical-align: top; }
+.msg.ferramenta .ferr { display: inline-flex; }
+.msg .bolha { max-width: 74%; padding: 11px 15px; border-radius: 13px; font-size: 14px; line-height: 1.6; }
+.msg.eu .bolha { background: var(--ouro); color: #17120A; border-bottom-right-radius: 4px; font-weight: 500; }
+.msg.resposta .bolha { background: var(--superficie); border: 1px solid var(--borda); border-bottom-left-radius: 4px; }
+.msg.resposta .bolha p + p { margin-top: 9px; }
+.msg.resposta .bolha code { background: rgba(255,255,255,.07); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+
+.ferr { display: flex; align-items: center; gap: 9px; font-size: 11.5px;
+  padding: 5px 12px; border-radius: 20px; color: var(--texto-3);
+  background: rgba(255,255,255,.035); border: 1px solid var(--borda); }
+.ferr.ruim { background: rgba(229,72,77,.09); border-color: rgba(229,72,77,.25); color: #FF9599; }
+.ferr-nome { font-family: ui-monospace, Menlo, monospace; color: var(--ouro); }
+.ferr.ruim .ferr-nome { color: #FF9599; }
+
+.compositor { border-top: 1px solid var(--borda); padding-top: 14px; }
+.compositor-linha { display: flex; gap: 8px; align-items: flex-end; }
+.compositor textarea { resize: none; overflow-y: auto; line-height: 1.5; padding: 10px 13px; max-height: 160px; }
+.compositor #anexar { font-size: 17px; padding: 8px 12px; line-height: 1; }
+
+.anexos { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.anexo { font-size: 11.5px; padding: 3px 9px; border-radius: 6px;
+  background: var(--ouro-fraco); color: var(--ouro); }
+
+.atalhos { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.atalho { all: unset; cursor: pointer; font-size: 12px; padding: 5px 11px;
+  border-radius: 16px; color: var(--texto-2);
+  border: 1px solid var(--borda-forte); transition: background .12s, color .12s; }
+.atalho:hover { background: var(--ouro-fraco); color: var(--ouro); border-color: transparent; }
+
+.pipe-lateral { overflow-y: auto; padding-right: 4px; }
+.mini-etapa { display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  border-radius: 8px; cursor: pointer; transition: background .12s; }
+.mini-etapa:hover { background: rgba(255,255,255,.04); }
+.mini-etapa.atual { background: var(--ouro-fraco); }
+.mini-etapa.concluido { opacity: .55; }
+.mini-etapa .etapa-n { width: 21px; height: 21px; font-size: 10px; }
+.mini-nome { font-size: 12.5px; font-weight: 500; letter-spacing: -.01em; }
+.mini-status { font-size: 10.5px; color: var(--texto-3); }
+.mini-etapa .credito { font-size: 9px; padding: 1px 5px; }
+
+/* ==================================================== ambiente */
+.dep { display: flex; align-items: center; gap: 13px; padding: 13px 0; border-top: 1px solid var(--borda); }
+.dep:first-of-type { border-top: none; }
+.dep-marca { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 11px; font-weight: 700; flex-shrink: 0; }
+.dep-marca.ok { background: rgba(61,214,140,.15); color: var(--ok); }
+.dep-marca.falta { background: rgba(229,72,77,.15); color: var(--broll); }
+.dep-marca.opcional { background: rgba(255,255,255,.06); color: var(--texto-3); }
+.dep-nome { font-size: 13.5px; font-weight: 550; }
+.dep-para { font-size: 12px; color: var(--texto-3); margin-top: 1px; }
+.dep-versao { font-size: 11px; color: var(--texto-3); font-family: ui-monospace, Menlo, monospace; }
+
+.adobe-linha { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-top: 1px solid var(--borda); }
+.adobe-linha:first-of-type { border-top: none; }
+.adobe-linha b { font-size: 13px; font-weight: 550; word-break: break-word; }
+
+.falha-acoes { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.falha-acoes .bt { font-size: 12.5px; padding: 6px 12px; }
+
+/* ⚠️ Numa coluna flex com rolagem os filhos ENCOLHEM para caber na altura e as
+   mensagens se sobrepõem. `flex-shrink: 0` é o que mantém cada uma inteira. */
+.msg .bolha { max-width: 74%; overflow-wrap: anywhere; }
+
+
+/* Duas barras de rolagem aninhadas (palco e conversa) fazem a tela inteira
+   deslizar quando a conversa rola — a pergunta "sobe demais". No modo chat o
+   palco não rola: quem rola é só a conversa. */
+.palco.modo-chat { overflow: hidden; padding-bottom: 30px; }
+.palco.modo-chat .chat-tela { height: 100%; }
+
+/* ==================================================== beta */
+.selo-beta {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
+  padding: 3px 7px; border-radius: 5px; vertical-align: middle; margin-left: 7px;
+  background: var(--ouro-fraco); color: var(--ouro);
+}
+.nota-beta {
+  display: flex; gap: 10px; align-items: flex-start;
+  margin-top: 14px; padding: 11px 14px; border-radius: 9px;
+  font-size: 12.5px; line-height: 1.55; color: var(--texto-2);
+  background: rgba(255,255,255,.03); border: 1px solid var(--borda);
+}
+.nota-beta b { color: var(--texto); font-weight: 550; }
+.nota-icone { color: var(--ouro); flex-shrink: 0; }
+
+/* ==================================================== passos em tempo real */
+.passos { display: block; margin-bottom: 8px; max-width: 74%; }
+.passo {
+  display: flex; align-items: flex-start; gap: 9px;
+  padding: 6px 11px; margin-bottom: 4px; border-radius: 8px;
+  font-size: 12px; color: var(--texto-2);
+  background: rgba(255,255,255,.03); border: 1px solid var(--borda);
+}
+.passo-bola { width: 6px; height: 6px; border-radius: 50%; margin-top: 6px; flex-shrink: 0;
+  background: var(--texto-3); }
+.passo.rodando .passo-bola { background: var(--ouro); animation: pulsa 1.1s ease-in-out infinite; }
+.passo.ok .passo-bola   { background: var(--ok); }
+.passo.erro .passo-bola { background: var(--broll); }
+.passo.erro { border-color: rgba(229,72,77,.25); }
+.passo.pensando { color: var(--texto-3); font-style: italic; }
+.passo-nome { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; color: var(--ouro); }
+.passo.erro .passo-nome { color: #FF9599; }
+.passo-arg { font-family: -apple-system, system-ui, sans-serif; color: var(--texto-3);
+  margin-left: 8px; font-size: 11.5px; }
+.passo-saida { font-size: 11.5px; color: var(--texto-3); margin-top: 3px;
+  overflow-wrap: anywhere; }
+.passo-est { color: var(--texto-3); font-size: 12px; flex-shrink: 0; margin-top: 2px; }
+.passo.ok .passo-est { color: var(--ok); }
+.passo.erro .passo-est { color: var(--broll); }
+
+/* mosaico do QC — a prova visual do export, sem sair do app */
+.qc-mosaico{
+  display:block; width:100%; margin-top:12px; border-radius:10px;
+  border:1px solid var(--linha); background:#000;
+}
+
+/* atualização do app — pill no rodapé da barra lateral */
+.rodape .att{
+  display:block; width:100%; margin-bottom:10px; padding:8px 10px;
+  border:1px solid rgba(212,175,55,.35); border-radius:9px;
+  background:rgba(212,175,55,.12); color:var(--ouro);
+  font:600 12px/1 inherit; cursor:pointer; text-align:center;
+}
+.rodape .att:hover{ background:rgba(212,175,55,.2); }
+.quem .versao{ opacity:.6; margin-left:6px; }
+
+/* plugin do Premiere — o card do Ambiente */
+.plugin{
+  display:flex; align-items:center; gap:14px; padding:16px;
+  border:1px solid var(--linha); border-radius:12px; margin-bottom:16px;
+  background:linear-gradient(180deg, rgba(255,255,255,.03), transparent);
+}
+.plugin .selo-pl{
+  width:40px; height:40px; border-radius:10px; flex:none;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(212,175,55,.12); color:var(--ouro); font-size:18px;
+}
+.plugin .pl-nome{ font-weight:600; }
+.plugin .pl-sub{ color:var(--texto-3); font-size:12px; margin-top:3px; }
