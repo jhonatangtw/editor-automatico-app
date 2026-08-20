@@ -321,6 +321,11 @@ def _humano(bruto):
     if "already in use" in b or "in use by another" in b or "is running" in b:
         return ("Esta conversa já está sendo respondida. Espere a resposta atual "
                 "terminar antes de mandar outra — uma sessão de cada vez.")
+    if "input_schema" in b or ("tools." in b and "schema" in b):
+        return ("Um servidor MCP de fora (ou um plugin) declarou uma ferramenta "
+                "com esquema que a API recusa — não é do app. Tentei de novo só "
+                "com as ferramentas daqui e também não deu. Feche esse servidor "
+                "ou mande a mensagem de novo.")
     if "rate limit" in b or "usage limit" in b or "429" in b:
         return "Você bateu o limite de uso da assinatura. Tente daqui a pouco."
     # ⚠️ O que sobra vai COM O MOTIVO. Antes esta linha devolvia só "a conexão

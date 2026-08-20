@@ -533,7 +533,18 @@ def _resumo_saida(bruto):
     return t[:110] + ("…" if len(t) > 110 else "")
 
 
-def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False):
+def _esquema_ruim(bruto):
+    """A API recusou por causa do ESQUEMA de uma ferramenta.
+
+    Acontece quando algum servidor MCP de fora (ou um plugin) declara um
+    `input_schema` que a API da Anthropic não aceita — `oneOf`/`allOf`/`anyOf`
+    no topo. Uma ferramenta ruim derruba a conversa INTEIRA, mesmo que ela não
+    tenha nada a ver com o que o usuário pediu."""
+    b = (bruto or "").lower()
+    return "input_schema" in b or ("tools." in b and "schema" in b)
+
+
+def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False, _so_nossas=False):
     """Uma mensagem para a sessão do Claude Code.
 
     Cada passo sai por `ao_vivo` NA HORA em que acontece — pensamento, chamada de
@@ -549,6 +560,12 @@ def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False):
     if pid:
         cmd += ["--add-dir", projetos.dir_projeto(pid)]
     cmd += (["--resume", sid] if retomar else ["--session-id", sid])
+    if _so_nossas:
+        # ⚠️ Só as ferramentas DESTE app. Isola a conversa de servidor MCP de
+        # terceiro com esquema inválido. Não é o padrão de propósito: no caminho
+        # normal o Claude usa também o Tools PRO do usuário, e isso é capacidade
+        # que ninguém quer perder por precaução.
+        cmd.append("--strict-mcp-config")
 
     proc = so.popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             text=True, bufsize=1, cwd=_casa(cid),
@@ -610,6 +627,15 @@ def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False):
             pass
         ao_vivo and ao_vivo({"tipo": "aviso", "texto": "retomando em sessão nova…"})
         return _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=True)
+
+    # ferramenta de terceiro com esquema inválido: refaz só com as nossas, em
+    # vez de devolver um erro que o usuário não tem como consertar sozinho
+    if _esquema_ruim(bruto_erro) and not _so_nossas:
+        ao_vivo and ao_vivo({"tipo": "aviso", "texto":
+            "Um servidor MCP de fora mandou uma ferramenta com esquema que a API "
+            "recusa. Seguindo só com as ferramentas do app."})
+        return _sessao_claude(cid, pid, texto, ao_vivo,
+                              _tentou_de_novo=_tentou_de_novo, _so_nossas=True)
 
     if erro:
         raise SemAcesso(conta_claude._humano(erro))

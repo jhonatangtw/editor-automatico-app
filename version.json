@@ -1,6 +1,6 @@
 {
-  "version": "0.19.2",
-  "notes": "O ChatGPT passa a saber quais programas estão instalados e logados na sua máquina (higgsfield, heygen, mmx, ffmpeg, whisper) e recebe o estado atual a cada mensagem. E quando uma conversa falha, a tela mostra o motivo em vez de uma frase genérica.",
+  "version": "0.19.3",
+  "notes": "Uma ferramenta com esquema inválido vinda de outro servidor MCP derrubava a conversa inteira. Agora o app refaz a mensagem sozinho, usando só as ferramentas dele, e avisa o que aconteceu.",
   "repo": "jhonatangtw/editor-automatico-app",
   "asset_mac": "EditorAutomatico.dmg",
   "asset_win": "EditorAutomatico-Instalador.exe",
