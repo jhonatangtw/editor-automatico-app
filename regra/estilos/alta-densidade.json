@@ -1,0 +1,44 @@
+{
+  "nome": "alta-densidade",
+  "descricao": "UGC 9:16 com cama de imagem forte — insert a cada poucos segundos, punch nos vãos. O padrão da casa para criativo de performance.",
+  "origem": "27 ADs validados H&W (Diabetes, Joint Pain, Memory Loss, Weight Loss), medição por detecção de cena em 28/07/2026",
+
+  "corte": {
+    "alvo_segundos_por_corte": [3, 5],
+    "corte_seco": true,
+    "flash": null,
+    "sfx": null
+  },
+
+  "punch": {
+    "escalas": [1.10, 1.12, 1.14, 1.16],
+    "duracao_seg": [5.0, 7.0],
+    "intervalo_minimo_seg": 12.0,
+    "evitar_sobre_insert": true,
+    "margem_do_insert_seg": 0.8
+  },
+
+  "insert": {
+    "duracao_seg": [4.0, 8.0],
+    "cobertura_alvo": 0.25,
+    "abre_em_zero": true
+  },
+
+  "legenda": {
+    "template": "pilula-branca",
+    "palavras_por_linha": 4,
+    "posicao_y": 0.73
+  },
+
+  "lettering": {
+    "maximo": 3,
+    "posicao_y": 0.55,
+    "muta_legenda": true
+  },
+
+  "marcadores": {
+    "B-ROLL": 1,
+    "LETTERING": 6,
+    "COPY": 2
+  }
+}

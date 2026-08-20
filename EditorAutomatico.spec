@@ -5,7 +5,7 @@ a = Analysis(
     ['app.py'],
     pathex=[],
     binaries=[],
-    datas=[('web', 'web'), ('version.json', '.')],
+    datas=[('web', 'web'), ('version.json', '.'), ('regra', 'regra')],
     hiddenimports=['webview.platforms.cocoa'],
     hookspath=[],
     hooksconfig={},

@@ -19,6 +19,7 @@ pyinstaller --name $bin --windowed --noconfirm --clean `
   --distpath $dist `
   --add-data "web;web" `
   --add-data "version.json;." `
+  --add-data "regra;regra" `
   --hidden-import webview.platforms.edgechromium `
   app.py
 if (-not (Test-Path "$dist\$bin\$bin.exe")) { throw "PyInstaller não gerou o .exe" }

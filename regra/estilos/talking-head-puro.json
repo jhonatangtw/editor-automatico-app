@@ -1,0 +1,44 @@
+{
+  "nome": "talking-head-puro",
+  "descricao": "Plano fixo do primeiro ao último frame. Sem insert, sem punch. Aposta em carisma e história — cortar aqui atrapalha.",
+  "origem": "ML-33 (74s) e JP-03 (251s) do acervo validado H&W — o criativo mais longo do acervo é também o sem nenhum corte",
+
+  "corte": {
+    "alvo_segundos_por_corte": null,
+    "corte_seco": true,
+    "flash": null,
+    "sfx": null
+  },
+
+  "punch": {
+    "escalas": [],
+    "duracao_seg": null,
+    "intervalo_minimo_seg": null,
+    "evitar_sobre_insert": true,
+    "margem_do_insert_seg": 0
+  },
+
+  "insert": {
+    "duracao_seg": null,
+    "cobertura_alvo": 0.0,
+    "abre_em_zero": false
+  },
+
+  "legenda": {
+    "template": "pilula-branca",
+    "palavras_por_linha": 4,
+    "posicao_y": 0.73
+  },
+
+  "lettering": {
+    "maximo": 2,
+    "posicao_y": 0.55,
+    "muta_legenda": true
+  },
+
+  "marcadores": {
+    "B-ROLL": 1,
+    "LETTERING": 6,
+    "COPY": 2
+  }
+}

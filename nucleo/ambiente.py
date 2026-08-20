@@ -41,6 +41,17 @@ def _premiere():
     return so.premiere()
 
 
+def _regra():
+    """De onde sai a regra de edição. A tela dizia "tudo pronto" enquanto a peça
+    que decide a edição não existia na máquina — agora ela aparece na lista."""
+    from . import skill
+    try:
+        o = skill.origem()
+        return {"ok": skill.instalada(), "rotulo": o["rotulo"]}
+    except Exception as e:
+        return {"ok": False, "rotulo": str(e)[:40]}
+
+
 def _toolspro():
     if not os.path.isdir(CEP):
         return None
@@ -92,6 +103,11 @@ def conferir():
          "essencial": False, "instalavel": brew and not WIN,
          "manual": ("No Windows, use a chave de API na tela de Contas."
                     if WIN else None)},
+        {"id": "regra", "nome": "Regra de edição", "tem": _regra()["ok"],
+         "para": "onde entra o punch, a cadência e o marcador — vem dentro do app",
+         "essencial": True, "instalavel": False,
+         "manual": None if _regra()["ok"] else "Reinstale o app: ela vem junto.",
+         "versao": _regra()["rotulo"]},
         {"id": "premiere", "nome": "Adobe Premiere Pro", "tem": bool(_premiere()),
          "para": "receber a timeline montada",
          "essencial": False, "manual": "Instale pelo Creative Cloud.",

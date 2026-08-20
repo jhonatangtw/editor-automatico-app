@@ -91,7 +91,7 @@ jobs:
           PULAR = {"__pycache__", ".git", ".venv", "build", "instalador", ".github"}
           with zipfile.ZipFile("entrega/codigo.zip", "w", zipfile.ZIP_DEFLATED) as z:
               z.write("app.py"); z.write("version.json")
-              for raiz in ("nucleo", "web"):
+              for raiz in ("nucleo", "web", "regra"):
                   for pasta, subs, arqs in os.walk(raiz):
                       subs[:] = [d for d in subs if d not in PULAR]
                       for a in arqs:
