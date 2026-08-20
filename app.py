@@ -29,6 +29,11 @@ sys.path.insert(0, RAIZ)
 from nucleo import caminho  # noqa: E402
 caminho.ajustar()
 
+# ANTES de qualquer HTTPS: o Python empacotado procura os certificados no
+# caminho da máquina onde foi COMPILADO, que não existe na máquina do aluno.
+from nucleo import rede  # noqa: E402
+rede.preparar()
+
 # Modo MCP: o Claude sobe ESTE MESMO binário com --mcp para ter as ferramentas
 # do app. Antes eu apontava para `.venv/bin/python` + um .py solto — nada disso
 # existe dentro do .app, então o servidor nunca subia e o Claude ficava sem
@@ -549,6 +554,8 @@ class Handler(BaseHTTPRequestHandler):
                                lambda log: plugin.instalar(log))
                 return self._json({"tarefa": tid})
 
+            if caminho == "/api/ambiente/gerenciador":
+                return self._json(ambiente.instalar_gerenciador())
             if caminho == "/api/ambiente/instalar":
                 qual = corpo.get("qual")
                 tid = em_fundo("Preparando o ambiente",

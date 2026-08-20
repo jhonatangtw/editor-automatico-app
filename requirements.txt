@@ -1,5 +1,10 @@
-# Só duas dependências, de propósito: cada uma a mais é uma chance a mais do
-# PyInstaller falhar no empacotamento — e empacotar é o passo que decide se o
-# app existe pro aluno ou só pra quem tem terminal.
+# Três dependências, e nenhuma por conforto: cada uma a mais é uma chance a mais
+# do PyInstaller falhar, e empacotar é o passo que decide se o app existe pro
+# aluno ou só pra quem tem terminal.
+#
+# certifi entrou porque o Python guarda o caminho dos certificados da máquina
+# onde foi COMPILADO. Sem um pacote viajando junto, todo HTTPS morre com
+# CERTIFICATE_VERIFY_FAILED em qualquer máquina sem Homebrew.
 pywebview
 keyring
+certifi

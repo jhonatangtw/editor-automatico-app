@@ -22,7 +22,7 @@ import ssl
 import sys
 import urllib.request
 
-from . import so
+from . import rede, so
 
 TEMPO = 20
 UA = {"User-Agent": "EditorAutomatico"}
@@ -59,7 +59,7 @@ def maior(a, b):
 
 
 def _pegar(url, timeout=TEMPO):
-    ctx = ssl.create_default_context()
+    ctx = rede.contexto()
     req = urllib.request.Request(url, headers=UA)
     with urllib.request.urlopen(req, timeout=timeout, context=ctx) as r:
         return r.read()
@@ -94,7 +94,7 @@ def conferir():
     try:
         d = json.loads(_pegar(_base(repo) + "/latest/download/version.json"))
     except Exception as e:
-        saida["erro"] = "Não consegui falar com o GitHub: %s" % str(e)[:120]
+        saida["erro"] = "Não consegui falar com o GitHub: %s" % rede.explicar(e)[:220]
         return saida
     saida["ultima"] = d.get("version")
     saida["notas"] = d.get("notes")
@@ -143,7 +143,9 @@ def baixar(destino_dir=None, ao_vivo=None):
     os.replace(tmp, alvo)
 
     aberto = so.abrir(alvo)
-    comofaz = ("Siga o instalador e reabra o app." if so.WIN else
+    comofaz = ("O instalador FECHA o app sozinho para trocar os arquivos — no "
+               "Windows um programa aberto não pode ser sobrescrito. Siga as telas "
+               "e abra de novo pelo atalho." if so.WIN else
                "Arraste o Editor Automático para a pasta Aplicativos e reabra o app.")
     return {"ok": True, "arquivo": alvo, "aberto": aberto, "versao": info["ultima"],
             "msg": "Baixei a versão %s e abri o instalador. %s"

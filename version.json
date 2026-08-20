@@ -1,6 +1,6 @@
 {
-  "version": "0.15.3",
-  "notes": "O painel do Tools PRO passa a abrir porta própria de conexão — antes o app só falava com o Premiere em máquina que tivesse outros painéis instalados. E o controle de atualização agora fica sempre visível no rodapé, mostrando a versão instalada.",
+  "version": "0.15.4",
+  "notes": "Conserta o HTTPS no Mac sem Homebrew (era ele que derrubava a checagem de versão e o aviso de atualização), a atualização no Windows com o app aberto, e os acentos do instalador. Botão para instalar o Homebrew num clique.",
   "repo": "jhonatangtw/editor-automatico-app",
   "asset_mac": "EditorAutomatico.dmg",
   "asset_win": "EditorAutomatico-Instalador.exe",

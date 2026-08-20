@@ -23,7 +23,7 @@ import subprocess
 import sys
 import zipfile
 
-from . import atualizacao, so
+from . import atualizacao, rede, so
 
 REPO = "jhonatangtw/editor-black-belt-tools-pro"
 ASSET = "EditorBlackBeltToolsPRO-Instalador.zip"
@@ -61,7 +61,7 @@ def estado():
         d["tem_nova"] = bool(tem and d["ultima"] and
                              atualizacao.maior(d["ultima"], tem))
     except Exception as e:
-        d["erro"] = "Não consegui ver a versão publicada: %s" % str(e)[:120]
+        d["erro"] = "Não consegui ver a versão publicada: %s" % rede.explicar(e)[:220]
     return d
 
 

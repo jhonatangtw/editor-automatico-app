@@ -1,4 +1,4 @@
-; Instalador do Editor Automático para Windows.
+﻿; Instalador do Editor Automático para Windows.
 ;
 ; RequestExecutionLevel user, e a instalação vai para %LOCALAPPDATA%: instalar
 ; sem pedir senha de administrador é a mesma decisão do Tools PRO — pedir admin
@@ -9,6 +9,7 @@
 
 Unicode true
 !include "MUI2.nsh"
+!include "LogicLib.nsh"
 
 !define NOME "Editor Automático"
 !define BIN  "EditorAutomatico"
@@ -41,8 +42,36 @@ VIAddVersionKey "LegalCopyright"  "Editor Black Belt"
 !insertmacro MUI_LANGUAGE "PortugueseBR"
 !insertmacro MUI_LANGUAGE "English"
 
+; ⚠️ No Windows um .exe EM EXECUÇÃO fica travado para escrita — e a atualização
+; é disparada de dentro do próprio app, então ele está sempre rodando na hora de
+; instalar por cima. Sem isto o NSIS para em "Erro ao abrir o arquivo pra
+; gravação" apontando para o próprio EditorAutomatico.exe.
+Function FecharApp
+  DetailPrint "Fechando o Editor Automático, se estiver aberto…"
+  ; sem /T: o instalador pode ser FILHO do app (foi o app que o abriu),
+  ; e matar a árvore mataria o próprio instalador no meio da instalação
+  nsExec::Exec 'taskkill /F /IM "${BIN}.exe"'
+  Pop $0
+  Sleep 1500
+FunctionEnd
+
+Function .onInit
+  Call FecharApp
+FunctionEnd
+
+Function un.onInit
+  DetailPrint "Fechando o Editor Automático, se estiver aberto…"
+  ; sem /T: o instalador pode ser FILHO do app (foi o app que o abriu),
+  ; e matar a árvore mataria o próprio instalador no meio da instalação
+  nsExec::Exec 'taskkill /F /IM "${BIN}.exe"'
+  Pop $0
+  Sleep 1500
+FunctionEnd
+
 Section "Editor Automático" SecApp
   SectionIn RO
+  ; segunda tentativa: entre o .onInit e aqui o usuário pode ter reaberto o app
+  Call FecharApp
   ; troca a árvore inteira: sobra de versão anterior é o que produz o app que
   ; roda com metade do código novo e metade do velho
   RMDir /r "$INSTDIR"

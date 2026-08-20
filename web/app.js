@@ -1470,8 +1470,9 @@ async function telaAmbiente() {
       Ele vem no Windows 10 e 11: abra a Microsoft Store e instale o
       <b>Instalador de Aplicativo</b>.</div>` : `<div class="aviso" style="margin-bottom:16px">
       O Homebrew não está instalado — sem ele não consigo instalar FFmpeg sozinho.
-      Cole no Terminal uma vez:<br>
-      <code style="font-size:11px">/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"</code>
+      <button class="bt principal" id="brew" style="margin-top:10px">Instalar o Homebrew</button>
+      <div style="font-size:11px;opacity:.7;margin-top:6px">Abre o Terminal com o
+      instalador oficial. Ele pede a senha do seu Mac — é o instalador pedindo, não o app.</div>
       </div>`) : ''}
     ${pl ? cartaoPlugin(pl) : ''}
     <div class="cartao">
@@ -1502,6 +1503,13 @@ async function telaAmbiente() {
         else if (s.estado === 'erro') { clearInterval(t); v.remove(); toast(s.erro, true); desenhar(); }
       }, 1200);
     }).catch((e) => { v.remove(); toast(e.message, true); });
+  };
+  const bw = document.getElementById('brew');
+  if (bw) bw.onclick = async () => {
+    bw.disabled = true;
+    try { const r = await post('/api/ambiente/gerenciador'); toast(r.msg, !r.ok); }
+    catch (e) { toast(e.message, true); }
+    bw.disabled = false;
   };
   const bt = document.getElementById('tudo');
   if (bt) bt.onclick = () => rodar(null);

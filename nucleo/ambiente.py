@@ -178,6 +178,30 @@ def instalar(qual, ao_vivo=None):
     return {"ok": _tem(qual), "qual": qual}
 
 
+def instalar_gerenciador():
+    """Instala o que instala o resto.
+
+    Mandar o aluno "colar isto no Terminal" é onde a instalação morre — e no Mac
+    sem Homebrew o app fica sem FFmpeg, que é a peça essencial. O instalador do
+    Homebrew PRECISA de terminal de verdade: ele pede a senha de administrador,
+    e um Popen mudo morreria esperando uma senha que ninguém vê para digitar."""
+    if WIN:
+        return {"ok": False, "loja": True,
+                "msg": "No Windows o winget vem pela Microsoft Store: instale o "
+                       "“Instalador de Aplicativo” e volte aqui."}
+    if _tem("brew"):
+        return {"ok": True, "ja_tinha": True, "msg": "O Homebrew já está instalado."}
+    r = so.terminal(
+        ["/bin/bash", "-c",
+         '"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'],
+        "Homebrew")
+    if r.get("ok"):
+        r["msg"] = ("Abri o Terminal com o instalador do Homebrew. Ele vai pedir a "
+                    "SENHA DO SEU MAC — é o instalador oficial pedindo, não o app. "
+                    "Quando terminar, volte aqui e clique em Instalar o que falta.")
+    return r
+
+
 def instalar_tudo(ao_vivo=None):
     d = conferir()
     feitos, erros = [], []
