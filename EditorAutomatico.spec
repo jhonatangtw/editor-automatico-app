@@ -45,6 +45,6 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='EditorAutomatico.app',
-    icon=None,
+    icon='marca/icone.icns',
     bundle_identifier='com.editorblackbelt.editorautomatico',
 )

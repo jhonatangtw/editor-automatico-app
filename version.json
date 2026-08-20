@@ -1,8 +1,9 @@
 {
-  "version": "0.16.2",
-  "notes": "Varredura de bugs: geração paga não se perde mais por queda de rede no download, o carregador do código novo deixou de disparar em import, e duas chamadas que rodariam o próprio app em vez do Python foram corrigidas.",
+  "version": "0.16.3",
+  "notes": "Ícone próprio: uma faixa preta sobre o dourado da marca, no Dock e na barra de tarefas. Como o ícone é gravado dentro do executável, esta é uma versão de instalador.",
   "repo": "jhonatangtw/editor-automatico-app",
   "asset_mac": "EditorAutomatico.dmg",
   "asset_win": "EditorAutomatico-Instalador.exe",
-  "asset_mac_intel": "EditorAutomatico-Intel.dmg"
+  "asset_mac_intel": "EditorAutomatico-Intel.dmg",
+  "precisa_instalador": true
 }

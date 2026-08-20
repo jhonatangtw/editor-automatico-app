@@ -32,6 +32,8 @@ VIAddVersionKey "FileVersion"     "${VERSAO}"
 VIAddVersionKey "LegalCopyright"  "Editor Black Belt"
 
 !define MUI_ABORTWARNING
+!define MUI_ICON   "..\..\marca\icone.ico"
+!define MUI_UNICON "..\..\marca\icone.ico"
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${BIN}.exe"
 !define MUI_FINISHPAGE_RUN_TEXT "Abrir o ${NOME} agora"
 !insertmacro MUI_PAGE_DIRECTORY

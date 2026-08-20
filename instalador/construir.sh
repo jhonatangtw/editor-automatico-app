@@ -45,6 +45,7 @@ echo "▸ empacotando com PyInstaller ($VER)"
   --add-data "regra:regra" \
   --hidden-import webview.platforms.cocoa \
   --osx-bundle-identifier "$ID" \
+  --icon marca/icone.icns \
   app.py >/dev/null
 
 [ -d "$DIST/$BIN.app" ] || { echo "ERRO: PyInstaller não gerou o .app"; exit 1; }
