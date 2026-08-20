@@ -534,6 +534,8 @@ class Handler(BaseHTTPRequestHandler):
 
             if caminho == "/api/claude/metodo":
                 return self._json({"metodo": claude.definir_metodo(corpo["metodo"])})
+            if caminho == "/api/claude/entrar":
+                return self._json(claude.entrar_sessao())
             if caminho == "/api/claude/testar":
                 return self._json(claude.testar_conta())
 

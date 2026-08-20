@@ -1154,6 +1154,8 @@ async function cartaoClaude() {
       <div id="saida-claude" style="margin-top:10px"></div>
     </div>
     <div style="display:flex;gap:8px;align-items:flex-start">
+      ${c.entrar ? `<button class="bt principal" id="claude-entrar">Entrar</button>` : ''}
+      ${c.instalar ? `<button class="bt principal" id="claude-instalar">Instalar</button>` : ''}
       <button class="bt" id="claude-testar">${c.conectado ? 'Testar' : 'Reconectar'}</button>
       <button class="bt discreto" id="claude-trocar">Trocar método</button>
     </div>
@@ -1173,6 +1175,17 @@ function ligarClaude() {
   };
   const tr = document.getElementById('claude-trocar');
   if (tr) tr.onclick = () => trocarMetodo();
+
+  // "Rode `claude` no Terminal" é o conselho que este app existe para não dar.
+  const en = document.getElementById('claude-entrar');
+  if (en) en.onclick = async () => {
+    en.disabled = true;
+    try { const r = await post('/api/claude/entrar'); toast(r.msg, !r.ok); }
+    catch (e) { toast(e.message, true); }
+    en.disabled = false;
+  };
+  const ins = document.getElementById('claude-instalar');
+  if (ins) ins.onclick = () => { aba = 'ambiente'; projetoAberto = null; desenhar(); };
 }
 
 function telaSenha() {

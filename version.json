@@ -1,6 +1,6 @@
 {
-  "version": "0.15.6",
-  "notes": "A tela de entrada parou de culpar a internet do usuário: quando falha, agora ela diz a causa real (certificado, firewall ou servidor fora).",
+  "version": "0.15.7",
+  "notes": "O Claude Code entrou na lista do Ambiente (o app exigia e nunca ofereceu instalar) e ganhou botão Entrar, que abre o login no Terminal em vez de mandar você digitar comando.",
   "repo": "jhonatangtw/editor-automatico-app",
   "asset_mac": "EditorAutomatico.dmg",
   "asset_win": "EditorAutomatico-Instalador.exe",

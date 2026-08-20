@@ -69,6 +69,10 @@ def conferir():
          "essencial": True,
          "instalavel": _tem("py") or _tem("python") if WIN
                        else (_tem("pip3") or _tem("python3"))},
+        {"id": "claude", "nome": "Claude Code", "tem": _tem("claude"),
+         "para": "é quem lê a fala e decide a edição — sem ele o app não pensa",
+         "essencial": True, "instalavel": npm,
+         "versao": _versao(["claude", "--version"]) if _tem("claude") else ""},
         {"id": "higgsfield", "nome": "Higgsfield CLI", "tem": _tem("higgsfield"),
          "para": "gerar imagem e b-roll",
          "essencial": True, "instalavel": npm},
@@ -115,6 +119,7 @@ _WINGET = ["winget", "install", "-e", "--accept-package-agreements",
            "--accept-source-agreements", "--id"]
 
 RECEITAS_MAC = {
+    "claude":     [["npm", "install", "-g", "@anthropic-ai/claude-code"]],
     "ffmpeg":     [["brew", "install", "ffmpeg"]],
     "ffprobe":    [["brew", "install", "ffmpeg"]],   # vem no mesmo pacote
     # faster-whisper em vez do whisper oficial: mesma qualidade sem arrastar o
@@ -130,6 +135,7 @@ RECEITAS_MAC = {
 # ⚠️ No Windows os CLI de npm viram `.cmd`. Quem chama tem que passar pelo
 # `so.run`, senão o Python levanta FileNotFoundError com o binário instalado.
 RECEITAS_WIN = {
+    "claude":     [["npm", "install", "-g", "@anthropic-ai/claude-code"]],
     "ffmpeg":     [_WINGET + ["Gyan.FFmpeg"]],
     "ffprobe":    [_WINGET + ["Gyan.FFmpeg"]],
     "whisper":    [["python", "-m", "pip", "install", "--upgrade", "openai-whisper"]],

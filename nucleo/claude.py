@@ -104,14 +104,20 @@ def ambiente_isolado():
 def sessao_cli():
     """Estado da sessão do Claude Code — sem falar de crédito."""
     if not tem_claude_cli():
-        return {"ok": False, "msg": "O Claude Code não está instalado nesta máquina."}
+        return {"ok": False, "instalar": True,
+                "msg": "O Claude Code não está instalado nesta máquina. Instale "
+                       "pela aba Ambiente e volte aqui."}
     try:
         bruto = subprocess.run(
             ["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
             capture_output=True, text=True, timeout=15)
         if bruto.returncode != 0:
-            return {"ok": False, "msg": "Nenhuma sessão do Claude Code encontrada. "
-                                        "Rode `claude` no Terminal e entre na sua conta."}
+            # "rode no Terminal" é o conselho que o app existe para não dar.
+            # Quem trata isso agora é o botão Entrar, que abre o Terminal sozinho.
+            return {"ok": False, "entrar": True,
+                    "msg": "O Claude Code está instalado, mas ninguém entrou numa "
+                           "conta ainda. Clique em Entrar — abro o Terminal com o "
+                           "login e o navegador abre a partir dele."}
         d = json.loads(bruto.stdout).get("claudeAiOauth") or {}
         return {"ok": True, "assinatura": d.get("subscriptionType") or "conta",
                 "escopos": d.get("scopes") or []}
@@ -188,6 +194,23 @@ def _cabecalhos():
     return None, ""
 
 
+def entrar_sessao():
+    """Login do Claude Code num terminal DE VERDADE.
+
+    ⚠️ O `claude` abre um fluxo interativo e precisa de TTY — disparado por
+    Popen mudo ele morre na hora, e o app reportaria sucesso sobre um processo
+    morto (já aconteceu com os quatro outros logins de CLI)."""
+    if not tem_claude_cli():
+        return {"ok": False,
+                "msg": "O Claude Code não está instalado. Instale pela aba Ambiente."}
+    from . import so
+    r = so.terminal(["claude"], "Claude")
+    if r.get("ok"):
+        r["msg"] = ("Abri o Terminal com o Claude. Escolha entrar com a sua conta, "
+                    "autorize no navegador e volte aqui para clicar em Reconectar.")
+    return r
+
+
 def entrar():
     """Abre o navegador pro OAuth. Não trava a janela esperando."""
     if not tem_cli():
@@ -246,6 +269,8 @@ def estado_conta():
                 "conta": ("assinatura " + s["assinatura"]) if s["ok"] else "",
                 "conectado": s["ok"],
                 "msg": s.get("msg", ""),
+                "entrar": bool(s.get("entrar")),
+                "instalar": bool(s.get("instalar")),
                 "pode_trocar": bool(chaves.ler("claude")) or True}
     if m == "chave":
         k = chaves.ler("claude")
