@@ -421,6 +421,29 @@ def _contexto_ambiente(pid):
               "- Nunca peça chave de API nem senha — isso se resolve na aba Contas.",
               ""]
 
+    # ⚠️ Dizer QUE os programas existem, e ONDE. Sem isto o modelo responde que
+    # o `higgsfield` não está instalado numa máquina onde ele está — o app
+    # reconstrói o PATH (um .app aberto pelo Finder não herda o do shell), mas
+    # ninguém tinha contado isso ao modelo.
+    from . import so as _so
+    ferramentas = []
+    for nome, para in (("higgsfield", "gerar imagem e b-roll"),
+                       ("heygen", "avatar falante"),
+                       ("mmx", "MiniMax: vídeo, imagem e música"),
+                       ("ffmpeg", "cortar, montar e exportar"),
+                       ("ffprobe", "ler duração, formato e fps"),
+                       ("whisper", "transcrever a fala"),
+                       ("codex", "o CLI do ChatGPT"),
+                       ("claude", "o CLI do Claude")):
+        onde = _so.onde(nome)
+        if onde:
+            ferramentas.append("- `%s` (%s) em %s" % (nome, para, onde))
+    if ferramentas:
+        linhas.append("PROGRAMAS DE LINHA DE COMANDO JÁ INSTALADOS E LOGADOS "
+                      "(use direto pelo terminal, não pergunte se existem):")
+        linhas += ferramentas
+        linhas.append("")
+
     try:
         a = adobe.estado()
         linhas.append("AMBIENTE AGORA:")

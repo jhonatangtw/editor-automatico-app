@@ -44,8 +44,23 @@ import subprocess
 
 from . import so
 
-CODEX_HOME = os.path.expanduser("~/.codex")
-AUTH = os.path.join(CODEX_HOME, "auth.json")
+# ⚠️ **A conta é do USUÁRIO, não do app.** Cheguei a isolar o app numa
+# `CODEX_HOME` só dele, achando que a pasta compartilhada com o ChatGPT.app
+# estava comendo o `auth.json`. Estava errado: o login persiste na pasta padrão,
+# e isolar significava exigir um SEGUNDO login para a mesma conta — o oposto de
+# "cada um entra na conta dele pelo CLI". O app usa o mesmo `codex login` que a
+# pessoa já usa no terminal.
+CASA = os.environ.get("CODEX_HOME") or os.path.expanduser("~/.codex")
+
+
+def _ambiente():
+    """O ambiente do app, INTEIRO.
+
+    ⚠️ O PATH aqui é o reconstruído pelo `caminho.py` — é ele que faz o Codex
+    enxergar `higgsfield`, `heygen` e `ffmpeg`, que moram em pastas que um app
+    aberto pelo Finder não herda. Sem isso o ChatGPT diz que as ferramentas não
+    estão instaladas, numa máquina onde elas estão."""
+    return dict(os.environ)
 
 
 class SemCodex(RuntimeError):
@@ -57,21 +72,33 @@ def disponivel():
 
 
 def conta():
-    """Como o Codex está autenticado nesta máquina — sem tocar no token."""
+    """Como o Codex está autenticado — PERGUNTANDO AO CLI.
+
+    ⚠️ Antes isto lia `auth.json` na mão. O arquivo mudou de dono e de lugar
+    entre versões, e o app passou a dizer "ninguém entrou" para quem tinha
+    acabado de entrar. `codex login status` é a única fonte que acompanha a
+    versão instalada — a mesma lição do `mmx auth status`."""
     if not disponivel():
         return {"ok": False, "instalado": False,
                 "msg": "O Codex CLI não está instalado. Instale pela aba Ambiente."}
     try:
-        with open(AUTH, encoding="utf-8") as f:
-            d = json.load(f)
-    except Exception:
-        return {"ok": False, "instalado": True,
-                "msg": "O Codex está instalado mas ninguém entrou numa conta. "
+        r = subprocess.run([so.onde("codex"), "login", "status"],
+                           capture_output=True, text=True, timeout=30,
+                           env=_ambiente(), stdin=subprocess.DEVNULL)
+        saida = ((r.stdout or "") + (r.stderr or "")).strip()
+    except Exception as e:
+        return {"ok": False, "instalado": True, "msg": str(e)[:140]}
+
+    baixo = saida.lower()
+    if "not logged in" in baixo or "no codex credentials" in baixo:
+        return {"ok": False, "instalado": True, "casa": CASA,
+                "msg": "O Codex está instalado mas ninguém entrou numa conta aqui. "
                        "Clique em Entrar — abro o Terminal com o login."}
-    modo = d.get("auth_mode") or ""
-    return {"ok": True, "instalado": True, "modo": modo,
+    modo = "chatgpt" if ("chatgpt" in baixo or "plan" in baixo) else "apikey"
+    return {"ok": True, "instalado": True, "modo": modo, "casa": CASA,
             "rotulo": ("assinatura do ChatGPT" if modo == "chatgpt"
-                       else "chave de API no Codex" if modo else "conectado"),
+                       else "chave de API no Codex"),
+            "detalhe": saida.splitlines()[0][:80] if saida else "",
             "msg": ""}
 
 
@@ -83,7 +110,8 @@ def entrar():
     r = so.terminal(["codex", "login"], "ChatGPT")
     if r.get("ok"):
         r["msg"] = ("Abri o Terminal com o login do Codex. Escolha “Sign in with "
-                    "ChatGPT”, autorize no navegador e volte aqui.")
+                    "ChatGPT”, autorize no navegador e volte aqui — depois clique "
+                    "em Testar.")
     return r
 
 
@@ -145,12 +173,16 @@ def conversar(cid, pid, texto, ao_vivo, _tentou_de_novo=False):
     if not thread:
         cmd += ["-C", casa]
 
-    # o Codex não tem "--append-system-prompt": o contexto do ambiente vai
-    # colado na primeira mensagem da thread, e depois a própria thread lembra
-    pergunta = texto
-    if not thread:
-        pergunta = (conversa.SISTEMA + "\n\n" + conversa._contexto_ambiente(pid)
+    # O Codex não tem "--append-system-prompt". A thread lembra do que já foi
+    # dito, mas o AMBIENTE muda entre mensagens — o Premiere abre, a sequência
+    # troca, um programa é instalado. Por isso o estado atual vai em TODA
+    # mensagem; só as regras (que não mudam) ficam na primeira.
+    contexto = conversa._contexto_ambiente(pid)
+    if thread:
+        pergunta = ("[estado atual, atualizado agora]\n" + contexto
                     + "\n\n---\n\n" + texto)
+    else:
+        pergunta = (conversa.SISTEMA + "\n\n" + contexto + "\n\n---\n\n" + texto)
     cmd.append(pergunta)
 
     passos, erro = [], None
@@ -162,7 +194,8 @@ def conversar(cid, pid, texto, ao_vivo, _tentou_de_novo=False):
         return len(passos) - 1
 
     proc = so.popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                    stdin=subprocess.DEVNULL, text=True, bufsize=1, cwd=casa)
+                    stdin=subprocess.DEVNULL, text=True, bufsize=1, cwd=casa,
+                    env=_ambiente())
 
     for linha in proc.stdout:
         linha = linha.strip()

@@ -318,7 +318,16 @@ def _humano(bruto):
                "eu começo uma sessão nova."
     if "not found" in b or "no such file" in b:
         return "O Claude Code não está instalado nesta máquina."
-    return "A conexão com o Claude não está disponível."
+    if "already in use" in b or "in use by another" in b or "is running" in b:
+        return ("Esta conversa já está sendo respondida. Espere a resposta atual "
+                "terminar antes de mandar outra — uma sessão de cada vez.")
+    if "rate limit" in b or "usage limit" in b or "429" in b:
+        return "Você bateu o limite de uso da assinatura. Tente daqui a pouco."
+    # ⚠️ O que sobra vai COM O MOTIVO. Antes esta linha devolvia só "a conexão
+    # não está disponível" e jogava o erro fora — e aí ninguém, nem eu, tinha
+    # como saber o que aconteceu na máquina do usuário.
+    limpo = " ".join((bruto or "").split())[:220]
+    return ("A conexão com o Claude falhou." + (" Motivo: " + limpo if limpo else ""))
 
 
 def estado():

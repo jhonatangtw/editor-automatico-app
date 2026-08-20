@@ -1,6 +1,6 @@
 {
-  "version": "0.19.1",
-  "notes": "Dois consertos: o aviso de atualizar que voltava a cada abertura mesmo depois de atualizar, e o ChatGPT que faltava na aba Contas — agora dá para entrar na sua conta por lá, como no Claude.",
+  "version": "0.19.2",
+  "notes": "O ChatGPT passa a saber quais programas estão instalados e logados na sua máquina (higgsfield, heygen, mmx, ffmpeg, whisper) e recebe o estado atual a cada mensagem. E quando uma conversa falha, a tela mostra o motivo em vez de uma frase genérica.",
   "repo": "jhonatangtw/editor-automatico-app",
   "asset_mac": "EditorAutomatico.dmg",
   "asset_win": "EditorAutomatico-Instalador.exe",

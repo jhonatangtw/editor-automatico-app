@@ -584,28 +584,36 @@ function marcar(t) {
 }
 
 // Erro técnico não vai para a tela. O usuário vê o que aconteceu e o que fazer.
-function mostrarFalha(ultimoTexto) {
+// ⚠️ Esta tela mostrava SEMPRE a mesma frase e jogava fora o erro que o
+// servidor tinha mandado. O usuário via "não está disponível" para seis causas
+// diferentes — sessão ocupada, limite de uso, CLI faltando — e nenhuma delas
+// dizia o que fazer. O motivo agora vem junto.
+function mostrarFalha(ultimoTexto, motivo) {
   const c = document.getElementById('conversa');
   if (!c) return;
+  const quem = IA?.escolhido === 'chatgpt' ? 'o ChatGPT' : 'o Claude';
   c.insertAdjacentHTML('beforeend', `
     <div class="msg resposta"><div class="bolha">
-      <p>A conexão com o Claude não está disponível agora.</p>
+      <p>${motivo ? esc(motivo) : `A conexão com ${quem} não está disponível agora.`}</p>
       <div class="falha-acoes">
         <button class="bt" id="f-toolspro">Reconectar ao Tools PRO</button>
-        <button class="bt" id="f-reconectar">Reconectar</button>
-        <button class="bt" id="f-trocar">Trocar conta</button>
+        ${IA?.escolhido === 'chatgpt' ? '' : `
+          <button class="bt" id="f-reconectar">Reconectar</button>
+          <button class="bt" id="f-trocar">Trocar conta</button>`}
         <button class="bt principal" id="f-tentar">Tentar novamente</button>
       </div>
     </div></div>`);
   rolarFim();
-  document.getElementById('f-reconectar').onclick = async () => {
+  const fr = document.getElementById('f-reconectar');
+  if (fr) fr.onclick = async () => {
     const r = await post('/api/claude/testar');
     toast(r.msg, !r.ok);
     if (r.ok) desenhar();
   };
   const ft = document.getElementById('f-toolspro');
   if (ft) ft.onclick = () => reconectarToolsPro();
-  document.getElementById('f-trocar').onclick = () => trocarMetodo();
+  const ftr = document.getElementById('f-trocar');
+  if (ftr) ftr.onclick = () => trocarMetodo();
   document.getElementById('f-tentar').onclick = () => {
     const e = document.getElementById('entrada');
     if (e) { e.value = ultimoTexto || ''; document.getElementById('enviar').click(); }
@@ -659,7 +667,7 @@ function ligarChat(p, pp) {
           clearInterval(t); conversando = false;
           const vivo = document.getElementById('vivo');
           if (vivo) vivo.remove();
-          mostrarFalha(texto);
+          mostrarFalha(texto, s.erro);
         }
       }, 900);
     } catch (e) {
