@@ -139,7 +139,34 @@ label { display: block; font-size: 12px; color: var(--texto-2); margin-bottom: 5
 .pastilha.ok  { background: rgba(61,214,140,.13); color: var(--ok); }
 .pastilha.erro{ background: rgba(229,72,77,.13);  color: var(--broll); }
 .pastilha.aviso{background: var(--ouro-fraco);    color: var(--ouro); }
+/* a conferência de fundo é informação de canto: precisa ser LEGÍVEL e não
+   competir com o estado das contas, que é o que a pessoa veio ver */
+.pastilha.calma { background: transparent; color: var(--texto-3); }
+.pastilha.conferindo { background: rgba(255,255,255,.06); color: var(--texto-2); }
 .ponto { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.giro {
+  width: 9px; height: 9px; border-radius: 50%;
+  border: 1.5px solid currentColor; border-top-color: transparent;
+  animation: girando .7s linear infinite;
+}
+@keyframes girando { to { transform: rotate(360deg) } }
+
+/* --------------------------------------------- barra de "conferido quando" */
+.conferencia { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.conferencia .bt { padding: 5px 10px; font-size: 11px; }
+
+/* ------------------------------------------ esqueleto da primeira conferida */
+.servico.esqueleto { pointer-events: none; }
+.barra-fantasma {
+  height: 11px; border-radius: 6px; margin-bottom: 9px;
+  background: linear-gradient(90deg, rgba(255,255,255,.05) 25%,
+              rgba(255,255,255,.10) 37%, rgba(255,255,255,.05) 63%);
+  background-size: 400% 100%;
+  animation: fantasma 1.3s ease-in-out infinite;
+}
+.barra-fantasma.fina { height: 9px; opacity: .6; margin-bottom: 0; }
+.barra-fantasma.botao { width: 86px; height: 28px; margin: 0; }
+@keyframes fantasma { 0% { background-position: 100% 50% } 100% { background-position: 0 50% } }
 
 /* ------------------------------------------------------------ projetos */
 .lista-proj { display: grid; gap: 10px; }

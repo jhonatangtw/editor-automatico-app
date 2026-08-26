@@ -78,9 +78,18 @@ def _toolspro():
         return "instalado"
 
 
-def conferir():
+def conferir(reler_path=True):
     """O diagnóstico que a tela mostra. Cada item diz para que serve — sem isso
-    o aluno vê uma lista de nomes técnicos e não sabe o que é opcional."""
+    o aluno vê uma lista de nomes técnicos e não sabe o que é opcional.
+
+    ⚠️ Relê o PATH ANTES de procurar. O PATH era uma foto do arranque, e pasta
+    que ainda não existia ficava de fora dela — então o que fosse instalado com
+    o app aberto continuava invisível até fechar e abrir. Reconferir custa
+    décimo de milésimo de segundo e é o que faz "instalei" virar "instalado" na
+    mesma tela."""
+    if reler_path:
+        from . import caminho
+        caminho.recarregar()
     brew = _tem(GERENCIADOR)
     npm = _tem("npm")
     itens = [
@@ -300,6 +309,10 @@ def instalar(qual, ao_vivo=None):
     os.environ["PATH"] = os.pathsep.join(
         [os.environ.get("PATH", "")] + novos)
     shutil.which.cache_clear() if hasattr(shutil.which, "cache_clear") else None
+    # e a releitura completa: o instalador pode ter escrito uma linha nova no
+    # perfil do shell, e é de lá que sai o PATH de verdade do usuário
+    from . import caminho
+    caminho.recarregar(com_shell=True)
     return {"ok": _tem(qual), "qual": qual}
 
 

@@ -23,6 +23,7 @@ import json
 import subprocess
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor as _ThreadPool
 
 from . import chaves, claude as _claude, so
 
@@ -345,27 +346,60 @@ def testar(sid):
     return {"ok": False, "msg": "Resposta inesperada (HTTP %s)." % dados.get("http", "?")}
 
 
-def estado():
+def estado(reler_path=True):
     """O que a tela de Contas desenha. Não testa a rede — só diz o que existe.
     Testar é clique, porque bater em quatro serviços a cada abertura é lento e,
-    em alguns planos, contado."""
-    saida = []
+    em alguns planos, contado.
+
+    ⚠️ **Os CLIs são perguntados EM PARALELO.** Em fila eram ~1,5s de tela
+    parada (três `auth status`, um esperando o outro), e a tela de Contas passou
+    a reconferir sozinha — a cada volta para a aba, depois de cada login. Fila
+    aí vira app lento o dia inteiro. Em paralelo o custo é o do CLI mais lento.
+
+    ⚠️ Relê o PATH antes: um CLI instalado com o app aberto não estava no PATH
+    do arranque, e a tela dizia "não instalado" para o que já funcionava."""
+    if reler_path:
+        from . import caminho
+        caminho.recarregar()
+
     guardadas = chaves.resumo()
-    for sid, cfg in TABELA.items():
-        item = {"id": sid, "titulo": cfg["titulo"], "papel": cfg["papel"],
-                "modo": cfg["modo"], "verificado": cfg["verificado"],
-                "opcional": cfg.get("opcional", False)}
-        if cfg["modo"] == "anthropic":
-            e = _claude.estado()
-            item.update(pronto=e["pronto"], conta=e.get("detalhe", ""),
-                        alerta=e.get("alerta", ""), tem_cli=e.get("tem_cli", False))
-        elif cfg["modo"] == "cli":
-            e = ({"heygen": _heygen_status, "minimax": _minimax_status}
-                 .get(sid, _higgs_status))()
-            item.update(pronto=e["conectado"], conta=e.get("conta", ""),
-                        saldo=e.get("saldo", ""), msg=e.get("msg", ""))
-        else:
-            g = guardadas.get(sid, {})
-            item.update(pronto=g.get("tem", False), fim=g.get("fim", ""))
-        saida.append(item)
+    sondas = {}
+    with _ThreadPool(max_workers=4) as piscina:
+        for sid, cfg in TABELA.items():
+            if cfg["modo"] == "anthropic":
+                sondas[sid] = piscina.submit(_claude.estado)
+            elif cfg["modo"] == "cli":
+                sondas[sid] = piscina.submit(
+                    {"heygen": _heygen_status, "minimax": _minimax_status}
+                    .get(sid, _higgs_status))
+
+        saida = []
+        for sid, cfg in TABELA.items():
+            item = {"id": sid, "titulo": cfg["titulo"], "papel": cfg["papel"],
+                    "modo": cfg["modo"], "verificado": cfg["verificado"],
+                    "opcional": cfg.get("opcional", False)}
+            if cfg["modo"] == "anthropic":
+                e = _colher(sondas[sid], {"pronto": False})
+                item.update(pronto=e["pronto"], conta=e.get("detalhe", ""),
+                            alerta=e.get("alerta", ""), tem_cli=e.get("tem_cli", False))
+            elif cfg["modo"] == "cli":
+                e = _colher(sondas[sid], {"conectado": False,
+                                          "msg": "Não consegui perguntar ao CLI."})
+                item.update(pronto=e["conectado"], conta=e.get("conta", ""),
+                            saldo=e.get("saldo", ""), msg=e.get("msg", ""))
+            else:
+                g = guardadas.get(sid, {})
+                item.update(pronto=g.get("tem", False), fim=g.get("fim", ""))
+            saida.append(item)
     return {"servicos": saida, "cofre": chaves.cofre()}
+
+
+def _colher(sonda, reserva):
+    """Uma sonda que trava não pode travar a tela inteira. O CLI já tem timeout
+    próprio; este é o cinto para o caso dele não respeitar o dele."""
+    try:
+        return sonda.result(timeout=45)
+    except Exception as e:
+        d = dict(reserva)
+        d["msg"] = str(e)[:120] or d.get("msg", "")
+        return d

@@ -1,6 +1,6 @@
 {
-  "version": "0.19.3",
-  "notes": "Uma ferramenta com esquema inválido vinda de outro servidor MCP derrubava a conversa inteira. Agora o app refaz a mensagem sozinho, usando só as ferramentas dele, e avisa o que aconteceu.",
+  "version": "0.19.4",
+  "notes": "As telas de Contas e Ambiente param de mentir. Conectar uma conta, desconectar, guardar uma chave ou instalar uma dependência agora aparece na hora — sem fechar e abrir o app. Login que termina no Terminal é esperado e a pastilha vira sozinha quando ele conclui. Voltar para a aba ou para a janela reconfere; se a conferência falhar, tem botão Atualizar status. Novos botões Desconectar e Remover chave. Por baixo: o app relê o PATH em vez de usar a foto do arranque — era essa a razão de “instalei e a tela não mudou”.",
   "repo": "jhonatangtw/editor-automatico-app",
   "asset_mac": "EditorAutomatico.dmg",
   "asset_win": "EditorAutomatico-Instalador.exe",

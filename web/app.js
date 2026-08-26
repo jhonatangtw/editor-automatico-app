@@ -12,6 +12,14 @@ let conversaAtual = null;
 let ATT = null;          // versão nova publicada, quando houver
 let IA = null;           // provedores e qual está ativo
 
+// Retratos vivos das telas que dependem do estado da MÁQUINA (contas conectadas,
+// dependências instaladas). Ficam aqui só para a tela pintar na hora ao voltar
+// para a aba — nunca como resposta final: toda pintura dispara uma reconferência
+// e se repinta quando a resposta chega. Ver `revalidar()`.
+let SVC = null;          // /api/servicos + /api/claude + /api/ia
+let AMB = null;          // /api/ambiente + plugin + ponte + skills
+const CONFERENCIA = {};  // escopo -> {quando, erro, voando, esperando}
+
 // ---------------------------------------------------------------- rede
 async function api(rota, opcoes = {}) {
   const r = await fetch(rota, {
@@ -52,6 +60,310 @@ function modal(html, aoAbrir) {
   aoAbrir && aoAbrir(v);
   return v;
 }
+
+// ------------------------------------------------- estado vivo da máquina
+/* O bug que este bloco existe para matar: a tela mostrava uma FOTO do arranque.
+   `E` era buscado uma vez em `iniciar()` e nunca mais, então conectar uma conta
+   ou instalar uma dependência não mudava nada até fechar e abrir o app — e o
+   pior é que o app estava certo sobre tudo, menos sobre o que estava na tela.
+
+   A regra agora: nenhuma tela de estado de máquina desenha sem reconferir. O
+   retrato guardado serve só para a tela aparecer NA HORA; a resposta fresca
+   chega logo atrás e repinta se algo mudou. Reconferir acontece ao entrar na
+   aba, ao voltar para a janela, depois de cada ação e enquanto um login de
+   navegador estiver em andamento. */
+
+const FONTES = {
+  contas: async (forcar) => {
+    const q = forcar ? '?forcar=1' : '';
+    // em paralelo: em fila eram três esperas somadas, e esta leitura acontece
+    // várias vezes por minuto agora
+    const [svc, claude, ia] = await Promise.all([
+      api('/api/servicos' + q),
+      api('/api/claude').catch(() => null),
+      api('/api/ia').catch(() => null),
+    ]);
+    if (ia) IA = ia;                      // o seletor do chat lê daqui
+    return { ...svc, claude, ia };
+  },
+  ambiente: async (forcar) => {
+    const q = forcar ? '?forcar=1' : '';
+    const [amb, plugin, ponte, sk] = await Promise.all([
+      api('/api/ambiente' + q),
+      api('/api/plugin').catch(() => null),
+      api('/api/ponte').catch(() => null),
+      api('/api/skills').catch(() => null),
+    ]);
+    if (plugin && ponte) plugin.ponte = ponte;
+    return { ...amb, plugin, skills: sk };
+  },
+};
+
+const GUARDADO = {
+  contas: () => SVC, ambiente: () => AMB,
+};
+const GUARDAR = {
+  contas: (d) => { SVC = d; }, ambiente: (d) => { AMB = d; },
+};
+
+/* A assinatura é o que decide se vale repintar. Sem ela, cada reconferência de
+   fundo apagaria a chave que a pessoa está digitando e o resultado do "Testar"
+   que ela acabou de ler — a tela ficaria correta e inutilizável. */
+function assinatura(escopo, d) {
+  if (!d) return '';
+  if (escopo === 'contas') {
+    return JSON.stringify([
+      (d.servicos || []).map((x) => [x.id, x.pronto, x.conta, x.fim, x.msg, x.saldo]),
+      d.cofre,
+      d.claude && [d.claude.conectado, d.claude.rotulo, d.claude.conta, d.claude.entrar, d.claude.instalar],
+      d.ia && (d.ia.provedores || []).map((x) => [x.id, x.pronto, x.metodo, x.origem]),
+    ]);
+  }
+  return JSON.stringify([
+    (d.itens || []).map((i) => [i.id, i.tem, i.versao, i.instalavel]),
+    d.pronto, d.brew, d.gerenciador,
+    d.skills && [d.skills.instaladas, d.skills.total],
+    d.plugin && [d.plugin.instalado, d.plugin.ultima, d.plugin.tem_nova,
+                 d.plugin.ponte && d.plugin.ponte.tem_debug],
+  ]);
+}
+
+/* Reconfere um escopo contra a máquina. Devolve {ok, mudou}.
+
+   `silencioso` = reconferência de fundo (voltou para a aba, poll de login): não
+   grita sucesso, só corrige a tela. Sem silencioso, avisa o que aconteceu —
+   que é o que a pessoa precisa ver depois de clicar. */
+async function revalidar(escopo, opcoes = {}) {
+  const { forcar = false, silencioso = true, aviso = '' } = opcoes;
+  const c = CONFERENCIA[escopo] || (CONFERENCIA[escopo] = {});
+
+  /* Duas reconferências juntas viram uma — MENOS quando a nova pede mais que a
+     em andamento. Clicar em "Atualizar status" durante uma conferência de fundo
+     dava a resposta da de fundo: o clique não relia o PATH, não avisava nada e
+     parecia que o botão não fazia coisa alguma. Agora ele espera a de fundo
+     acabar e faz a dele. */
+  if (c.voando && !(forcar && !c.voandoForcado)) return c.voando;
+  if (c.voando) await c.voando.catch(() => {});
+
+  const antes = assinatura(escopo, GUARDADO[escopo]());
+  c.erro = null;
+  pintarBarra(escopo, 'verificando');
+
+  c.voandoForcado = forcar;
+  c.voando = (async () => {
+    let r;
+    try {
+      const d = await FONTES[escopo](forcar);
+      GUARDAR[escopo](d);
+      c.quando = Date.now();
+      c.erro = null;
+      r = { ok: true, mudou: assinatura(escopo, d) !== antes, dados: d };
+    } catch (e) {
+      c.erro = e.message || 'não consegui conferir';
+      r = { ok: false, mudou: false, erro: c.erro };
+    }
+    /* ⚠️ Limpar a marca ANTES de pintar. Pintando de dentro do `try`, a marca
+       ainda estava de pé e a barra desenhava "verificando…" com o botão
+       desabilitado — para sempre, porque depois disso ninguém mais pintava.
+       O app terminava a conferência e a tela dizia que ela não tinha
+       terminado, que é a mesma mentira que este arquivo veio consertar. */
+    c.voando = null;
+    c.voandoForcado = false;
+
+    if (aba === escopo && !projetoAberto) {
+      if (r.ok && r.mudou) repintar(escopo);
+      else pintarBarra(escopo);
+    }
+    if (!silencioso) {
+      if (!r.ok) toast('Não consegui conferir: ' + r.erro, true);
+      else if (aviso) toast(aviso);
+    }
+    return r;
+  })();
+  return c.voando;
+}
+
+/* Entrar na aba reconfere — mas repintar também chama a tela de novo, e sem
+   esta guarda cada mudança viraria duas idas ao backend. */
+function revalidarSeVelho(escopo, ms = 2000) {
+  const c = CONFERENCIA[escopo] || {};
+  if (c.voando) return c.voando;
+  if (c.quando && Date.now() - c.quando < ms) return Promise.resolve({ ok: true, mudou: false });
+  return revalidar(escopo);
+}
+
+/* Repintar preserva o que a PESSOA pôs na tela: a chave meio digitada e o
+   resultado do "Testar". Perder isso a cada reconferência de fundo seria
+   trocar um bug por outro. */
+function repintar(escopo) {
+  const guardados = {};
+  document.querySelectorAll('[data-chave]').forEach((i) => {
+    if (i.value) guardados['chave:' + i.dataset.chave] = i.value;
+  });
+  document.querySelectorAll('[data-saida]').forEach((o) => {
+    if (o.innerHTML) guardados['saida:' + o.dataset.saida] = o.innerHTML;
+  });
+  const rolagem = (document.getElementById('palco') || {}).scrollTop || 0;
+
+  desenhar().then(() => {
+    Object.entries(guardados).forEach(([k, v]) => {
+      const [tipo, id] = [k.slice(0, k.indexOf(':')), k.slice(k.indexOf(':') + 1)];
+      const alvo = tipo === 'chave'
+        ? document.querySelector(`[data-chave="${id}"]`)
+        : document.querySelector(`[data-saida="${id}"]`);
+      if (!alvo) return;
+      if (tipo === 'chave') alvo.value = v; else alvo.innerHTML = v;
+    });
+    const p = document.getElementById('palco');
+    if (p) p.scrollTop = rolagem;
+  });
+}
+
+/* Primeira entrada numa aba: a conferência custa ~1s (pergunta a CLI e a
+   disco). Mostrar a tela vazia nesse segundo é o que faz a pessoa clicar de
+   novo; mostrar dado velho seria voltar ao bug. Então mostra o esqueleto. */
+function esqueleto(titulo, dica) {
+  moldura(`
+    <div class="topo"><div><h1>${esc(titulo)}</h1>
+      <p class="sub">${esc(dica)}</p></div></div>
+    <div class="cartao">
+      ${[0, 1, 2, 3].map(() => `<div class="servico esqueleto">
+        <div style="flex:1"><div class="barra-fantasma" style="width:34%"></div>
+          <div class="barra-fantasma fina" style="width:56%"></div></div>
+        <div class="barra-fantasma botao"></div>
+      </div>`).join('')}
+    </div>`);
+}
+
+// Falhar a conferência não pode virar tela branca: sem saída, fechar e abrir o
+// app volta a ser a única ideia que ocorre a quem está na frente dela.
+function telaErroEstado(titulo, msg, escopo) {
+  moldura(`
+    <div class="topo"><div><h1>${esc(titulo)}</h1>
+      <p class="sub">Não consegui conferir o estado desta máquina.</p></div></div>
+    <div class="cartao"><div class="servico"><div>
+      <div class="titulo">Conferência falhou
+        <span class="pastilha erro"><i class="ponto"></i>sem resposta</span></div>
+      <div class="papel">${esc(msg || 'o app não respondeu')}</div>
+    </div>
+    <button class="bt principal" id="tentar-de-novo">Atualizar status</button>
+    </div></div>`);
+  document.getElementById('tentar-de-novo').onclick = async () => {
+    const b = document.getElementById('tentar-de-novo');
+    b.disabled = true; b.textContent = 'Conferindo…';
+    const r = await revalidar(escopo, { forcar: true, silencioso: false });
+    if (r.ok) desenhar();
+    else { b.disabled = false; b.textContent = 'Atualizar status'; }
+  };
+}
+
+// -------------------------------------------------- barra "conferido quando"
+function barraEstado(escopo) {
+  return `<div class="conferencia" id="barra-${escopo}"></div>`;
+}
+
+function pintarBarra(escopo, forcado) {
+  const el = document.getElementById('barra-' + escopo);
+  if (!el) return;
+  const c = CONFERENCIA[escopo] || {};
+  const estado = forcado || (c.voando ? 'verificando' : c.erro ? 'erro' : 'ok');
+  const espera = c.esperando;
+
+  const pastilha = estado === 'verificando'
+    ? '<span class="pastilha conferindo"><i class="giro"></i>verificando…</span>'
+    : estado === 'erro'
+      ? `<span class="pastilha erro" title="${esc(c.erro || '')}"><i class="ponto"></i>não consegui conferir</span>`
+      : `<span class="pastilha calma"><i class="ponto"></i>${esc(quando(c.quando))}</span>`;
+
+  el.innerHTML = `
+    ${espera ? `<span class="pastilha aviso"><i class="giro"></i>esperando o login do
+        ${esc(espera.rotulo)}…</span>
+      <button class="bt discreto" data-parar-espera="${escopo}">Cancelar</button>` : ''}
+    ${pastilha}
+    <button class="bt discreto" data-reconferir="${escopo}"
+      ${estado === 'verificando' ? 'disabled' : ''}>Atualizar status</button>`;
+
+  const b = el.querySelector('[data-reconferir]');
+  if (b) b.onclick = async () => {
+    const r = await revalidar(escopo, { forcar: true, silencioso: false });
+    if (r.ok) toast(r.mudou ? 'Status atualizado.' : 'Já estava em dia.');
+  };
+  const p = el.querySelector('[data-parar-espera]');
+  if (p) p.onclick = () => pararEspera(escopo);
+}
+
+function quando(t) {
+  if (!t) return 'ainda não conferido';
+  const s = Math.round((Date.now() - t) / 1000);
+  if (s < 5) return 'conferido agora';
+  if (s < 60) return `conferido há ${s}s`;
+  return `conferido há ${Math.round(s / 60)} min`;
+}
+
+// ------------------------------------------------ esperar um login de fora
+/* Login de CLI acontece no Terminal e no navegador — FORA do app. O app não tem
+   como ser avisado quando termina, e era exatamente aí que a tela congelava:
+   "Abri o navegador", e daí em diante nada. Então o app fica olhando: reconfere
+   de tempo em tempo até o serviço virar, e avisa. Com hora para desistir, senão
+   um login abandonado deixaria o app batendo em CLI para sempre. */
+function esperarLogin(escopo, rotulo, pronto, minutos = 3) {
+  pararEspera(escopo);
+  const c = CONFERENCIA[escopo] || (CONFERENCIA[escopo] = {});
+  const fim = Date.now() + minutos * 60000;
+
+  const tique = async () => {
+    const r = await revalidar(escopo);
+    if (r.ok && pronto(GUARDADO[escopo]())) {
+      pararEspera(escopo);
+      toast(rotulo + ' conectado.');
+      // O login pode ter começado por fora da aba: o seletor de IA do chat abre
+      // este mesmo fluxo, e lá também há pastilha para corrigir. Mas repintar
+      // o chat apagaria a mensagem que a pessoa está escrevendo — e ela nem
+      // saberia por quê. Com texto na caixa, o aviso basta; a tela se acerta
+      // na próxima pintura.
+      const entrada = document.getElementById('entrada');
+      if (aba !== escopo && !(entrada && entrada.value.trim())) desenhar();
+      return;
+    }
+    if (Date.now() > fim) {
+      pararEspera(escopo);
+      toast('Não vi o login do ' + rotulo + ' terminar. Se concluiu, clique em '
+            + 'Atualizar status.', true);
+    }
+  };
+  c.esperando = { rotulo, timer: setInterval(tique, 2500) };
+  pintarBarra(escopo);
+}
+
+function pararEspera(escopo) {
+  const c = CONFERENCIA[escopo];
+  if (!c || !c.esperando) return;
+  clearInterval(c.esperando.timer);
+  c.esperando = null;
+  pintarBarra(escopo);
+}
+
+// ------------------------------------------------- voltar para a janela
+/* O login termina no Terminal; a pessoa volta para o app e a resposta dela é
+   olhar a tela. Se a tela ainda diz "sem credencial" naquele instante, ela
+   conclui que não funcionou — e fecha e abre o app. Voltar o foco é o sinal
+   mais honesto de "reconfira agora" que existe aqui. */
+let voltouEm = 0;
+function aoVoltar(porFoco) {
+  /* ⚠️ O `focus` NÃO passa pela peneira do `document.hidden`. Voltando do
+     Terminal, os dois eventos chegam quase juntos e a ordem não é garantida —
+     o `focus` pode chegar com a página ainda marcada como escondida. Gatilho
+     que se cancela sozinho por causa de ordem de evento é o tipo de coisa que
+     funciona na minha máquina e falha na do editor. */
+  if (!porFoco && document.hidden) return;
+  const agora = Date.now();
+  if (agora - voltouEm < 1500) return;    // foco pisca; não vira rajada
+  voltouEm = agora;
+  if (projetoAberto) return;
+  if (FONTES[aba]) revalidar(aba);
+}
+window.addEventListener('focus', () => aoVoltar(true));
+document.addEventListener('visibilitychange', () => aoVoltar(false));
 
 // ---------------------------------------------------------------- entrada
 function telaPorta(msg) {
@@ -475,15 +787,12 @@ function pedirChaveIA(p) {
         if (r.ok) {
           await post('/api/ia/metodo', { metodo: 'sessao' });
           v.remove();
-          // o login termina no Terminal: reconferimos quando ele voltar
-          setTimeout(async () => {
-            IA = await api('/api/ia');
-            if (IA.provedores.find((x) => x.id === 'chatgpt')?.pronto) {
-              await post('/api/ia/escolher', { provedor: 'chatgpt' });
-              IA = await api('/api/ia'); toast('ChatGPT conectado.');
-            }
-            desenhar();
-          }, 12000);
+          // ⚠️ Era um `setTimeout` de 12s: um chute em quanto tempo alguém
+          // demora para autorizar no navegador. Quem demorava 13 segundos
+          // ficava com a tela dizendo "não conectado" para sempre. Agora fica
+          // olhando até acontecer — e desiste com aviso, não em silêncio.
+          esperarLogin('contas', 'ChatGPT', (d) =>
+            ((d.ia && d.ia.provedores || []).find((x) => x.id === 'chatgpt') || {}).pronto);
         }
       } catch (e) { toast(e.message, true); }
       b.disabled = false; b.textContent = 'Entrar com a conta do ChatGPT';
@@ -500,8 +809,9 @@ function pedirChaveIA(p) {
         if (!t.ok) { toast(t.msg, true); b.disabled = false; b.textContent = 'Conectar'; return; }
         const r = await post('/api/ia/escolher', { provedor: 'chatgpt' });
         IA = r.estado; v.remove();
-        toast(t.msg + ' Falando com ChatGPT.');
-        desenhar();
+        await revalidar('contas', { silencioso: false,
+          aviso: t.msg + ' Falando com ChatGPT.' });
+        if (aba !== 'contas') desenhar();
       } catch (e) { toast(e.message, true); b.disabled = false; b.textContent = 'Conectar'; }
     };
   });
@@ -1204,13 +1514,23 @@ async function rodarDecupagem(pid) {
 
 // ---------------------------------------------------------------- contas
 async function telaContas() {
-  const s = E.servicos;
-  const claudeHtml = await cartaoClaude();
-  const gptHtml = await cartaoChatGPT();
+  // Nunca de `E`: `E` é a foto do arranque. Se ainda não há retrato, espera o
+  // primeiro (com esqueleto na tela); se já há, pinta na hora e reconfere atrás.
+  if (!SVC) {
+    esqueleto('Contas', 'Conferindo o que está conectado nesta máquina…');
+    const r = await revalidar('contas');
+    if (!r.ok && !SVC) return telaErroEstado('Contas', r.erro, 'contas');
+  } else {
+    revalidarSeVelho('contas');
+  }
+  const s = SVC;
+  const claudeHtml = cartaoClaude(s.claude);
+  const gptHtml = cartaoChatGPT(s.ia);
   moldura(`
     <div class="topo">
       <div><h1>Contas</h1>
         <p class="sub">Suas credenciais ficam no ${esc(s.cofre === 'arquivo' ? 'disco' : 'cofre do sistema')}, nesta máquina. Nunca no nosso servidor.</p></div>
+      ${barraEstado('contas')}
     </div>
     ${s.cofre === 'arquivo' ? `<div class="aviso" style="margin-bottom:16px">
         O cofre do sistema não está disponível — as chaves ficam num arquivo protegido.</div>` : ''}
@@ -1234,12 +1554,14 @@ async function telaContas() {
       ${s.servicos.filter((x) => x.id !== 'claude').map((x) => cartaoServico(x)).join('')}
     </div>`);
 
+  pintarBarra('contas');
   document.getElementById('trocar-senha').onclick = () => telaSenha();
   document.getElementById('sair-conta').onclick = async () => {
     await post('/api/conta/sair'); iniciar();
   };
   ligarClaude();
   ligarChatGPT();
+  ligarDesconectar();
   document.querySelectorAll('[data-testar]').forEach((b) => {
     b.onclick = async () => {
       const id = b.dataset.testar;
@@ -1255,14 +1577,38 @@ async function telaContas() {
     };
   });
 
+  // Guardar chave: some do cofre para a tela na mesma ação. Era `iniciar()` —
+  // que refaz o app inteiro, bate no servidor de licença e pisca a tela toda
+  // para trocar uma pastilha.
   document.querySelectorAll('[data-salvar]').forEach((b) => {
     b.onclick = async () => {
       const id = b.dataset.salvar;
       const campo = document.querySelector(`[data-chave="${id}"]`);
+      const valor = campo.value.trim();
+      b.disabled = true; b.textContent = valor ? 'Guardando…' : 'Removendo…';
       try {
-        await post('/api/servicos/chave', { servico: id, valor: campo.value.trim() });
-        campo.value = ''; toast('Guardada no cofre.'); iniciar();
-      } catch (e) { toast(e.message, true); }
+        await post('/api/servicos/chave', { servico: id, valor });
+        campo.value = '';
+        await revalidar('contas', { silencioso: false,
+          aviso: valor ? 'Chave guardada no cofre.' : 'Chave removida do cofre.' });
+      } catch (e) {
+        toast('Não consegui guardar: ' + e.message, true);
+        b.disabled = false; b.textContent = 'Guardar';
+      }
+    };
+  });
+
+  document.querySelectorAll('[data-remover]').forEach((b) => {
+    b.onclick = async () => {
+      const id = b.dataset.remover;
+      b.disabled = true; b.textContent = 'Removendo…';
+      try {
+        await post('/api/servicos/chave', { servico: id, valor: '' });
+        await revalidar('contas', { silencioso: false, aviso: 'Chave removida do cofre.' });
+      } catch (e) {
+        toast('Não consegui remover: ' + e.message, true);
+        b.disabled = false; b.textContent = 'Remover chave';
+      }
     };
   });
 
@@ -1277,27 +1623,70 @@ async function telaContas() {
           <button class="bt principal" id="mk-ok">Guardar</button></div>`, (v) => {
         v.querySelector('[data-fechar]').onclick = () => v.remove();
         v.querySelector('#mk-ok').onclick = async () => {
+          const ok = v.querySelector('#mk-ok');
+          ok.disabled = true; ok.textContent = 'Guardando…';
           try {
             const r = await post('/api/servicos/entrar',
               { servico: sv, chave: v.querySelector('#mk2').value.trim() });
-            v.remove(); toast(r.msg, !r.ok); iniciar();
-          } catch (e) { toast(e.message, true); }
+            v.remove();
+            await revalidar('contas', { silencioso: false,
+              aviso: r.msg || 'Chave guardada.' });
+          } catch (e) {
+            toast(e.message, true);
+            ok.disabled = false; ok.textContent = 'Guardar';
+          }
         };
       });
     };
   });
 
+  // O login abre no Terminal e termina no navegador — FORA do app. Aqui começa
+  // a espera que troca a pastilha sozinha quando ele terminar; antes a tela
+  // parava em "Abri o navegador" e só o reinício do app a movia.
   document.querySelectorAll('[data-entrar]').forEach((b) => {
     b.onclick = async () => {
-      const r = await post('/api/servicos/entrar', { servico: b.dataset.entrar });
-      toast(r.msg || 'Abri o navegador.', !r.ok);
+      const id = b.dataset.entrar;
+      const nome = (SVC.servicos.find((x) => x.id === id) || {}).titulo || id;
+      b.disabled = true;
+      try {
+        const r = await post('/api/servicos/entrar', { servico: id });
+        toast(r.msg || 'Abri o navegador.', !r.ok);
+        if (r.ok !== false) {
+          esperarLogin('contas', nome,
+            (d) => ((d.servicos || []).find((x) => x.id === id) || {}).pronto);
+        }
+      } catch (e) { toast(e.message, true); }
+      b.disabled = false;
     };
   });
 }
 
-async function cartaoClaude() {
-  let c;
-  try { c = await api('/api/claude'); } catch (e) { return ''; }
+// O backend já sabia desconectar (`/api/servicos/sair`), mas nenhuma tela
+// chamava — desconectar era coisa de Terminal. E sem o botão não havia como
+// nem testar que a tela reage a uma conta que CAI.
+function ligarDesconectar() {
+  document.querySelectorAll('[data-sair-servico]').forEach((b) => {
+    b.onclick = async () => {
+      const id = b.dataset.sairServico;
+      const nome = (SVC.servicos.find((x) => x.id === id) || {}).titulo || id;
+      b.disabled = true; b.textContent = 'Saindo…';
+      try {
+        await post('/api/servicos/sair', { servico: id });
+        pararEspera('contas');
+        await revalidar('contas', { silencioso: false, aviso: nome + ' desconectado.' });
+      } catch (e) {
+        toast('Não consegui desconectar: ' + e.message, true);
+        b.disabled = false; b.textContent = 'Desconectar';
+      }
+    };
+  });
+}
+
+// Recebe os dados em vez de buscar: a tela inteira é reconferida de uma vez,
+// e um cartão que busca por conta própria volta a ser uma foto solta — que é o
+// bug que este arquivo está consertando.
+function cartaoClaude(c) {
+  if (!c) return '';
   return `<div class="servico" id="cartao-claude">
     <div>
       <div class="titulo">Claude
@@ -1318,9 +1707,8 @@ async function cartaoClaude() {
 
 // O ChatGPT é uma CONTA como as outras — tem que estar aqui, não só escondido
 // no seletor do chat. Foi onde o usuário foi procurar, e com razão.
-async function cartaoChatGPT() {
-  let d;
-  try { d = await api('/api/ia'); } catch (e) { return ''; }
+function cartaoChatGPT(d) {
+  if (!d) return '';
   const p = (d.provedores || []).find((x) => x.id === 'chatgpt');
   if (!p) return '';
   const assinatura = p.metodo === 'sessao';
@@ -1349,22 +1737,29 @@ function ligarChatGPT() {
       const r = await post('/api/ia/entrar');
       const cx = document.getElementById('saida-gpt');
       if (cx) cx.innerHTML = `<span class="pastilha ${r.ok ? 'ok' : 'erro'}"><i class="ponto"></i>${esc(r.msg)}</span>`;
+      // o login do Codex acontece no Terminal: fica olhando até virar
+      if (r.ok !== false) {
+        esperarLogin('contas', 'ChatGPT', (d) =>
+          ((d.ia && d.ia.provedores || []).find((x) => x.id === 'chatgpt') || {}).pronto);
+      }
     } catch (e) { toast(e.message, true); }
     en.disabled = false; en.textContent = 'Entrar com a conta';
   };
   const ch = document.getElementById('gpt-chave');
   if (ch) ch.onclick = async () => {
-    IA = await api('/api/ia').catch(() => IA);
+    IA = (SVC && SVC.ia) || await api('/api/ia').catch(() => IA);
     pedirChaveIA({ id: 'chatgpt', nome: 'ChatGPT' });
   };
   const mt = document.getElementById('gpt-metodo');
   if (mt) mt.onclick = async () => {
     const querAssinatura = mt.textContent.includes('assinatura');
+    mt.disabled = true;
     try {
       await post('/api/ia/metodo', { metodo: querAssinatura ? 'sessao' : 'chave' });
-      IA = await api('/api/ia');
-      desenhar();
-    } catch (e) { toast(e.message, true); }
+      await revalidar('contas', { silencioso: false,
+        aviso: querAssinatura ? 'ChatGPT agora entra pela assinatura.'
+                              : 'ChatGPT agora usa chave de API.' });
+    } catch (e) { toast(e.message, true); mt.disabled = false; }
   };
 }
 
@@ -1386,8 +1781,13 @@ function ligarClaude() {
   const en = document.getElementById('claude-entrar');
   if (en) en.onclick = async () => {
     en.disabled = true;
-    try { const r = await post('/api/claude/entrar'); toast(r.msg, !r.ok); }
-    catch (e) { toast(e.message, true); }
+    try {
+      const r = await post('/api/claude/entrar');
+      toast(r.msg, !r.ok);
+      if (r.ok !== false) {
+        esperarLogin('contas', 'Claude', (d) => d.claude && d.claude.conectado);
+      }
+    } catch (e) { toast(e.message, true); }
     en.disabled = false;
   };
   const ins = document.getElementById('claude-instalar');
@@ -1471,7 +1871,8 @@ function trocarMetodo() {
           if (k) await post('/api/servicos/chave', { servico: 'claude', valor: k });
         }
         await post('/api/claude/metodo', { metodo: m });
-        v.remove(); toast('Método atualizado.'); desenhar();
+        v.remove();
+        await revalidar('contas', { silencioso: false, aviso: 'Método atualizado.' });
       } catch (e) { toast(e.message, true); }
     };
   });
@@ -1487,6 +1888,11 @@ function cartaoServico(x) {
     : `<button class="bt ${conectado ? '' : 'principal'}" data-entrar="${x.id}">
          ${conectado ? 'Entrar de novo' : 'Entrar com a conta'}</button>
        ${x.id === 'minimax' ? '<button class="bt discreto" data-chave-cli="minimax">ou usar chave</button>' : ''}`;
+  // desconectar só aparece conectado: botão que não faz nada é ruído
+  const sair = !conectado ? ''
+    : x.modo === 'chave'
+      ? `<button class="bt discreto perigo" data-remover="${x.id}">Remover chave</button>`
+      : `<button class="bt discreto perigo" data-sair-servico="${x.id}">Desconectar</button>`;
 
   return `<div class="servico">
     <div>
@@ -1506,6 +1912,7 @@ function cartaoServico(x) {
     <div style="display:flex;gap:8px;align-items:flex-start">
       ${acao}
       <button class="bt discreto" data-testar="${x.id}">Testar</button>
+      ${sair}
     </div>
   </div>`;
 }
@@ -1637,6 +2044,7 @@ async function prepararPonte() {
     <p class="sub" id="pp-txt">Escrevendo a configuração na pasta do plugin…</p>`);
   try {
     const r = await post('/api/ponte/preparar');
+    revalidar('ambiente');
     v.querySelector('h2').textContent = 'Ponte preparada';
     v.querySelector('#pp-txt').innerHTML =
       `O painel do Tools PRO passa a abrir a porta <b>${r.porta}</b>.<br><br>
@@ -1670,18 +2078,24 @@ async function reconectarToolsPro() {
 
 // ---------------------------------------------------------------- ambiente
 async function telaAmbiente() {
-  const d = await api('/api/ambiente');
-  const pl = await api('/api/plugin').catch(() => null);
-  const pn = await api('/api/ponte').catch(() => null);
-  if (pl && pn) pl.ponte = pn;
-  const sk = await api('/api/skills').catch(() => null);
+  if (!AMB) {
+    esqueleto('Ambiente', 'Conferindo o que está instalado nesta máquina…');
+    const r = await revalidar('ambiente');
+    if (!r.ok && !AMB) return telaErroEstado('Ambiente', r.erro, 'ambiente');
+  } else {
+    revalidarSeVelho('ambiente');
+  }
+  const d = AMB, pl = AMB.plugin, sk = AMB.skills;
   const faltando = d.itens.filter((i) => !i.tem && i.essencial && i.instalavel);
 
   moldura(`
     <div class="topo">
       <div><h1>Ambiente</h1>
         <p class="sub">O app instala o que falta. Você não precisa abrir o Terminal.</p></div>
-      ${faltando.length ? `<button class="bt principal" id="tudo">Instalar o que falta (${faltando.length})</button>` : ''}
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        ${barraEstado('ambiente')}
+        ${faltando.length ? `<button class="bt principal" id="tudo">Instalar o que falta (${faltando.length})</button>` : ''}
+      </div>
     </div>
     ${d.pronto ? `<div class="aviso" style="background:rgba(61,214,140,.1);color:var(--ok);border-color:rgba(61,214,140,.2);margin-bottom:16px">
         ✓ Tudo que é essencial está instalado.</div>`
@@ -1712,8 +2126,12 @@ async function telaAmbiente() {
         </div>`).join('')}
     </div>`);
 
+  // Terminada a instalação, quem diz se deu certo é a RECONFERÊNCIA, não o
+  // "pronto" da tarefa. `forcar` porque o instalador pode ter posto o binário
+  // numa pasta que ainda não estava no PATH deste processo.
   const rodar = (qual) => {
-    const v = modal(`<h2>Instalando</h2>
+    const nome = qual ? (d.itens.find((i) => i.id === qual) || {}).nome || qual : null;
+    const v = modal(`<h2>Instalando${nome ? ' — ' + esc(nome) : ''}</h2>
       <div class="portao" id="log" style="max-height:280px">preparando…</div>`);
     post('/api/ambiente/instalar', qual ? { qual } : {}).then((r) => {
       const t = setInterval(async () => {
@@ -1721,23 +2139,63 @@ async function telaAmbiente() {
         const l = v.querySelector('#log');
         l.textContent = (s.log || []).join('\n') || 'trabalhando…';
         l.scrollTop = l.scrollHeight;
-        if (s.estado === 'pronto') { clearInterval(t); v.remove(); toast('Pronto.'); desenhar(); }
-        else if (s.estado === 'erro') { clearInterval(t); v.remove(); toast(s.erro, true); desenhar(); }
+        if (s.estado === 'pronto') {
+          clearInterval(t); v.remove();
+          await revalidar('ambiente', { forcar: true, silencioso: true });
+          conferirInstalacao(qual, nome, s.resultado);
+        } else if (s.estado === 'erro') {
+          clearInterval(t); v.remove();
+          toast('A instalação falhou: ' + s.erro, true);
+          revalidar('ambiente', { forcar: true });
+        }
       }, 1200);
     }).catch((e) => { v.remove(); toast(e.message, true); });
   };
+
+  // O Homebrew instala num Terminal de fora — o app não é avisado quando
+  // termina. Mesma espera dos logins: fica olhando até o `brew` aparecer.
   const bw = document.getElementById('brew');
   if (bw) bw.onclick = async () => {
     bw.disabled = true;
-    try { const r = await post('/api/ambiente/gerenciador'); toast(r.msg, !r.ok); }
-    catch (e) { toast(e.message, true); }
+    try {
+      const r = await post('/api/ambiente/gerenciador');
+      toast(r.msg, !r.ok);
+      if (r.ok && !r.ja_tinha) {
+        esperarLogin('ambiente', 'Homebrew', (x) => x && x.brew, 10);
+      } else if (r.ja_tinha) {
+        revalidar('ambiente', { forcar: true });
+      }
+    } catch (e) { toast(e.message, true); }
     bw.disabled = false;
   };
   const bt = document.getElementById('tudo');
   if (bt) bt.onclick = () => rodar(null);
   document.querySelectorAll('[data-inst]').forEach((b) => { b.onclick = () => rodar(b.dataset.inst); });
+  pintarBarra('ambiente');
   ligarSkills();
   ligarPlugin();
+}
+
+/* "Pronto." não é resposta: o comando pode terminar com código 0 e o binário
+   continuar sem aparecer (PATH, stub de loja, receita que instalou outra
+   coisa). Quem responde é a lista reconferida. */
+function conferirInstalacao(qual, nome, resultado) {
+  const itens = (AMB && AMB.itens) || [];
+  if (qual) {
+    const i = itens.find((x) => x.id === qual);
+    if (i && i.tem) return toast((nome || qual) + ' instalado.');
+    return toast('Rodou sem erro, mas ainda não encontro ' + (nome || qual)
+      + ' nesta máquina. Clique em Atualizar status; se continuar, veja o log.', true);
+  }
+  const feitos = (resultado && resultado.instalados) || [];
+  const erros = (resultado && resultado.erros) || [];
+  const faltam = (AMB && AMB.faltam) || [];
+  if (erros.length) return toast('Instalei ' + feitos.length + ', mas falhou: '
+    + erros.join(' · '), true);
+  if (faltam.length) return toast('Instalei ' + feitos.length
+    + '. Ainda falta: ' + faltam.join(', '), true);
+  toast(feitos.length ? 'Pronto — instalei ' + feitos.join(', ') + '.'
+                      : 'Tudo que é essencial já estava instalado.');
 }
 
 // As skills são o REPERTÓRIO do Claude. Sem elas o mesmo app, com o mesmo
@@ -1777,8 +2235,18 @@ function ligarSkills() {
         const st = await api('/api/tarefas/' + r.tarefa);
         v.querySelector('#log').textContent = (st.log || []).slice(-4).join('\n') || 'trabalhando…';
         if (st.estado === 'pronto') {
-          clearInterval(t); v.remove(); toast(st.resultado?.msg || 'Pronto.'); desenhar();
-        } else if (st.estado === 'erro') { clearInterval(t); v.remove(); toast(st.erro, true); }
+          clearInterval(t); v.remove();
+          await revalidar('ambiente');
+          const sk2 = AMB && AMB.skills;
+          toast(sk2 && sk2.faltam && sk2.faltam.length
+            ? 'Instalei, mas ainda faltam ' + sk2.faltam.length + ' skills.'
+            : (st.resultado?.msg || 'Skills instaladas.'),
+            !!(sk2 && sk2.faltam && sk2.faltam.length));
+        } else if (st.estado === 'erro') {
+          clearInterval(t); v.remove();
+          toast('Não consegui instalar as skills: ' + st.erro, true);
+          revalidar('ambiente');
+        }
       }, 600);
     }).catch((e) => { v.remove(); toast(e.message, true); });
   };
@@ -1831,8 +2299,18 @@ function ligarPlugin() {
         v.querySelector('#log').textContent = (st.log || []).slice(-3).join('\n') || 'trabalhando…';
         if (st.estado === 'pronto') {
           clearInterval(t); v.remove();
-          toast(st.resultado?.msg || 'Instalador aberto.'); desenhar();
-        } else if (st.estado === 'erro') { clearInterval(t); v.remove(); toast(st.erro, true); }
+          toast(st.resultado?.msg || 'Instalador aberto.');
+          // ⚠️ Aqui a tarefa terminar significa só que o INSTALADOR abriu — ele
+          // roda num Terminal de fora, e a versão só muda na pasta do CEP quando
+          // ele termina. Por isso é espera, não uma conferida só.
+          const antes = (AMB && AMB.plugin && AMB.plugin.instalado) || null;
+          esperarLogin('ambiente', 'plugin do Premiere',
+            (x) => x && x.plugin && x.plugin.instalado && x.plugin.instalado !== antes, 10);
+        } else if (st.estado === 'erro') {
+          clearInterval(t); v.remove();
+          toast('Não consegui instalar o plugin: ' + st.erro, true);
+          revalidar('ambiente');
+        }
       }, 900);
     }).catch((e) => { v.remove(); toast(e.message, true); });
   };

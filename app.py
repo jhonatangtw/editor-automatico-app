@@ -153,11 +153,20 @@ def em_fundo(rotulo, fn):
 
 # ------------------------------------------------------------------ rotas
 
-def rota_estado(_):
+def rota_estado(_, forcar=False):
+    """O retrato completo — inclui a licença, que é uma ida ao servidor.
+
+    ⚠️ Não use isto para reconferir contas. É a rota mais CARA que existe (~3s,
+    e uma delas é rede), e a tela de Contas passou a reconferir sozinha. Bater
+    no servidor de licença a cada volta de aba seria transformar um conserto de
+    interface num pequeno ataque ao nosso próprio servidor. Para isso existe
+    `/api/servicos`."""
+    if forcar:
+        caminho.recarregar(com_shell=True)
     e = conta.estado()
     return {
         "conta": e,
-        "servicos": servicos.estado(),
+        "servicos": servicos.estado(reler_path=not forcar),
         "skill": {"instalada": skill.instalada(), "estilos": skill.estilos()},
         "ferramentas": {
             "whisper": decupar.disponivel(),
@@ -165,6 +174,20 @@ def rota_estado(_):
             "ffprobe": _tem("ffprobe"),
         },
     }
+
+
+def rota_servicos(forcar=False):
+    """Só as contas, lidas do sistema AGORA — sem tocar no servidor de licença.
+
+    É a rota que a tela de Contas chama toda vez que volta para a aba, depois de
+    cada login e enquanto espera um login de navegador terminar. Por isso ela é
+    barata de propósito: o que ela faz é perguntar aos CLIs e ao cofre."""
+    if forcar:
+        caminho.recarregar(com_shell=True)
+    d = servicos.estado(reler_path=not forcar)
+    d["ferramentas"] = {"whisper": decupar.disponivel(),
+                        "ffmpeg": _tem("ffmpeg"), "ffprobe": _tem("ffprobe")}
+    return d
 
 
 def _tem(b):
@@ -374,8 +397,15 @@ def rota_motores(pid, tipo, quantos):
             "saldo": gerar.saldo()}
 
 
+def _forcar(h):
+    """`?forcar=1` = o usuário clicou em "Atualizar status". Aí vale pagar a
+    releitura cara do PATH, que pergunta ao shell de login."""
+    return "forcar=1" in h.path
+
+
 ROTAS_GET = {
-    "/api/estado": lambda h: rota_estado(None),
+    "/api/estado": lambda h: rota_estado(None, _forcar(h)),
+    "/api/servicos": lambda h: rota_servicos(_forcar(h)),
     "/api/projetos": lambda h: rota_projetos(None),
     "/api/estilos": lambda h: {"estilos": skill.estilos()},
 }
@@ -505,8 +535,10 @@ class Handler(BaseHTTPRequestHandler):
             if caminho == "/api/skills":
                 return self._json(skills.estado())
             if caminho == "/api/ambiente":
-                d = ambiente.conferir()
                 from nucleo import caminho as _cam
+                if _forcar(self):
+                    _cam.recarregar(com_shell=True)
+                d = ambiente.conferir()
                 d["diagnostico"] = _cam.diagnostico()
                 return self._json(d)
             if len(partes) == 4 and partes[1] == "projetos" and partes[3] == "conversa":
