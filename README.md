@@ -29,12 +29,31 @@ para ser transcrito — o Whisper roda local.
 Atualizações aparecem sozinhas dentro do app — pill **⬆ Atualizar** no rodapé da
 barra lateral, e cada sistema baixa o seu instalador.
 
+## Preparar a máquina com um botão
+
+Aba **Ambiente → Preparar esta máquina**. O app mostra antes o que vai fazer e
+depois instala tudo numa fila só, na ordem de dependência, reconferindo o disco
+entre um passo e outro:
+
+1. Homebrew (Mac) — abre o Terminal, que pede a senha do Mac; o app espera terminar;
+2. Node, FFmpeg, Whisper, Claude Code, Higgsfield CLI;
+3. os opcionais, se marcados — Codex, MiniMax, Anthropic CLI, HeyGen;
+4. as skills que faltam na pasta do Claude;
+5. o plugin do Premiere (baixa o instalador oficial e o roda no Terminal) e a ponte
+   com o painel.
+
+O que o app não instala (Premiere pelo Creative Cloud; winget pela Microsoft Store)
+aparece na lista como "por sua conta", não some. Se um Terminal não terminar a
+tempo, o passo fica como "aguardando" — clicar de novo retoma de onde parou, porque
+tudo que já está instalado é pulado.
+
 ## O plugin do Premiere
 
 O app fala com o Premiere pela extensão **Editor Black Belt Tools PRO**. Sem ela
 o app planeja, gera e confere arquivo, mas não escreve na timeline.
 
-Instale por dentro do app: aba **Ambiente → Instalar plugin no Premiere**. Ou
+Instale por dentro do app: aba **Ambiente → Preparar esta máquina** (instala o
+plugin junto com o resto) ou, sozinho, pelo card **Instalar plugin no Premiere**. Ou
 baixe direto: [EditorBlackBeltToolsPRO-Instalador.zip](https://github.com/jhonatangtw/editor-black-belt-tools-pro/releases/latest/download/EditorBlackBeltToolsPRO-Instalador.zip).
 
 Depois de instalar, reabra o Premiere e deixe o painel aberto em
@@ -152,7 +171,8 @@ isso está cheio; na de um editor, vazio — então o mesmo app, com o mesmo Cla
 respondia com um repertório completamente diferente conforme quem abria, e sem
 nenhum aviso.
 
-O app leva cinco e as instala com um clique (aba **Ambiente**, card no topo):
+O app leva treze e as instala com um clique (aba **Ambiente**, card no topo — ou
+junto com tudo, em **Preparar esta máquina**):
 
 | Skill | Para quê |
 |---|---|
@@ -161,6 +181,18 @@ O app leva cinco e as instala com um clique (aba **Ambiente**, card no topo):
 | `pixar3d` | personagens 3D estilo Pixar para criativo |
 | `storyboard-viral-3d` | storyboard cena a cena |
 | `video-prompt-builder` | shot list e prompts de vídeo |
+| `skill-black-belt` | pipeline de criativo de vídeo IA para direct response |
+| `avatar-vsl-video-prompts` | prompts de avatar falante (UGC / VSL) |
+| `blackbelt-omni` | clipes de 10s no estilo Black Belt para o Omni Flash |
+| `gemini-omni` | motion graphics sobre vídeo selfie no Gemini Omni |
+| `omni-flash-reverse` | engenharia reversa de uma referência de motion |
+| `video-to-flow` | vídeo pronto → workflow de edição no Google Flow |
+| `motion-viral-jhon1` | Reels de motion no After Effects, via Tools PRO |
+| `motion-omni-vsl` | lotes de overlay (cartelas, preço, garantia) para VSL |
+
+Ficam de fora de propósito: `corte-viral` (precisa de venv própria, do modelo
+YuNet e de subagentes em `~/.claude/agents`, que o app ainda não instala) e
+`motion-vox` (a fonte está sem os PNGs de asset).
 
 ⚠️ **Nunca sobrescreve uma skill que já existe.** Na máquina do autor as skills
 instaladas são a FONTE, e o retrato que viaja no app é sempre mais velho —

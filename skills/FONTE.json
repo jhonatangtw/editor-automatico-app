@@ -1,11 +1,19 @@
 {
   "origem": "~/.claude/skills",
-  "sincronizado": "2026-08-20",
+  "sincronizado": "2026-09-16",
   "skills": {
+    "avatar-vsl-video-prompts": "52bf79fed24a3f65",
+    "blackbelt-omni": "cf7fda9fe12d0938",
     "editor-automatico-de-broll": "26916528e5867486",
+    "gemini-omni": "bf91c230232ae726",
+    "motion-omni-vsl": "708e4eea7ea1c614",
+    "motion-viral-jhon1": "b958aebd4cad01b5",
+    "omni-flash-reverse": "d8ac81db815ea98e",
     "photorealism-prompts": "d922d2083d8f15ae",
     "pixar3d": "500330872fdc8d62",
+    "skill-black-belt": "3e7dc6e566effe56",
     "storyboard-viral-3d": "acb40b868598406f",
-    "video-prompt-builder": "2b89d8b63b2afc5b"
+    "video-prompt-builder": "2b89d8b63b2afc5b",
+    "video-to-flow": "03cdd954e3d7ebf4"
   }
 }

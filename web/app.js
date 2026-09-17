@@ -2087,6 +2087,13 @@ async function telaAmbiente() {
   }
   const d = AMB, pl = AMB.plugin, sk = AMB.skills;
   const faltando = d.itens.filter((i) => !i.tem && i.essencial && i.instalavel);
+  // "pendente" é tudo que o botão único resolve — não só os essenciais que já
+  // dava para instalar na foto de agora. Sem Node, Claude e Higgsfield vêm como
+  // "não instalável"; o orquestrador instala o Node e eles passam a caber.
+  const pendente = !d.brew
+    || d.itens.some((i) => !i.tem && i.id !== 'premiere' && i.id !== 'toolspro' && i.id !== 'regra')
+    || (sk && sk.faltam.length)
+    || (pl && (!pl.instalado || pl.tem_nova || (pl.ponte && !pl.ponte.tem_debug)));
 
   moldura(`
     <div class="topo">
@@ -2094,7 +2101,8 @@ async function telaAmbiente() {
         <p class="sub">O app instala o que falta. Você não precisa abrir o Terminal.</p></div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         ${barraEstado('ambiente')}
-        ${faltando.length ? `<button class="bt principal" id="tudo">Instalar o que falta (${faltando.length})</button>` : ''}
+        ${pendente ? `<button class="bt principal" id="preparar">Preparar esta máquina</button>`
+                   : `<span class="pastilha ok">✓ tudo pronto</span>`}
       </div>
     </div>
     ${d.pronto ? `<div class="aviso" style="background:rgba(61,214,140,.1);color:var(--ok);border-color:rgba(61,214,140,.2);margin-bottom:16px">
@@ -2168,12 +2176,129 @@ async function telaAmbiente() {
     } catch (e) { toast(e.message, true); }
     bw.disabled = false;
   };
-  const bt = document.getElementById('tudo');
-  if (bt) bt.onclick = () => rodar(null);
+  const bt = document.getElementById('preparar');
+  if (bt) bt.onclick = prepararMaquina;
   document.querySelectorAll('[data-inst]').forEach((b) => { b.onclick = () => rodar(b.dataset.inst); });
   pintarBarra('ambiente');
   ligarSkills();
   ligarPlugin();
+}
+
+// ---------------------------------------------- um botão para tudo
+/* A tela tinha cinco botões para a mesma pergunta — Homebrew, "o que falta",
+   cada opcional, skills e plugin — e o aluno tinha que saber a ORDEM (Node antes
+   do Claude, Homebrew antes de tudo). Aqui é uma fila só no servidor; a tela
+   mostra o plano antes (o Terminal vai abrir e pedir senha — melhor saber
+   antes de clicar) e depois uma lista de checagem viva. */
+const ESTADO_PASSO = {
+  fila:       ['○', 'var(--texto-3)', 'na fila'],
+  rodando:    ['◌', 'var(--ouro)',    ''],
+  terminal:   ['⧉', 'var(--ouro)',    ''],
+  aguardando: ['…', 'var(--ouro)',    ''],
+  ok:         ['✓', 'var(--ok)',      ''],
+  pulado:     ['–', 'var(--texto-3)', ''],
+  manual:     ['✎', 'var(--texto-3)', ''],
+  erro:       ['!', 'var(--broll)',   ''],
+};
+
+function listaPassos(passos) {
+  return `<div class="check">${(passos || []).map((p) => {
+    const [marca, cor, padrao] = ESTADO_PASSO[p.estado] || ESTADO_PASSO.fila;
+    return `<div class="check-item">
+      <span class="check-marca" style="color:${cor}">${marca}</span>
+      <span class="check-nome">${esc(p.nome)}</span>
+      <span class="check-nota" style="${p.estado === 'erro' ? 'color:var(--broll)' : ''}">${esc(p.nota || padrao)}</span>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+async function prepararMaquina() {
+  const v = modal(`<h2>Preparar esta máquina</h2>
+    <p class="sub" id="pm-txt">Conferindo o que falta…</p>
+    <div id="pm-corpo"></div>
+    <div class="acoes" id="pm-acoes"></div>`);
+  const corpo = v.querySelector('#pm-corpo'), txt = v.querySelector('#pm-txt'),
+        acoes = v.querySelector('#pm-acoes');
+  let plano;
+  try { plano = await api('/api/ambiente/plano'); }
+  catch (e) { txt.textContent = e.message; return; }
+
+  if (plano.nada) {
+    txt.textContent = 'Não há nada que eu consiga instalar sozinho agora.';
+    corpo.innerHTML = listaPassos(plano.passos.map((p) => ({ ...p, estado: 'manual', nota: p.para })));
+    acoes.innerHTML = `<button class="bt" id="pm-fechar">Fechar</button>`;
+    v.querySelector('#pm-fechar').onclick = () => v.remove();
+    return;
+  }
+
+  const temOpc = plano.passos.some((p) => p.tipo === 'opcional' && !p.manual && p.id !== 'plugin' && p.id !== 'ponte');
+  const temPlugin = plano.passos.some((p) => p.id === 'plugin' || p.id === 'ponte');
+  txt.textContent = 'Vou instalar, nesta ordem, reconferindo entre um passo e outro:';
+  corpo.innerHTML = listaPassos(plano.passos.map((p) => ({
+    ...p, estado: p.manual ? 'manual' : 'fila', nota: p.para })))
+    + `<div class="pm-opcoes">
+      ${temOpc ? `<label><input type="checkbox" id="pm-opc" checked> incluir os opcionais (Codex, MiniMax, Anthropic CLI, HeyGen)</label>` : ''}
+      ${temPlugin ? `<label><input type="checkbox" id="pm-plugin" checked> instalar o plugin do Premiere e preparar a ponte</label>` : ''}
+    </div>`
+    + (plano.abre_terminal ? `<div class="aviso" style="margin-top:12px">
+      Uma janela do <b>Terminal</b> vai abrir uma ou duas vezes — é o instalador
+      oficial (Homebrew pede a <b>senha do seu Mac</b>; o plugin liga o modo de
+      depuração do Premiere). Não feche essa janela: o app fica esperando ela
+      terminar e segue sozinho.</div>` : '');
+  acoes.innerHTML = `<button class="bt" id="pm-cancelar">Cancelar</button>
+    <button class="bt principal" id="pm-ir">Começar</button>`;
+  v.querySelector('#pm-cancelar').onclick = () => v.remove();
+  v.querySelector('#pm-ir').onclick = async () => {
+    const opcionais = !temOpc || v.querySelector('#pm-opc').checked;
+    const comPlugin = !temPlugin || v.querySelector('#pm-plugin').checked;
+    acoes.innerHTML = '';
+    txt.textContent = 'Instalando. Pode demorar alguns minutos — o Whisper e o plugin são os mais pesados.';
+    corpo.innerHTML = listaPassos([]) + `<div class="portao" id="pm-log" style="max-height:110px;margin-top:10px">começando…</div>`;
+    // clicar fora não fecha mais: fechar aqui não cancela nada, só esconde
+    v.onclick = null;
+    let r;
+    try { r = await post('/api/ambiente/preparar', { opcionais, plugin: comPlugin }); }
+    catch (e) { txt.textContent = e.message; return; }
+
+    const t = setInterval(async () => {
+      let st;
+      try { st = await api('/api/tarefas/' + r.tarefa); } catch (e) { return; }
+      const lista = corpo.querySelector('.check');
+      if (lista) lista.outerHTML = listaPassos(st.passos);
+      const l = corpo.querySelector('#pm-log');
+      if (l) { l.textContent = (st.log || []).slice(-3).join('\n') || 'trabalhando…'; l.scrollTop = l.scrollHeight; }
+      if (st.estado !== 'pronto' && st.estado !== 'erro') return;
+      clearInterval(t);
+      await revalidar('ambiente', { forcar: true, silencioso: true });
+      pintarBarra('ambiente');
+      if (st.estado === 'erro') {
+        txt.textContent = 'Parou no meio: ' + st.erro;
+        acoes.innerHTML = `<button class="bt" id="pm-fechar">Fechar</button>`;
+        v.querySelector('#pm-fechar').onclick = () => { v.remove(); desenhar(); };
+        return;
+      }
+      const res = st.resultado || {};
+      const partes = [];
+      if (res.instalados?.length) partes.push('Instalei ' + res.instalados.join(', ') + '.');
+      if (res.aguardando?.length) partes.push('Ainda esperando terminar no Terminal: ' + res.aguardando.join(', ') + '.');
+      if (res.erros?.length) partes.push('Falhou: ' + res.erros.join(' · '));
+      if (res.pulados?.length) partes.push('Fica por sua conta: ' + res.pulados.join(', ') + '.');
+      if (res.reiniciar_premiere) partes.push('Feche e reabra o Premiere: a porta do painel só nasce no arranque.');
+      txt.textContent = partes.join(' ') || 'Nada precisou ser instalado.';
+      const ok = !(res.erros && res.erros.length);
+      const pendente = !!(res.aguardando && res.aguardando.length);
+      toast(!ok ? 'Terminei, mas alguma coisa falhou — veja a lista.'
+            : pendente ? 'Terminei o que dava — falta o Terminal acabar.' : 'Máquina preparada.', !ok);
+      acoes.innerHTML = `<button class="bt principal" id="pm-fechar">Fechar</button>`;
+      v.querySelector('#pm-fechar').onclick = () => { v.remove(); desenhar(); };
+      // o plugin pode ter ficado rodando no Terminal depois do tempo de espera
+      if (res.aguardando && res.aguardando.includes('Plugin do Premiere')) {
+        const antes = (AMB && AMB.plugin && AMB.plugin.instalado) || null;
+        esperarLogin('ambiente', 'plugin do Premiere',
+          (x) => x && x.plugin && x.plugin.instalado && x.plugin.instalado !== antes, 10);
+      }
+    }, 1200);
+  };
 }
 
 /* "Pronto." não é resposta: o comando pode terminar com código 0 e o binário

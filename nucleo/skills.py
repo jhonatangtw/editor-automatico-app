@@ -44,17 +44,36 @@ def embutidas():
 
 
 def _titulo(pasta):
-    """A primeira linha útil do SKILL.md — é o que a tela mostra."""
+    """A primeira linha útil do SKILL.md — é o que a tela mostra.
+
+    ⚠️ Metade das skills escreve a descrição em YAML DOBRADO (`description: >-`
+    e o texto nas linhas seguintes, indentado). Ler só a linha do `description:`
+    devolvia o literal `>-` — e era isso que aparecia na tela, para 5 das 13.
+    """
     try:
         with open(os.path.join(pasta, "SKILL.md"), encoding="utf-8") as f:
-            for linha in f:
-                l = linha.strip()
-                if l.startswith("description:"):
-                    return l.split(":", 1)[1].strip().strip('"')[:110]
-                if l.startswith("# "):
-                    return l[2:].strip()[:110]
+            linhas = f.read().splitlines()
     except OSError:
-        pass
+        return ""
+
+    for i, linha in enumerate(linhas):
+        l = linha.strip()
+        if l.startswith("description:"):
+            resto = l.split(":", 1)[1].strip()
+            if resto and resto[0] not in ">|":
+                return resto.strip('"').strip("'")[:110]
+            # dobrado: o texto são as linhas indentadas que vêm depois
+            texto = []
+            for seguinte in linhas[i + 1:]:
+                if not seguinte.strip():
+                    break
+                if not seguinte[:1].isspace():   # acabou o bloco
+                    break
+                texto.append(seguinte.strip())
+            if texto:
+                return " ".join(texto)[:110]
+        if l.startswith("# "):
+            return l[2:].strip()[:110]
     return ""
 
 

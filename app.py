@@ -89,7 +89,7 @@ if "--mcp" in sys.argv:
 from nucleo import (adobe, ambiente, atualizacao, chaves, claude, conta,  # noqa: E402
                     conversa, conversas,
                     decupar, etapas, gerar, ia, montagem, pipeline, plugin,
-                    ponte, projetos, qc, servicos, skill, skills, voz)
+                    ponte, preparar, projetos, qc, servicos, skill, skills, voz)
 
 WEB = os.path.join(RAIZ, "web")
 
@@ -534,6 +534,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(ponte.estado())
             if caminho == "/api/skills":
                 return self._json(skills.estado())
+            if caminho == "/api/ambiente/plano":
+                return self._json(preparar.plano(
+                    com_opcionais=self.path.find("opcionais=0") < 0))
             if caminho == "/api/ambiente":
                 from nucleo import caminho as _cam
                 if _forcar(self):
@@ -674,6 +677,16 @@ class Handler(BaseHTTPRequestHandler):
                                lambda log: plugin.instalar(log))
                 return self._json({"tarefa": tid})
 
+            if caminho == "/api/ambiente/preparar":
+                # UM botão: gerenciador → programas → skills → plugin → ponte,
+                # reconferindo entre um e outro. Roda em fundo porque o Homebrew
+                # e o plugin terminam num Terminal de fora, e o app fica olhando.
+                tid = em_fundo("Preparando esta máquina",
+                               lambda log: preparar.rodar(
+                                   com_opcionais=corpo.get("opcionais", True),
+                                   com_plugin=corpo.get("plugin", True),
+                                   ao_vivo=log))
+                return self._json({"tarefa": tid})
             if caminho == "/api/ambiente/gerenciador":
                 return self._json(ambiente.instalar_gerenciador())
             if caminho == "/api/ambiente/instalar":
