@@ -48,14 +48,47 @@ def _num(v):
     return tuple((partes + [0, 0, 0])[:3])
 
 
+def _versao_embutida():
+    """A versão do pacote INSTALADO. Stdlib pura e sem importar o app: isto roda
+    antes de tudo."""
+    import sys
+    for base in (getattr(sys, "_MEIPASS", None), os.path.dirname(sys.executable),
+                 os.path.dirname(os.path.dirname(os.path.abspath(__file__)))):
+        if not base:
+            continue
+        for alvo in (os.path.join(base, "version.json"),
+                     os.path.join(base, "..", "Resources", "version.json")):
+            try:
+                with open(alvo, encoding="utf-8") as f:
+                    v = json.load(f).get("version")
+                if v:
+                    return v
+            except Exception:
+                continue
+    return None
+
+
 def ativo():
     """A pasta de código externa que deve rodar, ou None. Stdlib pura de
-    propósito: isto roda ANTES de qualquer import do app."""
+    propósito: isto roda ANTES de qualquer import do app.
+
+    ⚠️ **Código externo mais VELHO que o pacote é ignorado.** Sem esta
+    comparação, reinstalar o app não adiantava nada: quem tinha recebido uma
+    atualização leve continuava rodando aquele código por cima do pacote novo —
+    instalava a 0.20.0 e abria a 0.19.4, sem o botão novo e sem as skills
+    novas, e nada na tela dizia por quê. A pasta externa só vence quando é
+    ESTRITAMENTE mais nova; caso contrário ela é descartada, porque o pacote
+    que acabou de ser instalado é a vontade mais recente do usuário."""
     try:
         with open(PONTEIRO, encoding="utf-8") as f:
             d = json.load(f)
         pasta = d.get("pasta")
         if not pasta or not os.path.isfile(os.path.join(pasta, "app.py")):
+            return None
+        eu = _versao_embutida()
+        if eu and _num(d.get("versao")) <= _num(eu):
+            descartar("o pacote instalado (%s) é igual ou mais novo que o código "
+                      "baixado (%s)" % (eu, d.get("versao")))
             return None
         return {"pasta": pasta, "versao": d.get("versao")}
     except Exception:

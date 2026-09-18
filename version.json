@@ -1,6 +1,6 @@
 {
-  "version": "0.20.0",
-  "notes": "UM botão para deixar a máquina pronta: “Preparar esta máquina”, na aba Ambiente, instala tudo na ordem certa — Homebrew, FFmpeg, Node, Whisper, Claude Code, Higgsfield, os opcionais (Codex, MiniMax, Anthropic CLI, HeyGen), as skills, o plugin do Premiere e a ponte com o painel — reconferindo entre um passo e outro, e mostra antes o que vai fazer (inclusive quando o Terminal vai pedir a senha). Oito skills novas viajam dentro do app (as de motion — motion-viral-jhon1, motion-omni-vsl, blackbelt-omni — e as de prompt que faltavam): são 13 no total. A tela também parou de mostrar “>-” no lugar da descrição de metade delas.",
+  "version": "0.20.1",
+  "notes": "Conserto de instalação: reinstalar o app agora VALE. Quem já tinha recebido uma atualização leve continuava rodando aquele código por cima do pacote novo — instalava a versão nova e abria a antiga, sem os botões novos e sem as skills novas, e nada na tela dizia por quê. Agora código baixado só roda quando é mais novo que o app instalado. Se você instalou a 0.20.0 e não viu o botão “Preparar esta máquina”, era isto.",
   "precisa_instalador": true,
   "repo": "jhonatangtw/editor-automatico-app",
   "asset_mac": "EditorAutomatico.dmg",
