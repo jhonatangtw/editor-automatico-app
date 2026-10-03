@@ -1,9 +1,8 @@
 {
-  "version": "0.20.1",
-  "notes": "Conserto de instalação: reinstalar o app agora VALE. Quem já tinha recebido uma atualização leve continuava rodando aquele código por cima do pacote novo — instalava a versão nova e abria a antiga, sem os botões novos e sem as skills novas, e nada na tela dizia por quê. Agora código baixado só roda quando é mais novo que o app instalado. Se você instalou a 0.20.0 e não viu o botão “Preparar esta máquina”, era isto.",
-  "precisa_instalador": true,
-  "repo": "jhonatangtw/editor-automatico-app",
-  "asset_mac": "EditorAutomatico.dmg",
-  "asset_win": "EditorAutomatico-Instalador.exe",
-  "asset_mac_intel": "EditorAutomatico-Intel.dmg"
+ "version": "0.20.2",
+ "notes": "Atualização de bastidor: o login do app agora fala direto com o servidor novo do Editor Black Belt (licenca.editorblackbelt.com.br), o mesmo do plugin. Você continua logado, com a mesma senha — nada a fazer.",
+ "repo": "jhonatangtw/editor-automatico-app",
+ "asset_mac": "EditorAutomatico.dmg",
+ "asset_win": "EditorAutomatico-Instalador.exe",
+ "asset_mac_intel": "EditorAutomatico-Intel.dmg"
 }

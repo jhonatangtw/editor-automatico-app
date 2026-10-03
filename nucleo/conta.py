@@ -24,7 +24,7 @@ import string
 import urllib.error
 import urllib.request
 
-SERVIDOR = "https://editor-black-belt-licenca.jhonatangtw.workers.dev"
+SERVIDOR = "https://licenca.editorblackbelt.com.br"  # Hostinger desde 03/10/2026; o workers.dev antigo só repassa
 
 PASTA = os.path.expanduser("~/.editorblackbelt")
 ARQUIVO = os.path.join(PASTA, "sessao.json")
