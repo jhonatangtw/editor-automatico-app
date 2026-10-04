@@ -381,6 +381,8 @@ function telaPorta(msg) {
         <button class="bt principal" id="entrar" style="flex:1">Entrar</button>
         <button class="bt" id="criar">Criar conta</button>
       </div>
+      <button class="bt discreto" id="por-codigo" style="width:100%;margin-top:10px">
+        Entrar com código por e-mail</button>
     </div>
   </div></div>`;
 
@@ -399,6 +401,75 @@ function telaPorta(msg) {
   document.getElementById('entrar').onclick = entrar;
   document.getElementById('se').onkeydown = (e) => { if (e.key === 'Enter') entrar(); };
   document.getElementById('criar').onclick = telaCadastro;
+  document.getElementById('por-codigo').onclick = () =>
+    telaCodigo(document.getElementById('em').value.trim());
+}
+
+/* Entrar sem senha: o servidor manda um código de 6 dígitos para o e-mail.
+   A resposta do pedido é a MESMA para e-mail com e sem conta — a tela repete a
+   frase do servidor e nunca diz "não achei este e-mail". O token que volta é
+   o mesmo do login com senha, gravado no mesmo arquivo do painel do Premiere. */
+function telaCodigo(email, etapa, msg, ruim) {
+  const pedido = etapa === 'digitar';
+  raiz.innerHTML = `
+  <div class="porta"><div class="caixa">
+    <div class="marca"><div class="selo">EA</div>
+      <div><b>Editor Automático</b><span>Editor Black Belt</span></div></div>
+    <div class="cartao">
+      <h2>Entrar com código</h2>
+      <p class="sub" style="margin-bottom:18px">${pedido
+        ? 'Digite o código de 6 dígitos que chegou no seu e-mail.'
+        : 'Enviamos um código de 6 dígitos para o seu e-mail. Sem senha.'}</p>
+      ${msg ? `<div class="aviso${ruim ? ' ruim' : ''}" style="margin-bottom:14px">${esc(msg)}</div>` : ''}
+      <div class="campo"><label>E-mail</label><input id="cod-em" type="email" autocomplete="username"
+        value="${esc(email || '')}" ${pedido ? 'readonly' : ''}></div>
+      ${pedido ? `<div class="campo"><label>Código</label><input id="cod-n" inputmode="numeric"
+        autocomplete="one-time-code" maxlength="7" placeholder="000000"
+        style="letter-spacing:.3em;font-size:18px"></div>` : ''}
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button class="bt principal" id="cod-ok" style="flex:1">${pedido ? 'Entrar' : 'Enviar código'}</button>
+        <button class="bt" id="cod-voltar">Voltar</button>
+      </div>
+      ${pedido ? `<button class="bt discreto" id="cod-outro" style="width:100%;margin-top:10px">
+        Não chegou? Pedir outro código</button>` : ''}
+    </div>
+  </div></div>`;
+
+  const campoEmail = () => document.getElementById('cod-em').value.trim();
+  const pedir = async () => {
+    const b = document.getElementById('cod-ok');
+    b.disabled = true; b.textContent = 'Enviando…';
+    try {
+      const r = await post('/api/conta/codigo', { email: campoEmail() });
+      if (!r.ok) { telaCodigo(campoEmail(), '', r.msg || 'Não consegui pedir o código.', true); return; }
+      telaCodigo(campoEmail(), 'digitar', r.msg);
+    } catch (e) { telaCodigo(campoEmail(), '', e.message, true); }
+  };
+  const verificar = async () => {
+    const b = document.getElementById('cod-ok');
+    b.disabled = true; b.textContent = 'Entrando…';
+    try {
+      const r = await post('/api/conta/codigo/entrar', {
+        email: campoEmail(), codigo: document.getElementById('cod-n').value,
+      });
+      if (!r.ok) { telaCodigo(campoEmail(), 'digitar', r.msg || 'Não consegui entrar.', true); return; }
+      iniciar();
+    } catch (e) { telaCodigo(campoEmail(), 'digitar', e.message, true); }
+  };
+
+  document.getElementById('cod-voltar').onclick = () => telaPorta();
+  if (pedido) {
+    const n = document.getElementById('cod-n');
+    n.focus();
+    n.onkeydown = (e) => { if (e.key === 'Enter') verificar(); };
+    document.getElementById('cod-ok').onclick = verificar;
+    document.getElementById('cod-outro').onclick = () => telaCodigo(campoEmail());
+  } else {
+    const em = document.getElementById('cod-em');
+    if (!em.value) em.focus();
+    em.onkeydown = (e) => { if (e.key === 'Enter') pedir(); };
+    document.getElementById('cod-ok').onclick = pedir;
+  }
 }
 
 function telaCadastro() {
@@ -442,6 +513,8 @@ function moldura(conteudo) {
             <span class="glifo">${g}</span>${t}</button>`).join('')}
       </nav>
       <div class="rodape">
+        <button class="att aulas" id="aulas" title="Abre a área do aluno no navegador, já conectado">
+          ▶ Minhas aulas</button>
         ${controleAtualizacao()}
         <div class="quem"><b>${esc(E?.conta?.nome || 'Conectado')}</b>
           ${E?.conta?.offline ? 'modo offline' : 'sessão ativa'}</div>
@@ -458,6 +531,21 @@ function moldura(conteudo) {
   };
   const ba = document.getElementById('att');
   if (ba) ba.onclick = () => (ATT?.tem_nova ? atualizar() : procurarAtualizacao());
+  const bl = document.getElementById('aulas');
+  if (bl) bl.onclick = abrirAulas;
+}
+
+// "Minhas aulas": o app pede um passe de 60 s e abre o navegador padrão já
+// logado na área do aluno. O link nunca passa pela tela.
+async function abrirAulas() {
+  const b = document.getElementById('aulas');
+  if (b) { b.disabled = true; b.textContent = 'abrindo…'; }
+  try {
+    const r = await post('/api/conta/aulas');
+    if (r.ok) toast(r.msg || 'Abrindo a área do aluno no navegador…');
+    else toast(r.msg || 'Não consegui abrir a área do aluno.', true);
+  } catch (e) { toast(e.message, true); }
+  if (b) { b.disabled = false; b.textContent = '▶ Minhas aulas'; }
 }
 
 // O controle fica SEMPRE visível, mesmo em dia. Quando ele só aparecia havendo

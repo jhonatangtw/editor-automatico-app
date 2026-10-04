@@ -35,6 +35,11 @@ CH_NOME = "bb_acesso_nome"
 CH_ADM = "bb_acesso_adm"
 CH_DIGITAL = "bb_digital"
 
+# A mesma frase vale para e-mail com e sem conta — não dá para descobrir quem é
+# aluno digitando e-mails aqui.
+MSG_CODIGO = ("Se houver um acesso com este e-mail, enviamos um código de 6 "
+              "dígitos. Ele vale por 10 minutos.")
+
 
 # ---------------------------------------------------------------- arquivo
 
@@ -102,22 +107,38 @@ _UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
        "(KHTML, like Gecko) EditorAutomatico/1.0")
 
 
-def _chamar(rota, dados):
-    corpo = json.dumps(dados or {}).encode("utf-8")
-    req = urllib.request.Request(
-        SERVIDOR + rota, data=corpo, method="POST",
-        headers={"Content-Type": "application/json", "User-Agent": _UA,
-                 "Accept": "application/json"})
+def _chamar(rota, dados=None, metodo="POST", bearer=None):
+    """Fala com o servidor e devolve SEMPRE um dict — nunca levanta.
+
+    `bearer` vai no cabeçalho Authorization: as rotas novas da área do aluno
+    (/api/passe, /api/atualizacao) leem a sessão dali, não do corpo. `_status`
+    leva o código HTTP de volta para quem precisar distinguir 401 de 5xx."""
+    corpo = json.dumps(dados or {}).encode("utf-8") if metodo == "POST" else None
+    cab = {"User-Agent": _UA, "Accept": "application/json"}
+    if corpo is not None:
+        cab["Content-Type"] = "application/json"
+    if bearer:
+        cab["Authorization"] = "Bearer " + bearer
+    req = urllib.request.Request(SERVIDOR + rota, data=corpo, method=metodo, headers=cab)
     try:
         from . import rede
         with urllib.request.urlopen(req, timeout=20, context=rede.contexto()) as r:
-            return json.loads(r.read().decode("utf-8"))
+            d = json.loads(r.read().decode("utf-8"))
+            if isinstance(d, dict):
+                d.setdefault("_status", getattr(r, "status", 200))
+                return d
+            return {"ok": False, "msg": "O servidor respondeu de forma inesperada."}
     except urllib.error.HTTPError as e:
         # o Worker devolve JSON também nos 4xx — a mensagem dele é melhor que a minha
         try:
-            return json.loads(e.read().decode("utf-8"))
+            d = json.loads(e.read().decode("utf-8"))
+            if not isinstance(d, dict):
+                raise ValueError
+            d["_status"] = e.code
+            return d
         except Exception:
-            return {"ok": False, "msg": "O servidor respondeu de forma inesperada."}
+            return {"ok": False, "_status": e.code,
+                    "msg": "O servidor respondeu de forma inesperada."}
     except Exception as e:
         # ⚠️ Este `except` engolia TUDO e chutava "verifique sua internet" — e o
         # que estava acontecendo de verdade num Mac sem Homebrew era falta de
@@ -166,13 +187,86 @@ def entrar(email, senha):
         "impressao": digital(), "apelido": apelido(),
         "so": platform.system(),
     })
+    return _guardar_sessao(r)
+
+
+def _guardar_sessao(r):
+    """Grava o token no MESMO arquivo do painel do Premiere. Senha e código
+    devolvem o mesmo formato, então os dois caminhos passam por aqui."""
     if not r.get("ok"):
         return r
+    if not r.get("token"):
+        return {"ok": False, "msg": "O servidor respondeu de forma inesperada."}
     _por(CH_TOKEN, r["token"])
     u = r.get("usuario") or {}
     _por(CH_NOME, u.get("nome", ""))
     _por(CH_ADM, "1" if u.get("admin") else "0")
     return {"ok": True, "nome": u.get("nome", ""), "email": u.get("email", "")}
+
+
+# ---------------------------------------------------------------- código por e-mail
+
+def _email_ok(email):
+    e = (email or "").strip()
+    return "@" in e and "." in e.split("@")[-1] and " " not in e
+
+
+def pedir_codigo(email):
+    """Pede o código de 6 dígitos. O servidor responde IGUAL para e-mail com e
+    sem conta (anti-enumeração) — e a tela repete isso: nunca dizer "este
+    e-mail não existe" nem "enviamos para a sua conta"."""
+    email = (email or "").strip()
+    if not _email_ok(email):
+        return {"ok": False, "msg": "Digite um e-mail válido."}
+    r = _chamar("/api/entrar/codigo", {"email": email})
+    if r.get("offline") or not r.get("ok"):
+        return {"ok": False, "offline": bool(r.get("offline")),
+                "msg": r.get("msg") or "Não consegui pedir o código agora. Tente de novo."}
+    return {"ok": True, "msg": MSG_CODIGO}
+
+
+def entrar_com_codigo(email, codigo):
+    """Troca o código pelo MESMO token do login com senha, na mesma impressão
+    desta máquina — então não queima vaga a mais."""
+    email = (email or "").strip()
+    codigo = "".join(c for c in str(codigo or "") if c.isdigit())
+    if not _email_ok(email):
+        return {"ok": False, "msg": "Digite um e-mail válido."}
+    if len(codigo) != 6:
+        return {"ok": False, "msg": "Digite o código de 6 dígitos."}
+    r = _chamar("/api/entrar/verificar", {
+        "email": email, "codigo": codigo,
+        "impressao": digital(), "apelido": apelido(),
+        "so": platform.system(),
+    })
+    return _guardar_sessao(r)
+
+
+# ---------------------------------------------------------------- área do aluno
+
+def passe():
+    """Link de uso único (60 s) que já entra logado na área do aluno do site.
+
+    Devolve {ok, url} ou {ok: False, motivo, msg} com a causa certa: sem
+    internet, sessão vencida, sem acesso. Quem abre o navegador é quem chama."""
+    t = token()
+    if not t:
+        return {"ok": False, "motivo": "sem_sessao",
+                "msg": "Sua sessão terminou. Saia e entre de novo para abrir as aulas."}
+    r = _chamar("/api/passe", {}, bearer=t)
+    if r.get("offline"):
+        return {"ok": False, "motivo": "offline",
+                "msg": "Sem conexão com o servidor agora. Confira a internet e tente de novo."}
+    if r.get("ok") and str(r.get("url") or "").startswith("https://"):
+        return {"ok": True, "url": r["url"]}
+    if r.get("_status") == 401 or r.get("motivo") in ("sem_sessao", "expirou"):
+        return {"ok": False, "motivo": "sem_sessao",
+                "msg": "Sua sessão expirou. Saia e entre de novo para abrir as aulas."}
+    if r.get("_status") == 404:
+        return {"ok": False, "motivo": "indisponivel",
+                "msg": "A área do aluno ainda não está disponível. Tente mais tarde."}
+    return {"ok": False, "motivo": r.get("motivo") or "recusado",
+            "msg": r.get("msg") or "Não consegui abrir a área do aluno agora. Tente de novo."}
 
 
 def cadastrar(nome, email, senha):

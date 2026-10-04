@@ -397,6 +397,30 @@ def rota_motores(pid, tipo, quantos):
             "saldo": gerar.saldo()}
 
 
+def abrir_aulas():
+    """"Minhas aulas": pede o passe de 60 s e abre no navegador padrão.
+
+    Quem abre é o lado Python — `window.open` dentro da janela do pywebview
+    abriria a área do aluno DENTRO do app, sem os cookies do navegador da
+    pessoa. O link vale uma vez e por 60 s: não volta para a tela nem fica
+    guardado."""
+    r = conta.passe()
+    if not r.get("ok"):
+        return r
+    aberto = False
+    try:
+        aberto = bool(webbrowser.open(r["url"]))
+    except Exception:
+        aberto = False
+    if not aberto:
+        from nucleo import so as _so
+        aberto = _so.abrir(r["url"])
+    if not aberto:
+        return {"ok": False, "motivo": "navegador",
+                "msg": "Não consegui abrir o navegador deste computador."}
+    return {"ok": True, "msg": "Abrindo a área do aluno no navegador…"}
+
+
 def _forcar(h):
     """`?forcar=1` = o usuário clicou em "Atualizar status". Aí vale pagar a
     releitura cara do PATH, que pergunta ao shell de login."""
@@ -580,6 +604,13 @@ class Handler(BaseHTTPRequestHandler):
 
             if caminho == "/api/conta/entrar":
                 return self._json(conta.entrar(corpo.get("email", ""), corpo.get("senha", "")))
+            if caminho == "/api/conta/codigo":
+                return self._json(conta.pedir_codigo(corpo.get("email", "")))
+            if caminho == "/api/conta/codigo/entrar":
+                return self._json(conta.entrar_com_codigo(corpo.get("email", ""),
+                                                          corpo.get("codigo", "")))
+            if caminho == "/api/conta/aulas":
+                return self._json(abrir_aulas())
             if caminho == "/api/conta/cadastrar":
                 return self._json(conta.cadastrar(corpo.get("nome", ""),
                                                   corpo.get("email", ""),
