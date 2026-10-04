@@ -1,5 +1,18 @@
 """
-Atualização do app — GitHub Releases, igual ao plugin.
+Atualização do app — servidor da área do aluno PRIMEIRO, GitHub Releases de
+reserva.
+
+Servidor (desde a 0.21.0): `GET /api/atualizacao/editor-automatico?so=…` com o
+token do app. Ele só entrega versão para quem tem acesso liberado, numa URL
+assinada de 5 minutos, com o sha256 calculado no servidor. **O sha256 é
+OBRIGATÓRIO nesse caminho** — sem ele, ou não batendo, nada é instalado. Build
+`universal` é o pacote de código (atualização leve); `mac`, `mac-intel` e
+`windows` são instaladores.
+
+Qualquer coisa fora do caminho feliz — sem sessão, sem internet, servidor sem
+build, versão do servidor não mais nova, resposta estranha, download que não
+confere — cai no fluxo do GitHub abaixo, que continua EXATAMENTE como era. Quem
+instalou antes da área do aluno não perde nada.
 
 Como funciona: o `version.json` que viaja dentro do app diz a versão instalada
 e de qual repositório ele se atualiza. A versão publicada é o MESMO arquivo
@@ -16,10 +29,13 @@ Duas decisões que valem a pena registrar:
     editando; ele só não vê o aviso de atualização.
 """
 
+import hashlib
 import json
 import os
+import re
 import ssl
 import sys
+import urllib.parse
 import urllib.request
 
 from . import codigo, rede, so
@@ -90,7 +106,103 @@ def _qual_asset():
     return "asset_mac", "EditorAutomatico.dmg"
 
 
+# ---------------------------------------------------------------- servidor
+
+APP_SERVIDOR = "editor-automatico"
+TEMPO_SERVIDOR = 10   # a consulta roda na abertura: servidor lento não segura a tela
+_SHA = re.compile(r"^[0-9a-fA-F]{64}$")
+
+
+def _so_servidor():
+    """O nome de sistema que o servidor usa (versoes_app.so)."""
+    if so.WIN:
+        return "windows"
+    import platform
+    if platform.machine() in ("x86_64", "AMD64", "i386"):
+        return "mac-intel"
+    return "mac"
+
+
+def _host_confiavel(url):
+    """Só baixa de HTTPS do próprio domínio. A URL vem do servidor, mas é ela
+    que decide o que vai rodar nesta máquina — não custa conferir."""
+    try:
+        u = urllib.parse.urlsplit(str(url or ""))
+    except Exception:
+        return False
+    host = (u.hostname or "").lower()
+    return u.scheme == "https" and (host == "editorblackbelt.com.br"
+                                    or host.endswith(".editorblackbelt.com.br"))
+
+
+def _consultar_servidor(versao_local):
+    """A versão que o servidor oferece, se for MAIS NOVA e vier completa.
+
+    Devolve o dict do servidor ou None — None significa "siga pelo GitHub".
+    Nunca levanta."""
+    try:
+        from . import conta
+        t = conta.token()
+        if not t:
+            return None
+        r = conta._chamar("/api/atualizacao/%s?so=%s" % (APP_SERVIDOR, _so_servidor()),
+                          metodo="GET", bearer=t, tempo=TEMPO_SERVIDOR)
+        if not isinstance(r, dict) or not r.get("ok") or not r.get("version"):
+            return None
+        if not _SHA.match(str(r.get("sha256") or "")):
+            return None        # sem hash não instala — nunca mais fraco que o GitHub
+        if not _host_confiavel(r.get("url")):
+            return None
+        if r.get("so") not in (None, "", "universal", _so_servidor()):
+            return None        # instalador de outro sistema não serve aqui
+        if not maior(r.get("version"), versao_local):
+            return None        # em dia pelo servidor: o GitHub ainda pode ter mais nova
+        return r
+    except Exception:
+        return None
+
+
+def _info_servidor(eu, r):
+    chave, padrao = _qual_asset()
+    codigo_leve = r.get("so") == "universal"
+    ext = ".zip" if codigo_leve else os.path.splitext(padrao)[1]
+    sha = str(r["sha256"]).lower()
+    return {
+        "versao": eu.get("version"), "notas_locais": eu.get("notes"),
+        "repo": eu.get("repo"), "tem_nova": True,
+        "ultima": str(r["version"]), "notas": r.get("notes"),
+        "pagina": (_base(eu["repo"]) if eu.get("repo") else None), "erro": None,
+        "fonte": "servidor",
+        "asset": "EditorAutomatico-%s%s" % (r["version"], ext), "para": chave,
+        "modo": "codigo" if codigo_leve else "instalador",
+        "porque_instalador": "",
+        "codigo": "codigo.zip" if codigo_leve else None,
+        "codigo_sha256": sha if codigo_leve else None,
+        "url_codigo": r["url"] if codigo_leve else None,
+        "rodando_codigo": codigo.ativo(),
+        "url": r["url"],
+        "sha256": sha,
+        "tamanho": r.get("size"),
+        # `sig` é texto livre que o admin cola na central. O app de hoje não
+        # confere assinatura nenhuma além do sha256 (que aqui é obrigatório);
+        # fica guardado para quando houver chave pública embutida.
+        "assinatura": r.get("sig"),
+    }
+
+
 def conferir():
+    """Servidor da área do aluno primeiro; GitHub se ele não tiver nada mais
+    novo para esta máquina. Nunca levanta — devolve o erro."""
+    eu = local()
+    r = _consultar_servidor(eu.get("version"))
+    if r:
+        return _info_servidor(eu, r)
+    return conferir_github()
+
+
+# ---------------------------------------------------------------- GitHub
+
+def conferir_github():
     """A versão publicada bate na de dentro? Nunca levanta — devolve o erro."""
     eu = local()
     repo = eu.get("repo")
@@ -144,6 +256,14 @@ def atualizar_codigo(ao_vivo=None):
     continua no disco até a próxima limpeza, então voltar é trocar um arquivo."""
     diz = ao_vivo or (lambda _: None)
     info = conferir()
+    if info.get("fonte") == "servidor" and info.get("modo") == "codigo":
+        try:
+            return _codigo_do_servidor(info, diz)
+        except Exception as e:
+            diz("o servidor não entregou (%s) — tentando pelo GitHub…" % str(e)[:160])
+            info = _reserva_github(e)
+    elif info.get("fonte") == "servidor":
+        info = conferir_github()   # o servidor só tem instalador: a leve segue pelo GitHub
     if info.get("erro"):
         raise RuntimeError(info["erro"])
     if not info["tem_nova"]:
@@ -160,6 +280,96 @@ def atualizar_codigo(ao_vivo=None):
     r["msg"] = ("Atualizado para a versão %s. Feche e abra o app para usar — "
                 "não precisa reinstalar nada." % info["ultima"])
     r["reabrir"] = True
+    return r
+
+
+def _baixar_conferido(url, sha256, destino=None, ao_vivo=None, timeout=120):
+    """Baixa do servidor conferindo o sha256 no caminho. Sem hash, não baixa.
+
+    Com `destino`, grava em disco (`.parcial` até conferir — arquivo que não
+    bate é apagado, nunca fica com o nome final); sem, devolve os bytes."""
+    if not _SHA.match(str(sha256 or "")):
+        raise RuntimeError("O servidor não informou o sha256 do pacote.")
+    if not _host_confiavel(url):
+        raise RuntimeError("Endereço de download fora do domínio do Editor Black Belt.")
+    req = urllib.request.Request(url, headers=UA)
+    h = hashlib.sha256()
+    pedacos = [] if destino is None else None
+    tmp = (destino + ".parcial") if destino else None
+    f = open(tmp, "wb") if tmp else None
+    try:
+        with urllib.request.urlopen(req, timeout=timeout, context=rede.contexto()) as r:
+            total = int(r.headers.get("Content-Length") or 0)
+            lido = 0
+            while True:
+                p = r.read(262144)
+                if not p:
+                    break
+                h.update(p)
+                lido += len(p)
+                if f:
+                    f.write(p)
+                else:
+                    pedacos.append(p)
+                if ao_vivo and total:
+                    ao_vivo("baixando… %d%%" % int(lido * 100 / total))
+    except Exception:
+        if f:
+            f.close()
+            f = None
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+        raise
+    finally:
+        if f:
+            f.close()
+    if h.hexdigest().lower() != str(sha256).lower():
+        if tmp:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+        raise RuntimeError("O arquivo baixado não confere com o publicado (sha256). "
+                           "Não vou instalar.")
+    if tmp:
+        os.replace(tmp, destino)
+        return destino
+    return b"".join(pedacos)
+
+
+def _reserva_github(erro_servidor):
+    """Depois de o servidor falhar no download, o GitHub assume — mas só se
+    ELE tiver versão nova. Se não tiver, a falha do servidor é o que a pessoa
+    precisa ler, não um "você já está em dia" que esconde o problema."""
+    g = conferir_github()
+    if g.get("erro") or not g.get("tem_nova"):
+        raise RuntimeError("Não consegui baixar a atualização: %s" % erro_servidor)
+    return g
+
+
+def _codigo_do_servidor(info, diz):
+    import io
+    import zipfile
+    diz("baixando a versão %s…" % info["ultima"])
+    dados = _baixar_conferido(info["url_codigo"], info["codigo_sha256"])
+    # versão que mexe em dependência binária não pode entrar pela porta leve
+    try:
+        with zipfile.ZipFile(io.BytesIO(dados)) as z:
+            vj = json.loads(z.read("version.json").decode("utf-8"))
+        if vj.get("precisa_instalador"):
+            raise RuntimeError("esta versão precisa do instalador completo")
+    except KeyError:
+        raise RuntimeError("o pacote de código veio sem version.json")
+    except zipfile.BadZipFile:
+        raise RuntimeError("o pacote de código não é um .zip válido")
+    diz("conferindo e instalando…")
+    r = codigo.instalar(dados, info["ultima"], info["codigo_sha256"])
+    r["msg"] = ("Atualizado para a versão %s. Feche e abra o app para usar — "
+                "não precisa reinstalar nada." % info["ultima"])
+    r["reabrir"] = True
+    r["fonte"] = "servidor"
     return r
 
 
@@ -195,6 +405,14 @@ def baixar(destino_dir=None, ao_vivo=None):
     """Baixa o .dmg da versão nova e abre. Quem arrasta para Aplicativos é o
     usuário — de propósito."""
     info = conferir()
+    if info.get("fonte") == "servidor":
+        destino_dir = destino_dir or os.path.expanduser("~/Downloads")
+        try:
+            return _instalador_do_servidor(info, destino_dir, ao_vivo)
+        except Exception as e:
+            ao_vivo and ao_vivo("o servidor não entregou (%s) — tentando pelo GitHub…"
+                                % str(e)[:160])
+            info = _reserva_github(e)
     if info.get("erro"):
         raise RuntimeError(info["erro"])
     if not info["tem_nova"]:
@@ -231,3 +449,28 @@ def baixar(destino_dir=None, ao_vivo=None):
     return {"ok": True, "arquivo": alvo, "aberto": aberto, "versao": info["ultima"],
             "msg": "Baixei a versão %s e abri o instalador. %s"
                    % (info["ultima"], comofaz)}
+
+
+def _como_instalar():
+    return ("O instalador FECHA o app sozinho para trocar os arquivos — no "
+            "Windows um programa aberto não pode ser sobrescrito. Siga as telas "
+            "e abra de novo pelo atalho." if so.WIN else
+            "Arraste o Editor Automático para a pasta Aplicativos e reabra o app.")
+
+
+def _instalador_do_servidor(info, destino_dir, ao_vivo=None):
+    """Instalador vindo da área do aluno: baixa, confere o sha256 e só então
+    abre. Pacote que não bate é apagado antes de ganhar o nome final."""
+    if info.get("modo") == "codigo":
+        # build universal (código) pedido pelo caminho do instalador: a leve resolve
+        r = atualizar_codigo(ao_vivo)
+        return r
+    os.makedirs(destino_dir, exist_ok=True)
+    alvo = os.path.join(destino_dir, info["asset"])
+    ao_vivo and ao_vivo("baixando a versão %s…" % info["ultima"])
+    _baixar_conferido(info["url"], info["sha256"], destino=alvo, ao_vivo=ao_vivo, timeout=60)
+    aberto = so.abrir(alvo)
+    return {"ok": True, "arquivo": alvo, "aberto": aberto, "versao": info["ultima"],
+            "fonte": "servidor",
+            "msg": "Baixei a versão %s e abri o instalador. %s"
+                   % (info["ultima"], _como_instalar())}

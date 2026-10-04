@@ -107,7 +107,7 @@ _UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
        "(KHTML, like Gecko) EditorAutomatico/1.0")
 
 
-def _chamar(rota, dados=None, metodo="POST", bearer=None):
+def _chamar(rota, dados=None, metodo="POST", bearer=None, tempo=20):
     """Fala com o servidor e devolve SEMPRE um dict — nunca levanta.
 
     `bearer` vai no cabeçalho Authorization: as rotas novas da área do aluno
@@ -122,7 +122,7 @@ def _chamar(rota, dados=None, metodo="POST", bearer=None):
     req = urllib.request.Request(SERVIDOR + rota, data=corpo, method=metodo, headers=cab)
     try:
         from . import rede
-        with urllib.request.urlopen(req, timeout=20, context=rede.contexto()) as r:
+        with urllib.request.urlopen(req, timeout=tempo, context=rede.contexto()) as r:
             d = json.loads(r.read().decode("utf-8"))
             if isinstance(d, dict):
                 d.setdefault("_status", getattr(r, "status", 200))
