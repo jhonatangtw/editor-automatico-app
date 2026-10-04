@@ -1,6 +1,6 @@
 {
- "version": "0.20.2",
- "notes": "Atualização de bastidor: o login do app agora fala direto com o servidor novo do Editor Black Belt (licenca.editorblackbelt.com.br), o mesmo do plugin. Você continua logado, com a mesma senha — nada a fazer.",
+ "version": "0.21.0",
+ "notes": "Área do aluno: agora dá para entrar com um código de 6 dígitos enviado por e-mail, sem senha (a senha continua valendo). O botão “Minhas aulas” abre a área do aluno no navegador, já conectado. As atualizações passam a vir primeiro do servidor do Editor Black Belt, conferidas pelo sha256 — se ele não tiver nada, o app segue pelo GitHub como antes.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",
