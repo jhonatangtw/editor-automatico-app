@@ -27,7 +27,9 @@ TOOLSPRO = {
     "ae_legendas_info", "ae_legendas_importar", "ae_legendas_limpar", "ae_titulos_info", "ae_titulos_inserir",
     "pr_extendscript", "ae_extendscript",
 }
-LOCAIS = {"FFmpeg", "Whisper", "etapas do app"}
+LOCAIS = {"FFmpeg", "Whisper", "etapas do app", "pastas do computador"}
+# as contas que o PRÓPRIO aluno conecta na aba Contas
+CONTAS = {"Higgsfield", "ElevenLabs", "HeyGen", "MiniMax"}
 REGISTRO = os.path.expanduser("~/Documents/03_Apps/Editor Black Belt/src-toolspro/js/mcp/registry.js")
 
 
@@ -49,7 +51,7 @@ class Guia(unittest.TestCase):
         app = {f["name"] for f in mcp_servidor.FERRAMENTAS}
         skills = {n for n in os.listdir(os.path.join(RAIZ, "skills"))
                   if os.path.isdir(os.path.join(RAIZ, "skills", n))}
-        conhecido = TOOLSPRO | app | skills | LOCAIS
+        conhecido = TOOLSPRO | app | skills | LOCAIS | CONTAS
         faltam = ["%s → %s" % (c["titulo"], u) for _, c in comandos() for u in c["usa"] if u not in conhecido]
         self.assertEqual(faltam, [])
 
@@ -70,6 +72,7 @@ class Guia(unittest.TestCase):
             for campo in ("titulo", "comando", "faz", "quando", "precisa", "ia", "usa"):
                 self.assertTrue(c.get(campo), "%s / %s sem %s" % (gr["titulo"], c.get("titulo"), campo))
             self.assertIn(c["ia"], guia()["legenda_ia"])
+            self.assertIn(c.get("nivel"), ("rápido", "completo"), c["titulo"])
 
     def test_documento_bate_com_a_tela(self):
         spec = importlib.util.spec_from_file_location("gerar_guia", os.path.join(RAIZ, "gerar-guia.py"))
@@ -78,6 +81,25 @@ class Guia(unittest.TestCase):
         with open(os.path.join(RAIZ, "web", "GUIA-DE-COMANDOS.md"), encoding="utf-8") as f:
             self.assertEqual(f.read(), m.markdown(guia()),
                              "rode: python3 gerar-guia.py")
+
+
+# o guia vai para todo aluno: nada de cliente, produto, pessoa, job ou máquina
+PRIVADO = re.compile(
+    r"/Users/|C:\\\\Users|jhonwill|~/Documents/|drive\.google|docs\.google|frame\.io|claude\.ai/"
+    r"|\bH&W\b|HW Publishing|hw-publishing|LeafTide|Leaftide|CardioFlush|CardioClear|MemoFlow|LinfaFlow|Lymphoria"
+    r"|GlucoJaro|VitaRenew|VigorBoost|SlimSoda|Ameripel|Iron Heart|Profit Publishers|AI Loophole"
+    r"|\b(?:Jhon|Jhonatan|Bifi|Marcelo|Roque|Gustavo|Ericles|Diogo|Pedro|Jonas|Mia|Jason|Robert|Sarah|Nina|Gupta|Rogan|Rhonda)\b"
+    r"|\b\d{2,3}_[A-Z]{2}\b|\[\d{6}\]|R\$ ?\d")
+
+
+class GuiaSemDadoPrivado(unittest.TestCase):
+
+    def test_json_e_documento_sem_cliente_pessoa_job_ou_caminho(self):
+        for nome in ("guia.json", "GUIA-DE-COMANDOS.md"):
+            with open(os.path.join(RAIZ, "web", nome), encoding="utf-8") as f:
+                t = f.read()
+            achados = sorted({m.group(0) for m in PRIVADO.finditer(t)})
+            self.assertEqual(achados, [], nome)
 
 
 if __name__ == "__main__":

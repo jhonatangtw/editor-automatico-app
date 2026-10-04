@@ -15,11 +15,13 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 
 def markdown(g):
     linhas = ["# %s — Editor Automático" % g["titulo"], "", g["intro"], "",
-              "**Quem roda:** " + " · ".join("**%s** — %s" % (k, v) for k, v in g["legenda_ia"].items()), ""]
+              "**Quem roda:** " + " · ".join("**%s** — %s" % (k, v) for k, v in g["legenda_ia"].items()), "",
+              "**Nível:** " + " · ".join("**%s** — %s" % (k, v) for k, v in g.get("niveis", {}).items()), ""]
     for gr in g["grupos"]:
         linhas += ["", "## %s" % gr["titulo"], "", gr["descricao"], ""]
         for c in gr["comandos"]:
-            linhas += ["### %s" % c["titulo"], "",
+            nivel = "*Nível: %s*" % c["nivel"] + (" · *Tempo: %s*" % c["tempo"] if c.get("tempo") else "")
+            linhas += ["### %s" % c["titulo"], "", nivel, "",
                        "```text", c["comando"], "```", "",
                        "- **O que faz:** %s" % c["faz"],
                        "- **Quando usar:** %s" % c["quando"],

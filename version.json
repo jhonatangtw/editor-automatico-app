@@ -1,6 +1,6 @@
 {
- "version": "0.21.0",
- "notes": "App novo por fora: visual Editor Black Belt e uma tela de Início que diz o que falta e o próximo passo. Contas mais simples, com o que cada ferramenta faz. Novo Guia de comandos com os melhores pedidos para a IA, prontos para copiar. As skills da casa, inclusive a skill mestra, agora instalam e se atualizam sozinhas para o Claude e o ChatGPT — sem mexer nas que você editou. Área do aluno: entre com um código por e-mail e abra suas aulas pelo botão Minhas aulas.",
+ "version": "0.21.1",
+ "notes": "Guia de comandos refeito com as receitas de edições reais (webinário, upsell, VSL, criativos, aulas e Reels): cada comando já traz a ordem que funcionou, as regras aprovadas e as armadilhas.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",

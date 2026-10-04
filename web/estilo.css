@@ -958,3 +958,15 @@ body > .aviso.ruim { background: rgba(38,16,18,.94); }
 .cmd-usa { margin-top: auto; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.05);
   font-size: 10.5px; color: var(--ink3); overflow-wrap: anywhere; }
 .guia-rodape { margin-top: 30px; text-align: center; font-size: 12px; }
+
+/* guia 0.21.1: comandos longos (receitas completas) */
+.guia-grade { grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); }
+@media (max-width: 1100px) { .guia-grade { grid-template-columns: minmax(0, 1fr); } }
+.cmd-selos { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; flex: none; }
+.cmd-faz { font-size: 13px; color: var(--ink2); line-height: 1.5; margin-top: -4px; }
+.cmd-texto { white-space: pre-wrap; font-size: 13px; }
+.cmd-texto.longo:not(.aberto) { max-height: 190px; overflow: hidden;
+  -webkit-mask: linear-gradient(#000 70%, transparent); mask: linear-gradient(#000 70%, transparent); }
+.cmd-botoes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cmd-botoes .cmd-copiar { align-self: auto; }
+.cmd-tempo { font-size: 12px; color: var(--ink3); margin-left: auto; }

@@ -1,418 +1,669 @@
 {
   "titulo": "Guia de comandos",
-  "intro": "Comandos prontos para colar na Conversa do app (ou no Claude Code). Troque o que está entre colchetes pelo seu caso. A IA sempre mostra o plano antes de mexer no projeto — e o que gasta crédito pede sua aprovação.",
+  "intro": "Receitas tiradas de edições reais feitas com o app — webinário, upsell, VSL, criativos, aulas e Reels. Cada comando já traz a ordem que funcionou, as regras que foram aprovadas e as armadilhas que custaram tempo. Copie, troque o que está entre colchetes e cole na Conversa (ou no Claude Code). A IA mostra o plano antes de mexer no projeto, e o que gasta crédito pede sua aprovação.",
   "legenda_ia": {
-    "Claude": "Usa as ferramentas do plugin Tools PRO — precisa do Claude conectado.",
-    "Claude e ChatGPT": "Funciona com qualquer uma das duas IAs do app."
+    "Claude": "Usa as ferramentas do plugin Tools PRO dentro do Premiere/After — precisa do Claude conectado.",
+    "Claude e ChatGPT": "Roda no seu computador (FFmpeg, Whisper, scripts) ou só escreve prompts — funciona com as duas IAs do app."
+  },
+  "niveis": {
+    "rápido": "Uma tarefa só, poucos minutos.",
+    "completo": "O job inteiro, etapa por etapa, com aprovações no meio."
   },
   "grupos": [
     {
-      "id": "comecar",
-      "titulo": "Começar e conferir",
-      "descricao": "Antes de editar: a IA olha o que está aberto e confirma que está no projeto certo.",
+      "id": "job",
+      "titulo": "Organização de job",
+      "descricao": "Antes e depois de editar: a pasta certa, o projeto certo e o entregável com o nome certo.",
       "comandos": [
         {
-          "titulo": "Ver o que está aberto",
-          "comando": "O que está aberto no Premiere agora? Me diga o projeto, a sequência ativa e o que tem na timeline.",
-          "faz": "Lê o projeto e a sequência ativa e resume clipes, trilhas e marcadores.",
-          "quando": "Sempre no começo — confirma que a IA vai mexer no projeto certo.",
-          "precisa": ["Premiere aberto", "Painel Tools PRO aberto (Janela › Extensões)"],
+          "titulo": "Conferir que estou no projeto certo",
+          "nivel": "rápido",
+          "comando": "Antes de mexer em qualquer coisa, me diga o nome e o caminho do projeto aberto no Premiere, a sequência ativa e o tamanho dela (largura × altura e fps).\nCompare com a pasta do job: [PASTA DO JOB].\nSe o projeto aberto NÃO for deste job, pare e me avise — não salve nada.\nAtenção: com dois projetos abertos o Premiere pode escrever no errado. O tamanho da sequência não é o tamanho do bruto — leia da sequência.",
+          "faz": "Prova qual projeto e qual sequência estão ativos antes de qualquer escrita.",
+          "quando": "No começo de todo job, sempre.",
+          "precisa": [
+            "Premiere aberto com o projeto do job",
+            "Painel Tools PRO aberto (Janela › Extensões)"
+          ],
+          "ia": "Claude",
+          "usa": [
+            "pr_organizar_info",
+            "pr_sequencias_listar",
+            "pr_midia_info"
+          ]
+        },
+        {
+          "titulo": "Montar a estrutura de pastas do job",
+          "nivel": "rápido",
+          "comando": "Crie a estrutura de pastas do job dentro de [PASTA DO JOB], sem apagar nada que já exista:\nEXPORT/, FOOTAGE/, PROJECT/ e MEDIA/ com AUDIO, IMG, SRT, LEGENDA, AEF, BANCO e IA LIPSYNC.\nSe o job tiver vários ADs, crie FOOTAGE/AD01… e EXPORT/AD01… para [QUANTOS ADs].\nDepois me diga onde copiar o projeto-modelo do Premiere (eu abro o projeto; você executa dentro dele).\nAtenção: tudo o que for gerado para o job (imagens, vídeos, áudios de voz) é salvo dentro desta pasta ANTES de importar. Mídia importada de pasta temporária fica offline amanhã.",
+          "faz": "Cria as pastas padrão da demanda para que mídia, projeto e entrega fiquem no mesmo lugar.",
+          "quando": "Job novo, antes de gerar ou importar qualquer coisa.",
+          "precisa": [
+            "A pasta do job (local ou no Drive)"
+          ],
           "ia": "Claude e ChatGPT",
-          "usa": ["adobe_estado", "timeline_ler"]
+          "usa": [
+            "pastas do computador"
+          ]
         },
         {
-          "titulo": "Trocar de sequência",
-          "comando": "Liste as sequências deste projeto e ative a [nome da sequência].",
-          "faz": "Mostra as sequências e torna outra a ativa, conferindo que a troca aconteceu.",
-          "quando": "Quando o comando seguinte precisa agir em outra sequência.",
-          "precisa": ["Premiere aberto com o projeto"],
+          "titulo": "Organizar bins e salvar",
+          "nivel": "rápido",
+          "comando": "Organize o projeto do Premiere em bins: 01 Sequências, 02 Brutos, 03 Mídias (áudio, imagem, legenda) e 04 IA.\nPrimeiro me mostre o plano (qual item vai para qual bin). Só aplique depois do meu ok, e guarde o \"antes\" para eu poder desfazer.\nNo fim, salve o projeto e me mostre quantos itens foram movidos e se ficou alguma mídia offline.\nAtenção: nada no disco é movido — só os bins dentro do projeto. Se o projeto nunca foi salvo, salve você uma vez antes (o salvar por script recusa projeto sem nome).",
+          "faz": "Arruma os bins pelo plano aprovado, salva e avisa mídia offline.",
+          "quando": "Projeto bagunçado ou antes de passar para outro editor.",
+          "precisa": [
+            "Premiere aberto com o projeto do job"
+          ],
           "ia": "Claude",
-          "usa": ["pr_sequencias_listar", "pr_sequencia_ativar"]
+          "usa": [
+            "pr_organizar_analisar",
+            "pr_organizar_aplicar",
+            "pr_organizar_desfazer",
+            "pr_projeto_salvar"
+          ]
         },
         {
-          "titulo": "Retrato da timeline",
-          "comando": "Me mostre o que tem em cada trilha de vídeo e de áudio da sequência ativa, com início e fim de cada clipe.",
-          "faz": "Lista trilha por trilha, com tempos e quais trilhas estão mudas.",
-          "quando": "Para conferir o resultado depois de qualquer mudança.",
-          "precisa": ["Sequência ativa no Premiere"],
-          "ia": "Claude",
-          "usa": ["pr_timeline_listar"]
-        }
-      ]
-    },
-    {
-      "id": "organizar",
-      "titulo": "Organizar projeto",
-      "descricao": "Bins e pastas arrumados sem mexer em nenhum arquivo do disco.",
-      "comandos": [
-        {
-          "titulo": "Organizar o projeto do Premiere",
-          "comando": "Organize o projeto do Premiere em bins (vídeos, áudios, imagens, sequências, legendas). Primeiro me mostre o plano; só aplique depois que eu aprovar.",
-          "faz": "Lê todos os itens, monta um plano de bins e, com seu ok, move os itens. Não toca em nada no disco.",
-          "quando": "Projeto bagunçado, antes de entregar ou passar para outro editor.",
-          "precisa": ["Premiere aberto com o projeto", "Só um projeto aberto (com dois, o Premiere pode escrever no errado)"],
-          "ia": "Claude",
-          "usa": ["pr_organizar_analisar", "pr_organizar_aplicar"]
-        },
-        {
-          "titulo": "Desfazer a organização",
-          "comando": "Desfaça a última organização que você fez no projeto.",
-          "faz": "Devolve cada item ao bin e ao nome de antes e apaga os bins vazios que ela criou.",
-          "quando": "Se o resultado não ficou como você queria.",
-          "precisa": ["Na mesma conversa em que a organização foi feita"],
-          "ia": "Claude",
-          "usa": ["pr_organizar_desfazer"]
-        },
-        {
-          "titulo": "Organizar o projeto do After",
-          "comando": "Organize o projeto do After Effects em pastas (comps principais, precomps, vídeos, imagens, áudios, sólidos). Me mostre o plano antes de aplicar.",
-          "faz": "Classifica cada item (inclusive o que é comp principal ou precomp) e move para pastas. Um Cmd/Ctrl+Z no After desfaz tudo.",
-          "quando": "Projeto de motion com muitos itens soltos.",
-          "precisa": ["After Effects aberto com o projeto", "Painel Tools PRO aberto no After"],
-          "ia": "Claude",
-          "usa": ["ae_organizar_analisar", "ae_organizar_aplicar"]
-        },
-        {
-          "titulo": "Salvar o projeto",
-          "comando": "Salve o projeto do Premiere.",
-          "faz": "Salva o projeto aberto.",
-          "quando": "No fim de um lote de mudanças.",
-          "precisa": ["Projeto que já foi salvo uma vez (com nome e pasta)"],
-          "ia": "Claude",
-          "usa": ["pr_projeto_salvar"]
-        }
-      ]
-    },
-    {
-      "id": "silencio",
-      "titulo": "Cortar silêncio e transcrever",
-      "descricao": "Feito no seu computador com FFmpeg e Whisper — o Tools PRO não corta áudio, então o corte sai num arquivo novo.",
-      "comandos": [
-        {
-          "titulo": "Cortar os silêncios de um vídeo",
-          "comando": "Corte os silêncios deste vídeo com FFmpeg: [caminho do vídeo]. Use silencedetect a -32 dB com 0,6 s, deixe 0,34 s depois e 0,42 s antes de cada fala, e salve uma cópia ao lado com \"(corte suave)\" no nome. Não sobrescreva o original.",
-          "faz": "Detecta as pausas, corta só o miolo delas (margem generosa para não comer palavra) e gera um vídeo novo.",
-          "quando": "Aula, talking head ou locução com muitas pausas.",
-          "precisa": ["FFmpeg instalado (aba Ambiente)", "O caminho do vídeo"],
+          "titulo": "Montar e nomear os entregáveis (hook + body)",
+          "nivel": "completo",
+          "comando": "Monte os entregáveis finais deste job. Cada arquivo é UM hook + o body já emendados — não as peças soltas.\nPasta das peças: [PASTA DAS PEÇAS]. Saída: [PASTA DO JOB]/EXPORT/ADxx/.\nNome de cada arquivo: [DDMMAA][OT] [NN]_[SIGLA] ADxx HKn [PRODUTO] [SQUAD].mp4 (os campos vêm do nome da pasta do job).\nFaça nesta ordem:\n1. Confira com o ffprobe que todas as peças têm o mesmo codec, tamanho, fps e áudio. Se baterem, emende sem reencodar (concat com cópia); se não, reencode só o que diverge.\n2. Gere um arquivo por AD × hook.\n3. No fim, me mostre a lista com nome, duração e se cada um abre do começo ao fim (decodifique o último segundo de cada).\nAtenção: hook e body com loudness diferente denunciam a emenda — iguale o hook ao body (loudnorm em duas passadas) antes de emendar.",
+          "faz": "Emenda hook + body, aplica o padrão de nome e confere cada arquivo até o fim.",
+          "quando": "Fechamento de pacote de ADs com várias variações de hook.",
+          "precisa": [
+            "FFmpeg instalado",
+            "As peças (hooks e bodies) numa pasta"
+          ],
           "ia": "Claude e ChatGPT",
-          "usa": ["FFmpeg"]
+          "usa": [
+            "FFmpeg"
+          ]
         },
         {
-          "titulo": "Transcrever palavra por palavra",
-          "comando": "Transcreva este vídeo com o Whisper, com tempo de cada palavra, e salve o .srt ao lado: [caminho do vídeo].",
-          "faz": "Gera a legenda/transcrição no seu computador, sem subir o vídeo para lugar nenhum.",
-          "quando": "Para legenda, para conferir a fala contra a copy ou para marcar pontos de b-roll.",
-          "precisa": ["Whisper instalado (aba Ambiente)"],
+          "titulo": "Renderizar pelo Media Encoder",
+          "nivel": "rápido",
+          "comando": "Envie para o Media Encoder as sequências cujo nome começa com [PREFIXO], uma por arquivo, com o preset H.264 \"Match Source - High bitrate\".\nRenderize numa pasta LOCAL com nome sem acento (ex.: ~/Movies/[JOB]_EXPORT/) e só depois copie para [PASTA DO JOB]/EXPORT/.\nNo fim confira: quantos arquivos saíram, se cada um tem a duração da sequência e se não sobrou arquivo duplicado com \"_1\" no nome.\nAtenção: render direto numa pasta do Drive com acento ou \"&\" no caminho falha com \"destino não encontrado\".",
+          "faz": "Fila as sequências no Media Encoder por script e confere a saída.",
+          "quando": "Muitas sequências para exportar de uma vez.",
+          "precisa": [
+            "Modo avançado ligado no painel Tools PRO (rodapé › Conectar IA)",
+            "Adobe Media Encoder instalado"
+          ],
+          "ia": "Claude",
+          "usa": [
+            "pr_sequencias_listar",
+            "pr_extendscript"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "webinario",
+      "titulo": "Webinário",
+      "descricao": "Slides que acompanham a fala de um apresentador — centenas de slides, no segundo certo.",
+      "comandos": [
+        {
+          "titulo": "Slides de webinário pela fala",
+          "nivel": "completo",
+          "comando": "Crie os slides do webinário que acompanham a fala do apresentador.\nVou te passar: o áudio da apresentação [ARQUIVO DE ÁUDIO], o roteiro [ROTEIRO] e uma referência visual [IMAGENS DE REFERÊNCIA].\nFaça nesta ordem:\n1. Transcreva com tempo de cada palavra (fatiando em pedaços de 5 minutos — veja a armadilha abaixo).\n2. Divida em slides pela fala: um slide a cada ideia nova, não a cada X segundos.\n3. Me mostre 10 slides de teste antes de gerar o resto.\n4. Depois do meu ok, gere em lote e salve DIRETO em [PASTA DO JOB]/Slides Webinar/.\nRegras aprovadas:\n- Na tela, só a palavra-chave: 1 a 4 palavras por slide (pergunta pode chegar a ~8). A fala carrega a frase.\n- Formatos fixos: revelação = fundo chapado + UMA palavra gigante (\"FALSE.\"); pergunta = fundo claro com a palavra-chave colorida; foto = foto dominante + rótulo curto em caixa alta; dado de mídia = papel rasgado sobre foto; número = número sozinho gigante.\n- Tipografia pesada e condensada; deixe livre a área do apresentador ([CANTO E TAMANHO]) e confira que o texto não invade.\nAtenção:\n- Um único processo escreve o arquivo de controle dos jobs. Dois processos gravando o mesmo arquivo já apagaram centenas de jobs pagos.\n- Whisper em passada longa (40 min) entra em laço e repete palavras; fatie em 5 min sem condicionar no texto anterior.\n- Leitura automática do texto (OCR) erra cor sobre cor; use só como alerta, a conferência final é visual.\nNo fim confira: quantos slides, se a grafia de cada um está certa e se nenhum cobre o apresentador.",
+          "faz": "Transcreve, quebra a fala em slides, gera em lote com as regras da referência e salva na pasta do job.",
+          "quando": "Webinário longo com apresentador (real ou IA) e muitos slides.",
+          "precisa": [
+            "Whisper instalado",
+            "Higgsfield conectado (créditos)",
+            "Áudio e roteiro do webinário"
+          ],
           "ia": "Claude e ChatGPT",
-          "usa": ["Whisper"]
-        }
-      ]
-    },
-    {
-      "id": "marcadores",
-      "titulo": "Marcadores e cortes",
-      "descricao": "Convenção da casa: vermelho = b-roll, azul = lettering, roxo = decisão humana.",
-      "comandos": [
-        {
-          "titulo": "Marcar os pontos de b-roll pela fala",
-          "comando": "Marque esta timeline para b-roll seguindo a fala: vermelho onde entra b-roll, azul onde entra lettering e roxo onde eu preciso decidir. Me mostre a lista antes de criar os marcadores.",
-          "faz": "Transcreve, escolhe os pontos ancorados na fala e cria todos os marcadores de uma vez, com nome e comentário.",
-          "quando": "Antes de gerar ou colocar b-roll.",
-          "precisa": ["Sequência ativa com o body", "Whisper instalado"],
-          "ia": "Claude",
-          "usa": ["editor-automatico-de-broll", "pr_marcadores_criar"]
+          "usa": [
+            "Whisper",
+            "Higgsfield",
+            "skill-black-belt"
+          ]
         },
         {
-          "titulo": "Cortar nos marcadores",
-          "comando": "Corte a timeline nos marcadores verdes. Simule antes e me diga quantos cortes sairiam — não corte nos vermelhos, azuis e roxos.",
-          "faz": "Divide os clipes nos marcadores da cor escolhida. Simula primeiro, porque cortar não tem desfazer pela IA.",
-          "quando": "Quando você já marcou à mão onde quer os cortes.",
-          "precisa": ["Sequência ativa com marcadores"],
+          "titulo": "Colocar centenas de slides na timeline",
+          "nivel": "rápido",
+          "tempo": "menos de 1 minuto para ~800 slides",
+          "comando": "Coloque os slides de [PASTA DOS SLIDES] na V[NÚMERO] da sequência [NOME], cada um no tempo indicado em [ARQUIVO DE TEMPOS], sem buraco entre eles.\nFaça em lotes de 50 com pausa de 3 segundos entre lotes, montando o mapa nome → item do projeto UMA vez só.\nFeche lacunas menores que 0,2 s esticando o slide anterior até o próximo.\nNo fim, leia a timeline de volta em páginas de 200 e me diga: quantos slides entraram, se há sobreposição, se há lacuna e o maior desvio de tempo.\nAtenção: com projeto grande (centenas de itens), a ferramenta de colocar clipe um a um pendura o Premiere. Salve (Cmd+S) antes de começar.",
+          "faz": "Coloca centenas de stills em lote por script e confere contagem, lacunas e desvio.",
+          "quando": "Mais de ~100 slides ou imagens para posicionar.",
+          "precisa": [
+            "Modo avançado ligado no painel Tools PRO (rodapé › Conectar IA)",
+            "Slides já importados no projeto"
+          ],
           "ia": "Claude",
-          "usa": ["pr_autoclip_info", "pr_autoclip"]
+          "usa": [
+            "pr_extendscript",
+            "pr_timeline_listar"
+          ]
         },
         {
-          "titulo": "Apagar marcadores",
-          "comando": "Apague os marcadores cujo nome começa com [prefixo] — me diga quantos são antes de apagar.",
-          "faz": "Apaga só os marcadores que batem com o critério (prefixo, intervalo de tempo ou todos).",
-          "quando": "Para limpar uma marcação que não vale mais.",
-          "precisa": ["Sequência ativa"],
+          "titulo": "Religar slides que estão fora da pasta do job",
+          "nivel": "rápido",
+          "comando": "Alguns slides/imagens deste projeto foram importados de uma pasta fora do job. Copie todos para [PASTA DO JOB]/Slides Webinar/ e religue cada item ao arquivo novo.\nNo fim, me diga quantos foram religados e confirme que ficou 0 mídia offline.\nAtenção: o projeto é aberto por outros editores — mídia fora da pasta do job some para eles.",
+          "faz": "Copia a mídia para a pasta do job e troca o caminho dentro do projeto.",
+          "quando": "Antes de entregar ou compartilhar o projeto.",
+          "precisa": [
+            "Modo avançado ligado no painel Tools PRO (rodapé › Conectar IA)"
+          ],
           "ia": "Claude",
-          "usa": ["pr_marcadores_listar", "pr_marcadores_apagar"]
-        }
-      ]
-    },
-    {
-      "id": "broll",
-      "titulo": "B-roll",
-      "descricao": "Do bruto do avatar ao criativo montado — o que gasta crédito sempre pede aprovação.",
-      "comandos": [
+          "usa": [
+            "pr_midia_listar",
+            "pr_extendscript"
+          ]
+        },
         {
-          "titulo": "Editar um criativo inteiro com b-roll",
-          "comando": "Edite este criativo: [pasta com o body, a copy e a foto do avatar]. Coloque b-roll da mesma pessoa, punch-ins e legenda, e monte no Premiere. Vá etapa por etapa e me peça aprovação antes de gerar.",
-          "faz": "Roda as 12 etapas do app: análise, confere a copy, marca, planeja, gera imagens e vídeos (com sua aprovação), acabamento, montagem e controle de qualidade.",
-          "quando": "UGC/VSL 9:16 de avatar falante em plano fixo.",
-          "precisa": ["Higgsfield conectado (créditos)", "ElevenLabs para voz", "Premiere aberto com o projeto"],
+          "titulo": "Transcrever um webinário longo sem inventar fala",
+          "nivel": "rápido",
+          "comando": "Transcreva [ARQUIVO] com tempo de cada palavra, em pedaços de 5 minutos, e junte tudo num .srt e num .json.\nDepois procure palavras com duração absurda (mais de 1,5 s no meio da fala) e repetições em laço, e repasse só essas janelas com o modelo maior.\nAtenção: em passada longa o Whisper inventa palavras dentro do silêncio e às vezes engole uma frase inteira numa palavra só. Não afirme que um trecho da copy não foi gravado sem repassar a janela.",
+          "faz": "Transcrição em pedaços, com a conferência dos pontos onde o Whisper costuma errar.",
+          "quando": "Base de tempo para slides, legenda ou corte.",
+          "precisa": [
+            "Whisper instalado"
+          ],
           "ia": "Claude e ChatGPT",
-          "usa": ["editor-automatico-de-broll", "etapas do app"]
-        },
-        {
-          "titulo": "Colocar os vídeos de uma pasta na timeline",
-          "comando": "Importe os vídeos da pasta [caminho] para o bin B-ROLL e coloque cada um na V2, no marcador vermelho correspondente. Simule antes e me mostre onde cada um entra.",
-          "faz": "Importa em lote e coloca tudo de uma vez — se algum nome ou trilha estiver errado, nada é colocado.",
-          "quando": "Quando os b-rolls já existem (gerados ou de banco).",
-          "precisa": ["Sequência ativa marcada", "Os arquivos na pasta do projeto"],
-          "ia": "Claude",
-          "usa": ["pr_midia_importar", "pr_timeline_colocar"]
-        },
-        {
-          "titulo": "Calar o som dos b-rolls",
-          "comando": "Silencie a trilha de áudio dos b-rolls ([A2]).",
-          "faz": "Deixa a trilha inteira muda, sem apagar nada. Volta com \"devolva o som da A2\".",
-          "quando": "B-roll gerado com áudio que atrapalha a fala.",
-          "precisa": ["Sequência ativa"],
-          "ia": "Claude",
-          "usa": ["pr_timeline_mudo"]
-        },
-        {
-          "titulo": "Refazer um b-roll específico",
-          "comando": "Regere o b-roll do insert [número] com outra roupa e outro enquadramento, mantendo a mesma pessoa.",
-          "faz": "Gera de novo só aquele insert e troca na timeline.",
-          "quando": "Um insert saiu com defeito ou repetido.",
-          "precisa": ["Projeto do app em andamento", "Higgsfield conectado"],
-          "ia": "Claude",
-          "usa": ["editor-automatico-de-broll"]
+          "usa": [
+            "Whisper"
+          ]
         }
       ]
     },
     {
-      "id": "zoom",
-      "titulo": "Zoom, suavização e atributos",
-      "descricao": "Movimento no plano parado. Transições ainda não têm ferramenta própria no plugin.",
+      "id": "vsl",
+      "titulo": "Upsell e VSL",
+      "descricao": "Trocar oferta, encurtar, versionar e colocar motion numa VSL já gravada.",
       "comandos": [
         {
-          "titulo": "Punch-in nos clipes do avatar",
-          "comando": "Selecione os clipes da V1 e aplique punch-in variando entre 12% e 16% de clipe para clipe, curva suave, foco no rosto (Y 35%).",
-          "faz": "Anima o zoom num efeito próprio, por cima do Movimento — o seu enquadramento não é tocado.",
-          "quando": "Para quebrar o plano parado de talking head/UGC.",
-          "precisa": ["Sequência ativa"],
+          "titulo": "Trocar o preço numa VSL de upsell",
+          "nivel": "completo",
+          "comando": "Troque a oferta desta VSL de upsell: [PREÇO ANTIGO] passa a ser [PREÇO NOVO] (e [OUTROS VALORES QUE MUDAM]).\nVou te passar: o render de referência [ARQUIVO], o projeto aberto e a voz do apresentador ([VOZ NA ELEVENLABS]).\nFaça nesta ordem:\n1. Marque os timecodes de cada fala de preço em cima do MESMO arquivo que bate com a comp/sequência (confira a duração antes — versões cortadas depois do render erram segundos).\n2. Me mostre a tabela \"onde / era / vira\" antes de gerar qualquer áudio.\n3. Gere a locução nova (inglês americano se o produto for para os EUA; números por extenso no texto) e encaixe nas janelas de silêncio.\n4. Corrija também o texto do card de preço na tela: ele costuma ficar visível vários segundos DEPOIS da fala.\nRegras: a emenda de áudio é feita por amostra, e a duração total tem que ficar IDÊNTICA à original.\nAtenção:\n- Emendar pedaços de áudio por concatenação simples acumula deriva (quase meio segundo) e dessincroniza o resto.\n- O card de preço pode morar em camadas soltas da comp principal, presas a um nulo — não numa comp de apoio. Edite onde o render lê.\nNo fim confira: transcreva o trecho novo, compare com o texto aprovado e exporte um quadro do card com o preço novo.",
+          "faz": "Mapeia as falas de preço, gera a locução nova, emenda sem deriva e corrige o card na tela.",
+          "quando": "Mudança de ticket ou de oferta numa VSL que já existe.",
+          "precisa": [
+            "ElevenLabs conectado (voz do apresentador)",
+            "Projeto aberto (Premiere ou After)",
+            "FFmpeg e Whisper instalados",
+            "Modo avançado ligado no painel Tools PRO (rodapé › Conectar IA)"
+          ],
           "ia": "Claude",
-          "usa": ["pr_timeline_selecionar", "pr_zoom_aplicar"]
+          "usa": [
+            "ElevenLabs",
+            "Whisper",
+            "FFmpeg",
+            "pr_marcadores_criar",
+            "ae_extendscript"
+          ]
         },
         {
-          "titulo": "Tirar o zoom",
-          "comando": "Tire o zoom que você aplicou nos clipes selecionados.",
-          "faz": "Remove só o efeito de zoom do plugin; o Movimento e os keyframes feitos à mão ficam.",
-          "quando": "Para refazer o punch-in de outro jeito.",
-          "precisa": ["Clipes selecionados"],
+          "titulo": "Encurtar uma VSL sem quebrar a oferta",
+          "nivel": "completo",
+          "comando": "Preciso encurtar esta VSL em cerca de [MINUTOS]. Vou te passar a lista de cortes sugerida: [LISTA DE CORTES].\nFaça nesta ordem:\n1. Transcreva a VSL inteira com tempo de cada palavra.\n2. Confira cada borda da lista: ela cai dentro de uma palavra? Quebra uma frase? Deixa uma resposta sem a pergunta?\n3. Verifique se algum corte apaga um ELO da oferta: âncora de preço, promessa de bônus e a volta dela, lógica de \"por que levar mais unidades\", garantia.\n4. Marque na sequência ORIGINAL marcadores de TRECHO em vermelho \"NN - CORTE - motivo\" e, onde a sua proposta for melhor, em roxo \"PNN - CORTAR - motivo\" com a emenda sugerida no comentário.\n5. Só depois do meu ok monte a sequência cortada, com marcador nas emendas.\nAtenção:\n- Cortar silêncio quase não encurta VSL (dezenas de segundos em mais de uma hora); encurtar sai de tirar bloco de conteúdo.\n- Trecho que foi REGRAVADO (preço novo, palavra trocada) não sai cortando o original — exige locução nova. Marque à parte.\nNo fim confira: duração final, nenhuma emenda no meio de palavra e a oferta completa ouvida do começo ao fim.",
+          "faz": "Transforma a lista de cortes em mapa de edição, protege a oferta e monta a versão curta.",
+          "quando": "Versão curta de VSL para afiliado ou teste.",
+          "precisa": [
+            "Whisper instalado",
+            "Premiere aberto com a VSL"
+          ],
           "ia": "Claude",
-          "usa": ["pr_zoom_limpar"]
+          "usa": [
+            "Whisper",
+            "pr_marcadores_criar",
+            "pr_marcadores_listar",
+            "pr_timeline_listar"
+          ]
         },
         {
-          "titulo": "Suavizar keyframes no Premiere",
-          "comando": "Deixe suaves (ease in/out) os keyframes dos clipes selecionados.",
-          "faz": "Muda a curva dos keyframes que já existem, sem criar novos.",
-          "quando": "Animação mecânica, com cara de linear.",
-          "precisa": ["Clipes com keyframes selecionados"],
+          "titulo": "Achar o deslocamento entre duas versões da VSL",
+          "nivel": "rápido",
+          "comando": "Estas duas sequências são a mesma VSL com aberturas diferentes: [SEQUÊNCIA A] e [SEQUÊNCIA B].\nDescubra a partir de onde elas são iguais e qual é o deslocamento fixo de tempo entre elas.\nMeça por correlação do envelope de áudio (wav 16 kHz mono, envelope a 100 Hz) em pelo menos 5 pontos e confirme com a transcrição em 4 frases.\nDepois copie os marcadores de [SEQUÊNCIA A] para [SEQUÊNCIA B] aplicando o deslocamento.\nAtenção: nunca copie timecode de uma versão para a outra sem o deslocamento. Se a correlação cair em algum ponto, as versões divergem dali em diante — reencontre por conteúdo.",
+          "faz": "Mede o offset entre duas versões e replica os marcadores com o tempo certo.",
+          "quando": "Lead 1 × Lead 2, versão DTC × versão afiliado, ou qualquer par de versões do mesmo corpo.",
+          "precisa": [
+            "FFmpeg instalado",
+            "As duas sequências no projeto"
+          ],
           "ia": "Claude",
-          "usa": ["pr_smoothify"]
+          "usa": [
+            "FFmpeg",
+            "Whisper",
+            "pr_marcadores_listar",
+            "pr_marcadores_criar"
+          ]
         },
         {
-          "titulo": "Copiar escala e posição",
-          "comando": "Copie escala e posição do primeiro clipe selecionado para os outros selecionados.",
-          "faz": "Cola só os atributos que você pediu; o resto fica como estava.",
-          "quando": "Padronizar o enquadramento de vários clipes.",
-          "precisa": ["Pelo menos 2 clipes selecionados (o primeiro é a fonte)"],
-          "ia": "Claude",
-          "usa": ["pr_copiar_atributos"]
-        },
-        {
-          "titulo": "Suavizar keyframes no After",
-          "comando": "No After, dê ease suave nos keyframes das camadas selecionadas.",
-          "faz": "Ajusta a curva de tempo dos keyframes. Um Cmd/Ctrl+Z no After volta.",
-          "quando": "Motion com movimento duro.",
-          "precisa": ["After Effects aberto", "Camadas selecionadas na composição ativa"],
-          "ia": "Claude",
-          "usa": ["ae_smoothify"]
-        }
-      ]
-    },
-    {
-      "id": "legendas",
-      "titulo": "Legendas e títulos (After Effects)",
-      "descricao": "A legenda nasce do Whisper e entra no After como camadas de texto.",
-      "comandos": [
-        {
-          "titulo": "Legendar uma composição",
-          "comando": "Transcreva [caminho do vídeo] com o Whisper e importe a legenda na composição ativa do After: texto branco, contorno preto, na parte de baixo.",
-          "faz": "Gera o .srt e cria uma camada de texto por bloco, já posicionada e estilizada.",
-          "quando": "Legenda queimada em criativo ou corte vertical.",
-          "precisa": ["After Effects aberto com a composição ativa", "Whisper instalado"],
-          "ia": "Claude",
-          "usa": ["Whisper", "ae_legendas_importar"]
-        },
-        {
-          "titulo": "Tirar a legenda gerada",
-          "comando": "Remova as legendas que você criou nesta composição.",
-          "faz": "Apaga só as camadas criadas pela ferramenta — texto feito à mão fica.",
-          "quando": "Para refazer a legenda com outro estilo.",
-          "precisa": ["Composição ativa no After"],
-          "ia": "Claude",
-          "usa": ["ae_legendas_limpar"]
-        },
-        {
-          "titulo": "Inserir um título animado",
-          "comando": "Insira o título animado [caminho do .mogrt] na composição ativa com o texto \"[seu texto]\".",
-          "faz": "Importa o template de título e troca o texto.",
-          "quando": "Abertura, lettering ou chamada com template pronto.",
-          "precisa": ["After Effects aberto", "O arquivo .mogrt"],
-          "ia": "Claude",
-          "usa": ["ae_titulos_inserir"]
-        }
-      ]
-    },
-    {
-      "id": "motion",
-      "titulo": "Motion e overlays",
-      "descricao": "Motion graphics gerado por IA (Higgsfield/Google Flow) e prompts prontos para colar.",
-      "comandos": [
-        {
-          "titulo": "Motions de oferta para uma VSL",
-          "comando": "Gere os motions das marcações de oferta desta VSL no estilo escuro (preço, garantia, bônus, CTA), aplique na timeline e confira a grafia de cada um.",
-          "faz": "Produz o lote de overlays no mesmo sistema visual, coloca por cima do body e confere o texto quadro a quadro.",
+          "titulo": "Motions de oferta nos marcadores da VSL",
+          "nivel": "completo",
+          "comando": "Gere os motions de overlay desta VSL nos marcadores de [COR DO MARCADOR DE MOTION] (só neles; os outros marcadores são de outra etapa).\nSistema visual: [ESCURO ou CLARO] — um só no criativo inteiro.\nFaça nesta ordem:\n1. Leia o tamanho e o fps da SEQUÊNCIA antes de gerar (não do bruto).\n2. Me mostre a lista de motions com o texto exato de cada um.\n3. Gere em lote; formato fora de 16:9/9:16 → gere em 9:16 e recorte.\n4. Coloque na trilha acima do body, cada um no seu marcador, e confira a grafia quadro a quadro.\nRegras: sem o apresentador dentro dos motions (o único humano é o body); número por extenso no prompt; contagem de unidades travada (\"exactly three bottles\").\nAtenção: gerar no formato errado já custou centenas de créditos — confira o tamanho da sequência primeiro.\nNo fim confira: cada motion no marcador certo, grafia certa, e fora dos marcadores a imagem idêntica ao original.",
+          "faz": "Produz o lote de overlays no mesmo sistema visual, aplica nos marcadores e confere o texto.",
           "quando": "VSL ou criativo de resposta direta com a timeline já marcada.",
-          "precisa": ["Timeline marcada", "Higgsfield conectado (créditos)", "Premiere aberto"],
+          "precisa": [
+            "Higgsfield conectado (créditos)",
+            "Premiere aberto com a timeline marcada"
+          ],
           "ia": "Claude",
-          "usa": ["motion-omni-vsl"]
+          "usa": [
+            "motion-omni-vsl",
+            "pr_midia_importar",
+            "pr_timeline_colocar"
+          ]
         },
         {
-          "titulo": "Clipe de motion puro (Vibe Motion)",
-          "comando": "Crie um prompt para o Higgsfield Vibe Motion: reveal de preço de [preço antigo] para [preço novo], 6 s, vertical 9:16, sem locução.",
-          "faz": "Escreve o prompt com medidas, cores e tempos exatos para gerar o motion como código — o texto não quebra.",
-          "quando": "Hook animado, número, logo ou CTA sem pessoa falando.",
-          "precisa": ["Nada aberto — é só o prompt"],
-          "ia": "Claude e ChatGPT",
-          "usa": ["vibe-motion"]
-        },
-        {
-          "titulo": "Escolher um estilo de motion",
-          "comando": "Me mostre a galeria de motion design e recomende 3 estilos para [produto/campanha].",
-          "faz": "Abre a galeria de estilos e sugere os que combinam com a sua campanha.",
-          "quando": "Quando você não sabe por onde começar o motion.",
-          "precisa": ["Nada aberto"],
-          "ia": "Claude e ChatGPT",
-          "usa": ["motion-design"]
-        },
-        {
-          "titulo": "Recriar um motion de referência",
-          "comando": "Recrie este vídeo de referência para o meu produto, mantendo o ritmo e os enquadramentos: [arquivo]. Só me mostre o prompt — não gere ainda.",
-          "faz": "Usa o vídeo como molde e troca assunto e texto. Mostra o prompt completo antes de gastar crédito.",
-          "quando": "Você achou um motion que quer adaptar.",
-          "precisa": ["O vídeo de referência"],
-          "ia": "Claude e ChatGPT",
-          "usa": ["motion-design", "omni-flash-reverse"]
-        },
-        {
-          "titulo": "Copy em clipes estilo Black Belt",
-          "comando": "Transforme esta copy em clipes de 10 s no estilo Black Belt (estúdio escuro, cards de vidro dourados, legenda karaokê): [copy].",
-          "faz": "Fatia a copy e entrega um prompt por clipe, pronto para o Google Flow / Omni Flash.",
-          "quando": "Talking head com motion embutido.",
-          "precisa": ["A copy"],
-          "ia": "Claude e ChatGPT",
-          "usa": ["blackbelt-omni"]
+          "titulo": "VSL narrada inteira em 3D (estilo Pixar)",
+          "nivel": "completo",
+          "comando": "Monte uma VSL narrada em 3D estilo Pixar a partir da locução [ARQUIVOS DE LOCUÇÃO] e de uma referência aprovada [VÍDEO DE REFERÊNCIA].\nFaça nesta ordem:\n1. Transcreva e marque as cenas na sequência: marcador de TRECHO \"NN - TIPO - descrição\" (cena, mecanismo, produto, CTA, hook), nenhuma cena acima de 15 s.\n2. Folha de personagens: uma imagem-âncora por personagem (frente + expressões).\n3. Storyboard: um prompt de imagem por cena.\n4. Imagens → vídeos (Seedance 720p, mínimo 4 s por clipe), sempre com a âncora do personagem como referência.\n5. Coloque cada clipe NO marcador da cena dele.\nRegras: a âncora de imagem é o que trava o rosto, não o texto. Para o estilo, use um quadro da própria referência (sem rosto quando a cena não tiver personagem). Frasco com rótulo de frente e legível em toda cena de produto.\nAtenção:\n- Hooks podem vir embutidos no começo do áudio do body — confira antes de procurar arquivo separado.\n- Locução que já vem com música: pausa não é silêncio, não corte por volume.\n- Corpo humano translúcido é barrado pela moderação; vá para o abstrato.\n- Encaixar clipes em cascata quebra a sincronia; buraco se fecha esticando o clipe que sai.\nNo fim confira: rosto igual entre cenas, rótulo legível, e cada cena casando com a fala.",
+          "faz": "Da locução à VSL animada: cenas marcadas, personagens, storyboard, geração e montagem no marcador.",
+          "quando": "VSL ou AD longo sem avatar filmado, todo em personagem 3D.",
+          "precisa": [
+            "Higgsfield conectado (créditos)",
+            "Whisper instalado",
+            "Premiere aberto"
+          ],
+          "ia": "Claude",
+          "usa": [
+            "storyboard-viral-3d",
+            "pixar3d",
+            "Higgsfield",
+            "pr_marcadores_criar",
+            "pr_timeline_colocar"
+          ]
         }
       ]
     },
     {
-      "id": "hooks",
-      "titulo": "Hooks",
-      "descricao": "Hooks novos no formato Meat Hook para ADs já validados.",
+      "id": "criativos",
+      "titulo": "Criativos e ADs",
+      "descricao": "UGC 9:16, hooks no formato Meat Hook e troca de produto em criativos que já performam.",
       "comandos": [
         {
-          "titulo": "Gerar hooks novos",
-          "comando": "Gere hooks Meat Hook para estes ADs validados a partir da copy [doc ou arquivo]. Comece pela tabela de hooks e espere minha aprovação antes de gerar qualquer imagem.",
-          "faz": "Mapeia os hooks, gera os frames de início, coloca no Premiere para aprovação, anima, unifica a voz e monta hook + body.",
-          "quando": "Trocar ou empilhar hooks em criativos que já performam.",
-          "precisa": ["Copy com os comentários do copywriter", "Higgsfield e ElevenLabs conectados", "Premiere aberto"],
-          "ia": "Claude",
-          "usa": ["hooks-meat-hook"]
+          "titulo": "Criativo UGC 9:16 completo (b-roll + punch-in + legenda)",
+          "nivel": "completo",
+          "comando": "Edite este criativo UGC 9:16 a partir do bruto do avatar: [PASTA COM BODY, COPY E FOTO DO AVATAR].\nFaça nesta ordem, me pedindo aprovação antes de cada etapa que gasta crédito:\n1. Confira a fala contra a copy (palavra por palavra).\n2. Marque os pontos de b-roll ancorados na fala: vermelho = b-roll, azul = lettering, roxo = decisão minha.\n3. Gere o b-roll da MESMA pessoa em roupas e cenários diferentes, casando com o que ela diz (ex.: aparece de roupa nova no segundo em que diz \"troquei o guarda-roupa\").\n4. Anime os b-rolls no Kling 3.0 Turbo, 9:16.\n5. Punch-in variando entre 110% e 116% de clipe para clipe, foco no rosto.\n6. Legenda sincronizada e revisada contra a copy.\n7. Monte no Premiere e salve.\nRegras aprovadas: corte seco, sem transição nem efeito (em UGC transição denuncia produção). A alavanca é o b-roll, não o corte. Eu coloco música e transição depois, se quiser.\nNo fim confira: legenda contra a copy palavra a palavra, nenhum b-roll repetido e áudio só do body.",
+          "faz": "As 12 etapas do app num pedido só, com as regras validadas em criativo que foi ao ar.",
+          "quando": "Body de avatar falante em plano fixo, 9:16.",
+          "precisa": [
+            "Higgsfield conectado (créditos)",
+            "ElevenLabs para voz",
+            "Premiere aberto com o projeto do job"
+          ],
+          "ia": "Claude e ChatGPT",
+          "usa": [
+            "editor-automatico-de-broll",
+            "etapas do app"
+          ]
         },
         {
-          "titulo": "Empilhar um hook no AD",
-          "comando": "Empilhe o hook [H03] no início do [AD02] e me mostre o quadro da emenda.",
-          "faz": "Monta o hook antes do body inteiro e confere o ponto de corte.",
-          "quando": "Depois que os hooks foram aprovados.",
-          "precisa": ["Hooks aprovados", "Premiere aberto"],
+          "titulo": "Animar os b-rolls no Kling",
+          "nivel": "rápido",
+          "comando": "Anime as imagens de b-roll de [PASTA DAS IMAGENS] no Kling 3.0 Turbo: 9:16, 720p, 5 segundos cada, usando cada imagem como quadro inicial.\nSalve os vídeos em [PASTA DO JOB]/MEDIA/ com o mesmo nome da imagem.\nNo fim, monte uma folha de contato com 3 quadros de cada vídeo e me mostre os que mudaram de rosto ou de roupa no meio.\nAtenção: formato 4:5 não existe no Kling — gere em 9:16 e recorte o centro.",
+          "faz": "Anima o lote de stills no Kling e aponta os clipes com deriva.",
+          "quando": "Depois que as imagens de b-roll foram aprovadas.",
+          "precisa": [
+            "Higgsfield conectado (créditos)"
+          ],
+          "ia": "Claude e ChatGPT",
+          "usa": [
+            "Higgsfield",
+            "editor-automatico-de-broll"
+          ]
+        },
+        {
+          "titulo": "Hooks novos no formato Meat Hook",
+          "nivel": "completo",
+          "comando": "Gere hooks novos no formato Meat Hook para os ADs validados [ADs], a partir da copy de hooks [DOC DA COPY] (com os comentários do copywriter).\nFaça nesta ordem, com aprovação minha entre as etapas:\n1. Tabela de hooks: fala em inglês, estrutura, avatar/cenário, objeto de demonstração e planos. Mapeie cada comentário ao hook pelo TEXTO ancorado, não pela ordem.\n2. Start frames (vertical de celular, terço de baixo livre para legenda). Demonstração = 3 quadros: A objeto com o problema · B o ritual acontecendo · C o resultado.\n3. Coloque os frames numa sequência de aprovação no Premiere (3 s por frame, 1 s entre hooks, marcador por frame).\n4. Anime (A→B e B→C), com a fala começando em ~1 s e a ação correndo junto.\n5. Unifique a voz de cada personagem (mesma voz em todos os clipes dele).\n6. Decupe o silêncio, iguale o volume ao body e monte hook + body.\nAtenção:\n- Peça print da imagem de referência de cada hook: ela define o avatar.\n- Para objeto anatômico e números exatos na tela, Nano Banana Pro acerta melhor; quem copia a referência é o GPT Image.\n- Cada geração inventa uma voz nova — sempre unifique a voz quando um hook tiver 2+ clipes.\nNo fim confira: transcreva cada hook decupado contra a copy e exporte o quadro da emenda hook→body.",
+          "faz": "Pipeline inteiro de hooks: tabela, frames de demonstração, aprovação, animação, voz única e montagem.",
+          "quando": "Trocar ou empilhar hooks em ADs que já performam.",
+          "precisa": [
+            "Higgsfield conectado (créditos)",
+            "ElevenLabs conectado",
+            "Premiere aberto com os ADs"
+          ],
           "ia": "Claude",
-          "usa": ["hooks-meat-hook"]
+          "usa": [
+            "hooks-meat-hook",
+            "photorealism-prompts",
+            "Higgsfield",
+            "ElevenLabs",
+            "pr_marcadores_criar"
+          ]
+        },
+        {
+          "titulo": "Frames de demonstração A/B/C",
+          "nivel": "rápido",
+          "comando": "Crie os 3 start frames de demonstração do hook [NÚMERO]: A = [OBJETO] com o problema na lente · B = o ritual sendo feito · C = o resultado.\nVertical 9:16, foto de celular realista, personagem [DESCRIÇÃO], terço de baixo livre para legenda.\nPara B e C passe como referência o frame anterior E a âncora do personagem, com \"IDENTITY IS CRITICAL: the SAME person as in BOTH reference images\".\nNúmero na tela? Escreva exatamente: \"reads EXACTLY [NÚMERO] on the top line\".\nMe mostre os três lado a lado antes de animar.\nAtenção: barrado pela moderação → troque o registro (\"classroom model\", roupa fechada) e use Nano Banana Pro.",
+          "faz": "Os três quadros da demonstração com identidade travada entre eles.",
+          "quando": "Hook de demonstração antes de animar.",
+          "precisa": [
+            "Higgsfield conectado (créditos)"
+          ],
+          "ia": "Claude e ChatGPT",
+          "usa": [
+            "hooks-meat-hook",
+            "photorealism-prompts",
+            "Higgsfield"
+          ]
+        },
+        {
+          "titulo": "Troca de produto (frasco) em criativos prontos",
+          "nivel": "completo",
+          "comando": "Troque o produto [PRODUTO ANTIGO] pelo [PRODUTO NOVO] nestes criativos: [PASTA DOS CRIATIVOS].\nVou te passar o produto novo: [IMAGENS DO PRODUTO NOVO] (ideal: frasco isolado com fundo transparente em 3 ângulos + close do rótulo).\nFaça nesta ordem:\n1. Mapeie cada aparição: folha de contato a cada 2 s + leitura do texto na tela (OCR) + transcrição. Cruze as três.\n2. Separe o que é marca FALADA do que é dose, quantidade, preço ou garantia — só muda se o produto novo tiver spec diferente. Me pergunte.\n3. Crie uma sequência por criativo com marcador em cada aparição.\n4. Antes de produzir o final, me diga o que bloqueia (vídeo em baixa resolução, falta de imagem do produto, locução nova).\nAtenção: OCR é o que dá o timecode confiável de marca na tela. Locução nova sempre em inglês americano.",
+          "faz": "Mapeia todas as aparições do produto (imagem, texto e fala) e prepara a troca por criativo.",
+          "quando": "Reaproveitar criativos validados para vender outro produto.",
+          "precisa": [
+            "Premiere aberto",
+            "FFmpeg e Whisper instalados",
+            "Imagens do produto novo"
+          ],
+          "ia": "Claude",
+          "usa": [
+            "Whisper",
+            "FFmpeg",
+            "pr_midia_importar",
+            "pr_marcadores_criar"
+          ]
+        },
+        {
+          "titulo": "Avatar falando com o produto na mão (rótulo intacto)",
+          "nivel": "completo",
+          "comando": "Gere as falas do avatar segurando o produto: still aprovado [IMAGEM] + áudio de cada fala [PASTA DOS ÁUDIOS].\nUse lip sync a partir do áudio (wan 3.0, a imagem como referência, sem gerar áudio), duração inteira acima da fala.\nDepois RECOLE o frasco do still aprovado por cima de cada vídeo: recorte frasco + mão, ache a posição em cada quadro por correlação e cole com borda suavizada.\nAtenção: o lip sync reescreve o texto miúdo do rótulo em quase todos os clipes, e pedir no prompt não resolve. Não gaste crédito regerando por causa de rótulo — só por rosto, boca ou pose.\nNo fim confira: grade com o quadro do silêncio (boca fechada) e 3 quadros de pico de voz (boca aberta) de cada clipe, e o rótulo legível.",
+          "faz": "Lip sync com a voz certa e o rótulo do produto preservado de graça pela recolagem.",
+          "quando": "Depoimento ou talking head com frasco na mão.",
+          "precisa": [
+            "Higgsfield conectado (créditos)",
+            "Áudios de voz prontos (ElevenLabs)",
+            "Python com OpenCV para a recolagem (pip install opencv-python)"
+          ],
+          "ia": "Claude e ChatGPT",
+          "usa": [
+            "Higgsfield",
+            "ElevenLabs",
+            "FFmpeg"
+          ]
+        },
+        {
+          "titulo": "Conferir a legenda queimada contra a copy",
+          "nivel": "rápido",
+          "comando": "Confira a legenda deste criativo: [VÍDEO] e a copy [COPY].\n1. Transcreva o áudio do vídeo.\n2. Compare a legenda (.srt da pasta de legendas, ou o texto na tela) com a copy linha a linha.\n3. Liste cada divergência com timecode: nomes próprios, números e negativas primeiro.\n4. Diga também onde o ÁUDIO diverge da legenda.\nAtenção: o .srt é saída crua de transcrição automática — erra exatamente onde o erro mais custa. Não confie em amostragem.",
+          "faz": "Pega erro de legenda que passou para o ar: nome, número, negativa, e áudio diferente do texto.",
+          "quando": "Antes de entregar qualquer criativo com legenda.",
+          "precisa": [
+            "Whisper instalado",
+            "A copy aprovada"
+          ],
+          "ia": "Claude e ChatGPT",
+          "usa": [
+            "Whisper",
+            "FFmpeg"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "aulas",
+      "titulo": "Aulas e cortes",
+      "descricao": "Tirar tempo morto sem comer palavra, e remontar gravação de OBS para 16:9.",
+      "comandos": [
+        {
+          "titulo": "Cortar o silêncio de uma aula (corte suave)",
+          "nivel": "rápido",
+          "tempo": "um módulo de ~68 min virou ~50 min",
+          "comando": "Corte os silêncios desta aula: [ARQUIVO DA AULA].\nReceita aprovada:\n1. Detecte pausas com silencedetect a -32 dB e 0,6 s.\n2. Corte só o MIOLO de cada pausa: deixe 0,34 s depois da fala e 0,42 s antes da próxima palavra; só corte se sobrar pelo menos 0,20 s. Apare também o tempo morto do começo e do fim.\n3. Render H.264 CRF 19 + AAC 192k, salvo ao lado com \"(corte suave)\" no nome. Não sobrescreva o original.\nAtenção: margem igual de 0,35 s dos dois lados comeu palavras. A margem ANTES da próxima palavra é a que protege.\nNo fim confira: duração antes e depois, e ouça 3 emendas aleatórias.",
+          "faz": "A receita de corte que foi aprovada em módulo inteiro de aulas, sem motion.",
+          "quando": "Aula gravada, tela + voz, sem edição.",
+          "precisa": [
+            "FFmpeg instalado"
+          ],
+          "ia": "Claude e ChatGPT",
+          "usa": [
+            "FFmpeg"
+          ]
+        },
+        {
+          "titulo": "Cortar uma pasta inteira de aulas",
+          "nivel": "rápido",
+          "comando": "Aplique o corte suave (silencedetect -32 dB / 0,6 s, margem 0,34 s depois e 0,42 s antes) em todas as aulas de [PASTA DE ENTRADA] e salve em [PASTA DE SAÍDA] com \"(corte suave)\" no nome.\nUma aula de cada vez; se uma falhar, siga para a próxima e me diga qual falhou.\nNo fim, me dê a tabela: aula · duração antes · depois · quanto saiu.",
+          "faz": "O mesmo corte, em lote, com relatório por aula.",
+          "quando": "Módulo inteiro gravado.",
+          "precisa": [
+            "FFmpeg instalado"
+          ],
+          "ia": "Claude e ChatGPT",
+          "usa": [
+            "FFmpeg"
+          ]
+        },
+        {
+          "titulo": "Cortar master de câmera 4K sem perder qualidade",
+          "nivel": "rápido",
+          "tempo": "cerca de 1 minuto (contra ~18 min reencodando)",
+          "comando": "Corte o tempo morto de [ARQUIVO] SEM reencodar.\n1. Confira se é ALL-I (todo quadro é keyframe) com o ffprobe. Se for, corte o vídeo por cópia pura.\n2. Corte cada pedaço por número de quadros (n = arredondado(duração × fps)), não por segundos, e derive o fim do áudio desse número.\n3. Corte o áudio por filtro (atrim + concat) e junte com o vídeo no fim.\nAtenção: concat com inpoint/outpoint perde amostras de áudio em cada emenda (dessincronia progressiva), e cortar por segundos inclui quadro extra.\nNo fim confira: as três durações (arquivo, vídeo e áudio) têm que ser IGUAIS, e o número de quadros o esperado.",
+          "faz": "Corte frame-exato e sem perda para material que ainda vai para o After.",
+          "quando": "Master de câmera 4K ALL-I.",
+          "precisa": [
+            "FFmpeg instalado"
+          ],
+          "ia": "Claude e ChatGPT",
+          "usa": [
+            "FFmpeg"
+          ]
+        },
+        {
+          "titulo": "Gravação do OBS empilhada → aula 16:9 com câmera no canto",
+          "nivel": "rápido",
+          "comando": "Esta aula saiu do OBS num quadro vertical com DUAS metades empilhadas: em cima a tela, embaixo a câmera (16:9 com tarja preta). Arquivo: [ARQUIVO].\n1. Meça as linhas de cada metade em 5 pontos da aula (a tarja da câmera precisa ser constante).\n2. Monte numa sequência 1920×1080: V1 = tela sangrando o quadro (só Movimento, cortando barra de menu e dock); V2 = câmera em PiP no canto inferior direito com 40 px de margem (corte superior/inferior para tirar a tarja).\n3. Use UMA trilha de áudio só — se o arquivo trouxer várias trilhas iguais, somadas estouram o volume.\nAtenção: amostre quadros ao longo da aula antes de aceitar o corte da tela — o professor troca de app e o conteúdo pode chegar perto da borda.\nNo fim confira: exporte 3 quadros (começo, meio e fim) e me mostre.",
+          "faz": "Remonta a gravação empilhada em 16:9 com a câmera em PiP.",
+          "quando": "Aula gravada no OBS com tela e câmera no mesmo quadro vertical.",
+          "precisa": [
+            "Premiere aberto com a aula importada",
+            "Modo avançado ligado no painel Tools PRO (rodapé › Conectar IA)"
+          ],
+          "ia": "Claude",
+          "usa": [
+            "FFmpeg",
+            "pr_timeline_colocar",
+            "pr_extendscript"
+          ]
+        },
+        {
+          "titulo": "Achar take repetido e falso começo",
+          "nivel": "rápido",
+          "comando": "Procure takes repetidos e falsos começos em [ARQUIVO].\n1. Passada rápida no arquivo inteiro só para LOCALIZAR suspeitos.\n2. Para cada suspeito, recorte ~20 s e transcreva de novo com o modelo maior e tempo por palavra.\n3. Me mostre só os confirmados, com o ponto de corte: fim da última palavra boa e começo do take escolhido (fique com a segunda vez).\nAtenção: a passada longa inventa repetições que não existem e arredonda o tempo para o segundo — nunca corte em cima dela. Buraco na fala com áudio ALTO é conteúdo tocando na tela, não pausa.",
+          "faz": "Encontra e confirma takes ruins antes de cortar, sem falso positivo.",
+          "quando": "Locução ou aula com recomeços de frase.",
+          "precisa": [
+            "Whisper instalado",
+            "FFmpeg instalado"
+          ],
+          "ia": "Claude e ChatGPT",
+          "usa": [
+            "Whisper",
+            "FFmpeg"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reels",
+      "titulo": "Reels e motion",
+      "descricao": "Motion premium no After e movimento na timeline do Premiere, sem estragar o que já está animado.",
+      "comandos": [
+        {
+          "titulo": "Reels com motion no After a partir dos takes",
+          "nivel": "completo",
+          "tempo": "cerca de 45 min do pedido à prévia",
+          "comando": "Monte um Reels 9:16 no After Effects a partir dos takes [PASTA DOS TAKES] e da copy [COPY].\nFaça nesta ordem:\n1. Os takes são os parágrafos da copy EM SEQUÊNCIA (não alternativas): corte o começo e o fim de cada um pelo silêncio medido e tire repetição no fim de take.\n2. Divida em cenas por tempo (cartão, lista, tipografia, legenda, CTA) e me mostre o plano antes de construir.\n3. Construa na comp principal que eu abri; use a referência [REFERÊNCIA] para o estilo.\n4. Legenda a partir do Whisper, revisada contra a copy.\n5. Suavize os keyframes e renderize uma prévia.\nAtenção: o Whisper troca palavras parecidas (ex.: \"hook\" virou \"Hulk\") — revise a legenda. Não rode a organização automática de pastas se eu já tiver a minha estrutura.\nNo fim confira: prévia renderizada inteira, legenda contra a copy e nenhum texto fora da área segura.",
+          "faz": "Do take bruto à prévia do Reels com cenas de motion, legenda e suavização.",
+          "quando": "Reels/talking head com motion tipográfico.",
+          "precisa": [
+            "After Effects aberto com a comp principal",
+            "Modo avançado ligado no painel Tools PRO (rodapé › Conectar IA)",
+            "Whisper instalado"
+          ],
+          "ia": "Claude",
+          "usa": [
+            "Whisper",
+            "ae_extendscript",
+            "ae_legendas_importar",
+            "ae_smoothify"
+          ]
+        },
+        {
+          "titulo": "Lettering premium no After (padrão aprovado)",
+          "nivel": "rápido",
+          "comando": "Crie os letterings das frases [FRASES COM TEMPO] na comp ativa do After, no padrão aprovado:\n- Fonte geométrica extra-negrito em caixa alta; UMA expressão por frase em cor de destaque [COR].\n- Brilho suave branco + brilho na cor de destaque; sombra leve.\n- Fundo: o apresentador desfocado e escurecido por trás do texto.\n- Palavras entrando uma a uma com blur, presas a um nulo de controle.\nSincronia: cada lettering começa na primeira palavra da frase (pelo tempo do Whisper).\nAtenção: a primeira palavra da transcrição costuma vir grudada no zero — corrija só ela pelo volume do áudio; esticar a frase inteira atrasa tudo. Entrelinha calculada pelo maior corpo da frase, senão a segunda linha sobe por cima.\nNo fim confira: transcreva o render e confira que cada lettering entra na palavra certa.",
+          "faz": "Letterings no padrão visual aprovado, ancorados na fala.",
+          "quando": "Frases de impacto em VSL, upsell ou Reels.",
+          "precisa": [
+            "After Effects aberto com a comp",
+            "Whisper instalado",
+            "Modo avançado ligado no painel Tools PRO (rodapé › Conectar IA)"
+          ],
+          "ia": "Claude",
+          "usa": [
+            "ae_extendscript",
+            "Whisper"
+          ]
+        },
+        {
+          "titulo": "Legenda no After a partir da fala",
+          "nivel": "rápido",
+          "comando": "Transcreva [VÍDEO] com o Whisper, revise o texto contra a copy [COPY] e só então importe a legenda na comp ativa do After: [ESTILO: cor do texto, caixa, posição].\nBlocos curtos (até ~5 palavras), nada de legenda passando de uma linha para dentro do rosto.\nNo fim, me mostre a lista das palavras que eu corrigi em relação à transcrição crua.",
+          "faz": "Legenda revisada entrando como camadas de texto na comp.",
+          "quando": "Corte vertical, Reels ou criativo no After.",
+          "precisa": [
+            "After Effects aberto com a comp ativa",
+            "Whisper instalado"
+          ],
+          "ia": "Claude",
+          "usa": [
+            "Whisper",
+            "ae_legendas_importar",
+            "ae_legendas_limpar"
+          ]
+        },
+        {
+          "titulo": "Punch-in sem destruir a animação que já existe",
+          "nivel": "rápido",
+          "comando": "Aplique punch-in nos clipes da V[NÚMERO] entre [INÍCIO] e [FIM]: intensidade variando entre 12% e 16% de clipe para clipe, curva suave, foco no rosto (Y 35%).\nO zoom entra num efeito próprio por cima do Movimento — não mexa no meu enquadramento nem nos keyframes que eu fiz.\nNo fim, exporte um quadro de 2 clipes e me mostre o antes/depois.\nAtenção: escala igual em todos os clipes vira tique visível. Para tirar depois, remova só o zoom aplicado (o resto fica).",
+          "faz": "Punch-in variado que preserva o enquadramento e as animações do editor.",
+          "quando": "Quebrar o plano parado de talking head.",
+          "precisa": [
+            "Premiere aberto com a sequência ativa"
+          ],
+          "ia": "Claude",
+          "usa": [
+            "pr_timeline_selecionar",
+            "pr_zoom_aplicar",
+            "pr_zoom_limpar"
+          ]
+        },
+        {
+          "titulo": "Mesmo enquadramento em vários clipes",
+          "nivel": "rápido",
+          "comando": "Selecione os clipes [TRILHA E TRECHO], com o clipe-modelo [NOME] primeiro, e copie dele só escala e posição para os outros.\nDepois suavize os keyframes que já existem nesses clipes.\nAtenção: na propriedade copiada, os keyframes do destino são zerados (o valor cola estático) — me avise antes se algum destino tiver animação.",
+          "faz": "Padroniza o enquadramento e suaviza as curvas de uma vez.",
+          "quando": "Vários takes que precisam do mesmo corte de quadro.",
+          "precisa": [
+            "Premiere aberto com a sequência ativa"
+          ],
+          "ia": "Claude",
+          "usa": [
+            "pr_timeline_selecionar",
+            "pr_copiar_atributos",
+            "pr_smoothify"
+          ]
         }
       ]
     },
     {
       "id": "prompts",
       "titulo": "Prompts de imagem e vídeo",
-      "descricao": "Para quem gera no Higgsfield, Flow, Kling, Veo ou Seedance. Nada abre no Premiere.",
+      "descricao": "Quando a tarefa é só o prompt — para colar no Higgsfield, Flow, Kling ou Seedance.",
       "comandos": [
         {
-          "titulo": "Do zero ao criativo (skill mestra)",
-          "comando": "Use a skill Black Belt: aqui está a copy e a foto do avatar. Separe em blocos de vídeo prontos para o Higgsfield, com as travas anti-bug. [copy + imagem]",
-          "faz": "Divide a copy em blocos autocontidos e escreve o prompt de cada um para avatar falante.",
-          "quando": "Criativo de resposta direta com avatar falando.",
-          "precisa": ["Copy", "Imagem do avatar"],
+          "titulo": "Foto realista sem cara de IA (com produto)",
+          "nivel": "rápido",
+          "comando": "Escreva um prompt de imagem fotorrealista de [CENA] com [PERSONA] segurando [PRODUTO].\nOrdem do prompt (a que funcionou): cena → specs de câmera (câmera, lente, ISO, luz) → bloco anti-stock → trava de produto → frase de pele.\nBloco anti-stock: \"not a stock image, not a commercial shoot\", cômodo vivido com bagunça pequena, luz imperfeita (janela estourada), rosto assimétrico, pele com marcas reais, mãos com veias, grão de filme nomeado, sem filtro de beleza.\nTrava de produto por ÚLTIMO, com \"THIS OVERRIDES EVERYTHING ABOVE\", começando pela ESCALA (\"the hand is clearly BIGGER than the bottle\", segurado \"like holding an egg\" para o rótulo ficar à mostra) e o rótulo de frente.\nFundo: \"any text in the background is out of focus and unreadable\"; olhar para a lente.",
+          "faz": "O prompt na ordem que acertou rótulo, escala e realismo de primeira.",
+          "quando": "Personas de depoimento, start frame com produto.",
+          "precisa": [
+            "Imagens do produto para referência"
+          ],
           "ia": "Claude e ChatGPT",
-          "usa": ["skill-black-belt", "avatar-vsl-video-prompts"]
+          "usa": [
+            "photorealism-prompts"
+          ]
         },
         {
-          "titulo": "Imagem fotorrealista",
-          "comando": "Crie um prompt de imagem fotorrealista de [cena], com câmera, lente, luz e pele realistas, sem cara de IA.",
-          "faz": "Escreve o prompt com especificação fotográfica completa.",
-          "quando": "Start frame, foto de produto ou cena de b-roll.",
-          "precisa": ["Nada aberto"],
+          "titulo": "Avatar falante: copy em blocos para o vídeo",
+          "nivel": "rápido",
+          "comando": "Use a skill Black Belt: separe esta copy em blocos de vídeo para avatar falante, prontos para o Higgsfield, com as travas anti-bug.\nCopy: [COPY]. Imagem do avatar: [IMAGEM]. Modelo: [VEO / KLING / SEEDANCE].\nBlocos autocontidos (até 2.500 caracteres), falas curtas juntas em ~8–9 s, duração casando com a fala, sem legenda e sem voz extra.\nVoz em inglês americano se o anúncio for para os EUA; números por extenso.",
+          "faz": "Divide a copy em blocos com prompt de vídeo por bloco.",
+          "quando": "Criativo de resposta direta com avatar.",
+          "precisa": [
+            "Copy e imagem do avatar"
+          ],
           "ia": "Claude e ChatGPT",
-          "usa": ["photorealism-prompts"]
+          "usa": [
+            "skill-black-belt",
+            "avatar-vsl-video-prompts"
+          ]
+        },
+        {
+          "titulo": "Plano 3D sem virar foto",
+          "nivel": "rápido",
+          "comando": "Escreva os prompts das cenas 3D estilo Pixar de [HISTÓRIA], uma por cena.\nToda cena abre com a trava: \"A FRAME FROM A PIXAR 3D ANIMATED MOVIE. EVERYTHING in the frame is rendered in the SAME stylized 3D style. THIS IS NOT A PHOTOGRAPH.\" e fecha com \"Present day, not vintage, no signs, no lettering\".\nToda cena leva um personagem 3D como referência (crie âncora até para figurante).\nPara planos abstratos (órgão, artéria), NÃO use referência de imagem: repita o mesmo bloco de estilo em todos e mude só a linha CAMERA (macro, corte, rasante, de cima).",
+          "faz": "Prompts que seguram o 3D nos planos de ambiente e variam a composição nos abstratos.",
+          "quando": "Storyboard 3D, b-roll de mecanismo.",
+          "precisa": [
+            "A história ou a copy"
+          ],
+          "ia": "Claude e ChatGPT",
+          "usa": [
+            "pixar3d",
+            "storyboard-viral-3d"
+          ]
         },
         {
           "titulo": "Vídeo shot por shot (Seedance)",
-          "comando": "Monte um prompt de vídeo shot por shot para o Seedance a partir deste brief: [brief], [duração] s.",
-          "faz": "Transforma a ideia em planos com câmera, ação e tempo de cada um.",
-          "quando": "Brand film, b-roll de produto ou cena de anúncio.",
-          "precisa": ["O brief"],
+          "nivel": "rápido",
+          "comando": "Monte um prompt de vídeo shot por shot para o Seedance a partir deste brief: [BRIEF], [DURAÇÃO] s, [FORMATO].\nCâmera, ação e tempo de cada plano; produto com rótulo de frente quando aparecer.\nAtenção: duração mínima do Seedance é 4 s — cena menor gera em 4 e apara na timeline.",
+          "faz": "Transforma a ideia em planos prontos para gerar.",
+          "quando": "Brand film, b-roll de produto, cena de anúncio.",
+          "precisa": [
+            "O brief"
+          ],
           "ia": "Claude e ChatGPT",
-          "usa": ["video-prompt-builder"]
+          "usa": [
+            "video-prompt-builder"
+          ]
         },
         {
-          "titulo": "Storyboard com personagem 3D",
-          "comando": "Crie um storyboard cena por cena no estilo personagem 3D (Pixar) para [produto], com prompt de imagem, locução e legenda de cada cena.",
-          "faz": "Entrega o roteiro visual completo, cena a cena, pronto para gerar.",
-          "quando": "Criativo viral de TikTok Shop com personagem animado.",
-          "precisa": ["Produto ou copy"],
+          "titulo": "Clipe de motion puro (Vibe Motion)",
+          "nivel": "rápido",
+          "comando": "Crie um prompt para o Higgsfield Vibe Motion: [O QUE ANIMAR — ex.: reveal de preço de [PREÇO ANTIGO] para [PREÇO NOVO]], [DURAÇÃO] s, [FORMATO], sem locução.\nMedidas, cores (hex), tempos (ms) e curvas exatas no prompt.",
+          "faz": "Motion gerado como código, com texto que não quebra.",
+          "quando": "Hook animado, número, logo ou CTA.",
+          "precisa": [
+            "Nada aberto — é só o prompt"
+          ],
           "ia": "Claude e ChatGPT",
-          "usa": ["storyboard-viral-3d", "pixar3d"]
+          "usa": [
+            "vibe-motion"
+          ]
         },
         {
-          "titulo": "B-roll a partir de um vídeo pronto",
-          "comando": "Divida este vídeo em blocos de 10 s alinhados à fala e gere, para cada bloco, um prompt de b-roll para o Google Flow: [caminho do vídeo].",
-          "faz": "Transcreve, divide e escreve a tradução visual de cada trecho.",
-          "quando": "Ilustrar um vídeo já gravado.",
-          "precisa": ["O vídeo", "Whisper instalado"],
+          "titulo": "Recriar um motion de referência",
+          "nivel": "rápido",
+          "comando": "Recrie este vídeo de referência para [PRODUTO/MENSAGEM], mantendo ritmo, enquadramentos e tempos: [ARQUIVO].\nSó me mostre o prompt completo e os ajustes — não gere ainda.",
+          "faz": "Usa o vídeo como molde e troca o assunto, sem gastar crédito antes da sua aprovação.",
+          "quando": "Você achou um motion que quer adaptar.",
+          "precisa": [
+            "O vídeo de referência"
+          ],
           "ia": "Claude e ChatGPT",
-          "usa": ["video-to-flow"]
-        }
-      ]
-    },
-    {
-      "id": "avancado",
-      "titulo": "Avançado",
-      "descricao": "Para o que nenhuma ferramenta pronta cobre. Use com cuidado.",
-      "comandos": [
-        {
-          "titulo": "Script sob medida no Premiere ou no After",
-          "comando": "Não existe ferramenta pronta para isto: [o que você quer]. Escreva um ExtendScript, me mostre antes e rode no [Premiere/After] só depois do meu ok.",
-          "faz": "Roda um script feito na hora dentro do programa, pelo painel do plugin.",
-          "quando": "Tarefa repetitiva que as ferramentas acima não fazem.",
-          "precisa": ["Modo avançado ligado no painel Tools PRO (rodapé › Conectar IA)", "Premiere ou After aberto"],
-          "ia": "Claude",
-          "usa": ["pr_extendscript", "ae_extendscript"]
+          "usa": [
+            "motion-design",
+            "omni-flash-reverse"
+          ]
         }
       ]
     }

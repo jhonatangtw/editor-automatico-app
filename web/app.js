@@ -900,15 +900,22 @@ async function telaGuia() {
           <div class="grupo-cab"><h2>${esc(gr.titulo)}</h2><p class="sub">${esc(gr.descricao)}</p></div>
           <div class="guia-grade">
             ${gr.comandos.map((c, i) => `
-              <article class="surf cmd" data-busca="${esc([gr.titulo, c.titulo, c.comando, c.faz, c.quando, (c.usa || []).join(' ')].join(' ').toLowerCase())}">
+              <article class="surf cmd" data-busca="${esc([gr.titulo, c.titulo, c.nivel, c.comando, c.faz, c.quando, (c.usa || []).join(' ')].join(' ').toLowerCase())}">
                 <header class="cmd-cab">
                   <h3>${esc(c.titulo)}</h3>
-                  <span class="chip ${c.ia === 'Claude' ? '' : 'ok'}" title="${esc(g.legenda_ia[c.ia] || '')}">${esc(c.ia)}</span>
+                  <span class="cmd-selos">
+                    <span class="chip ${c.nivel === 'completo' ? 'atencao' : ''}" title="${esc((g.niveis || {})[c.nivel] || '')}">${esc(c.nivel)}</span>
+                    <span class="chip ${c.ia === 'Claude' ? '' : 'ok'}" title="${esc(g.legenda_ia[c.ia] || '')}">${esc(c.ia)}</span>
+                  </span>
                 </header>
-                <div class="cmd-texto">${esc(c.comando)}</div>
-                <button class="bt principal cmd-copiar" data-copiar="${esc(gr.id)}:${i}">${ic('copiar')}Copiar</button>
+                <p class="cmd-faz">${esc(c.faz)}</p>
+                <div class="cmd-texto ${c.comando.split('\n').length > 7 ? 'longo' : ''}">${esc(c.comando)}</div>
+                <div class="cmd-botoes">
+                  <button class="bt principal cmd-copiar" data-copiar="${esc(gr.id)}:${i}">${ic('copiar')}Copiar</button>
+                  ${c.comando.split('\n').length > 7 ? '<button class="bt discreto" data-expandir>Ver o comando inteiro</button>' : ''}
+                  ${c.tempo ? `<span class="cmd-tempo">⏱ ${esc(c.tempo)}</span>` : ''}
+                </div>
                 <dl class="cmd-info">
-                  <dt>O que faz</dt><dd>${esc(c.faz)}</dd>
                   <dt>Quando usar</dt><dd>${esc(c.quando)}</dd>
                   <dt>Precisa</dt><dd>${c.precisa.map((x) => `<span class="req">${esc(x)}</span>`).join('')}</dd>
                 </dl>
@@ -941,6 +948,13 @@ async function telaGuia() {
       e.preventDefault();
       const alvo = document.getElementById('g-' + a.dataset.ir);
       if (alvo) alvo.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    };
+  });
+  document.querySelectorAll('[data-expandir]').forEach((b) => {
+    b.onclick = () => {
+      const t = b.closest('.cmd').querySelector('.cmd-texto');
+      const aberto = t.classList.toggle('aberto');
+      b.textContent = aberto ? 'Recolher' : 'Ver o comando inteiro';
     };
   });
   document.querySelectorAll('[data-copiar]').forEach((b) => {
