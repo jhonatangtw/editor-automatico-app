@@ -391,6 +391,43 @@ class Atualizador(Base):
     def test_reserva_quando_instalador_de_outro_sistema(self):
         self._cai_no_github(self.srv(so="windows")[self.rota_srv])
 
+    # ---- o que o servidor ao vivo tem hoje: instaladores 0.20.2, sem sig
+
+    def _servidor_ao_vivo(self):
+        return self.srv(version="0.20.2", so="mac", sig=None, notes="", sha256="b" * 64)[self.rota_srv]
+
+    def test_servidor_com_versao_mais_velha_nao_rebaixa(self):
+        r = self._cai_no_github(self._servidor_ao_vivo())
+        self.assertNotEqual(r["ultima"], "0.20.2")
+
+    def test_servidor_com_versao_mais_velha_e_github_em_dia(self):
+        self.sessao(bb_acesso_token="tok")
+        rotas = self.gh("0.21.0")
+        rotas[self.rota_srv] = self._servidor_ao_vivo()
+        self.usar_http(rotas)
+        r = atualizacao.conferir()
+        self.assertFalse(r["tem_nova"])
+        self.assertIsNone(r.get("erro"))
+        destino = os.path.join(self.tmp, "Downloads")
+        b = atualizacao.baixar(destino_dir=destino)
+        self.assertTrue(b.get("nada"))                    # não baixa nem abre nada
+        self.abrir.assert_not_called()
+        self.assertFalse(os.path.exists(destino) and os.listdir(destino))
+
+    def test_servidor_mesma_versao_nao_reinstala(self):
+        with mock.patch.dict(self.LOCAL, {"version": "0.20.2"}):
+            r = self._cai_no_github(self._servidor_ao_vivo())
+        self.assertNotEqual(r.get("fonte"), "servidor")
+
+    def test_sem_sig_vale_o_sha256_como_no_github(self):
+        # sig ausente não bloqueia nem relaxa nada: quem decide é o sha256
+        self.sessao(bb_acesso_token="tok")
+        dmg = b"instalador-sem-sig" * 50
+        self.usar_http(dict(self.srv(so="mac", sig=None, sha256=_sha(dmg)), **{DL: dmg}))
+        r = atualizacao.baixar(destino_dir=os.path.join(self.tmp, "Downloads"))
+        self.assertEqual(r["fonte"], "servidor")
+        self.abrir.assert_called_once()
+
     # ---- atualização leve pelo servidor
 
     def test_leve_pelo_servidor_confere_sha_e_instala(self):
