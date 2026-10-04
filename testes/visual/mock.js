@@ -37,7 +37,7 @@
       ] },
     '/api/plugin': { instalado: cheio ? '1.9.2' : null, ultima: '1.9.2', tem_nova: false, pagina: 'https://editorblackbelt.com.br' },
     '/api/ponte': { plugin_instalado: cheio, tem_debug: cheio, porta: 8899 },
-    '/api/skills': { total: 9, instaladas: cheio ? 9 : 0, faltam: cheio ? [] : ['skill-black-belt'], destino: '~/.claude/skills', skills: [] },
+    '/api/skills': { total: 14, instaladas: cheio ? 14 : 0, faltam: cheio ? [] : ['skill-black-belt', 'hooks-meat-hook'], atualizar: [], do_usuario: cheio ? ['pixar3d'] : [], destino: '~/.claude/skills', destinos: ['~/.claude/skills', '~/.codex/skills'], skills: [] },
     '/api/adobe': { apps: { premiere: cheio, aftereffects: false }, projeto: cheio ? 'AD07_Body.prproj' : '', ativa: cheio ? 'AD07 — corte 1' : '',
       verificado: { ponte: cheio, leu_timeline: cheio, resumo: cheio ? { clipes: 42, marcadores: 18 } : null }, mcp: { ok: cheio, ferramentas: 64 }, utilizavel: cheio },
     '/api/atualizacao': cheio ? { versao: '0.21.0', tem_nova: false } : { versao: '0.21.0', tem_nova: true, ultima: '0.21.1', notas: 'Correções na tela de Contas.', modo: 'codigo' },
@@ -47,8 +47,11 @@
     ] : [] },
     '/api/conversa': { conversa: null, mensagens: [] },
   };
-  window.fetch = async (rota) => {
+  const real = window.fetch.bind(window);
+  window.fetch = async (rota, op) => {
     const caminho = String(rota).split('?')[0];
+    // arquivos estáticos do app (o guia) vêm de verdade, da pasta web/
+    if (!caminho.startsWith('/api/')) return real('../../web/' + caminho.replace(/^\//, ''), op);
     const d = DADOS[caminho] || { ok: true };
     await new Promise((r) => setTimeout(r, 30));
     return { ok: true, status: 200, json: async () => JSON.parse(JSON.stringify(d)) };

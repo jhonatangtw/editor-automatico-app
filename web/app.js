@@ -512,6 +512,9 @@ const ICONE = {
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
   sair: '<path d="M14 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8"/><path d="m16 8.5 3.5 3.5L16 15.5M19.5 12H10"/>',
   atualizar: '<path d="M19 12a7 7 0 1 1-2.1-5"/><path d="M19 4.5V8h-3.5"/>',
+  guia: '<path d="M5 5.5A1.5 1.5 0 0 1 6.5 4H19v14H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3"/><path d="M9 8.5h6M9 11.5h4"/>',
+  copiar: '<rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5"/>',
+  busca: '<circle cx="11" cy="11" r="6"/><path d="m20 20-4.2-4.2"/>',
 };
 const ic = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor"
   stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONE[n] || ''}</svg>`;
@@ -524,6 +527,7 @@ const SECOES = {
   projetos: ['Histórico', 'Suas conversas anteriores. Abrir uma volta com tudo o que já foi feito.'],
   contas:   ['Contas', 'As ferramentas de IA que o app usa, cada uma entrando com a SUA conta.'],
   ambiente: ['Ambiente', 'Os programas que o app precisa neste computador. Ele instala o que faltar.'],
+  guia:     ['Guia de comandos', 'Os melhores pedidos para a IA, prontos para copiar — com o que cada um faz e o que precisa estar aberto.'],
 };
 
 function cabecalho(id, direita = '', titulo) {
@@ -550,6 +554,7 @@ function moldura(conteudo) {
     ['projetos',  'projetos', 'Histórico'],
     ['contas',    'contas',   'Contas'],
     ['ambiente',  'ambiente', 'Ambiente'],
+    ['guia',      'guia',     'Guia de comandos'],
   ];
   const nome = E?.conta?.nome || 'Conectado';
   raiz.innerHTML = `
@@ -854,6 +859,100 @@ function pintarInicio() {
     if (qual === 'reconectar') return reconectarToolsPro().then(() => { adobeEm = 0; telaInicio(); });
     aba = qual === 'plugin' ? 'ambiente' : qual; projetoAberto = null; desenhar();
   };
+}
+
+// ---------------------------------------------------------------- guia de comandos
+/* Os pedidos que funcionam, prontos para copiar. A fonte é web/guia.json — o
+   mesmo arquivo vira web/GUIA-DE-COMANDOS.md (gerar-guia.py), então a tela e o
+   documento não se desencontram. Cada comando diz o que precisa estar aberto:
+   é o que mais gera "não funcionou" quando falta. */
+let GUIA = null;
+let guiaBusca = '';
+
+async function copiarTexto(t) {
+  try { await navigator.clipboard.writeText(t); return true; } catch (_) { /* cai no plano B */ }
+  const ta = document.createElement('textarea');
+  ta.value = t; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:-9999px';
+  document.body.appendChild(ta); ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (_) { ok = false; }
+  ta.remove();
+  return ok;
+}
+
+async function telaGuia() {
+  if (!GUIA) {
+    try { GUIA = await (await fetch('guia.json', { cache: 'no-store' })).json(); }
+    catch (e) { moldura(cabecalho('guia') + `<div class="aviso ruim">Não consegui abrir o guia: ${esc(e.message)}</div>`); return; }
+  }
+  const g = GUIA;
+  const total = g.grupos.reduce((n, gr) => n + gr.comandos.length, 0);
+  moldura(`
+    ${cabecalho('guia', `<label class="busca">${ic('busca')}
+        <input id="guia-busca" type="search" placeholder="Buscar: zoom, legenda, b-roll…" value="${esc(guiaBusca)}"></label>`)}
+    <p class="sub guia-intro">${esc(g.intro)}</p>
+    <nav class="guia-indice" aria-label="Grupos">
+      ${g.grupos.map((gr) => `<a href="#g-${esc(gr.id)}" data-ir="${esc(gr.id)}">${esc(gr.titulo)}<span>${gr.comandos.length}</span></a>`).join('')}
+    </nav>
+    <div id="guia-lista">
+      ${g.grupos.map((gr) => `
+        <section class="grupo guia-grupo" id="g-${esc(gr.id)}">
+          <div class="grupo-cab"><h2>${esc(gr.titulo)}</h2><p class="sub">${esc(gr.descricao)}</p></div>
+          <div class="guia-grade">
+            ${gr.comandos.map((c, i) => `
+              <article class="surf cmd" data-busca="${esc([gr.titulo, c.titulo, c.comando, c.faz, c.quando, (c.usa || []).join(' ')].join(' ').toLowerCase())}">
+                <header class="cmd-cab">
+                  <h3>${esc(c.titulo)}</h3>
+                  <span class="chip ${c.ia === 'Claude' ? '' : 'ok'}" title="${esc(g.legenda_ia[c.ia] || '')}">${esc(c.ia)}</span>
+                </header>
+                <div class="cmd-texto">${esc(c.comando)}</div>
+                <button class="bt principal cmd-copiar" data-copiar="${esc(gr.id)}:${i}">${ic('copiar')}Copiar</button>
+                <dl class="cmd-info">
+                  <dt>O que faz</dt><dd>${esc(c.faz)}</dd>
+                  <dt>Quando usar</dt><dd>${esc(c.quando)}</dd>
+                  <dt>Precisa</dt><dd>${c.precisa.map((x) => `<span class="req">${esc(x)}</span>`).join('')}</dd>
+                </dl>
+                <div class="cmd-usa mono">${(c.usa || []).map(esc).join(' · ')}</div>
+              </article>`).join('')}
+          </div>
+        </section>`).join('')}
+      <div class="vazio" id="guia-vazio" hidden><h2>Nenhum comando com “<span></span>”</h2><p>Tente outra palavra — por exemplo “marcador”, “After” ou “prompt”.</p></div>
+    </div>
+    <p class="sub guia-rodape">${total} comandos · o mesmo conteúdo está em <span class="mono">GUIA-DE-COMANDOS.md</span>, dentro da pasta do app.</p>`);
+
+  const filtrar = () => {
+    const q = guiaBusca.trim().toLowerCase();
+    let vistos = 0;
+    document.querySelectorAll('.cmd').forEach((c) => {
+      const ok = !q || c.dataset.busca.includes(q);
+      c.hidden = !ok; if (ok) vistos++;
+    });
+    document.querySelectorAll('.guia-grupo').forEach((gr) => {
+      gr.hidden = ![...gr.querySelectorAll('.cmd')].some((c) => !c.hidden);
+    });
+    const v = document.getElementById('guia-vazio');
+    v.hidden = vistos > 0; v.querySelector('span').textContent = guiaBusca.trim();
+  };
+  const busca = document.getElementById('guia-busca');
+  busca.oninput = () => { guiaBusca = busca.value; filtrar(); };
+  filtrar();
+  document.querySelectorAll('[data-ir]').forEach((a) => {
+    a.onclick = (e) => {
+      e.preventDefault();
+      const alvo = document.getElementById('g-' + a.dataset.ir);
+      if (alvo) alvo.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    };
+  });
+  document.querySelectorAll('[data-copiar]').forEach((b) => {
+    b.onclick = async () => {
+      const [gid, i] = b.dataset.copiar.split(':');
+      const c = g.grupos.find((x) => x.id === gid).comandos[+i];
+      const ok = await copiarTexto(c.comando);
+      if (!ok) return toast('Não consegui copiar — selecione o texto e use Cmd/Ctrl+C.', true);
+      b.classList.add('copiado'); b.innerHTML = `${ic('check')}Copiado`;
+      setTimeout(() => { b.classList.remove('copiado'); b.innerHTML = `${ic('copiar')}Copiar`; }, 1800);
+    };
+  });
 }
 
 // ---------------------------------------------------------------- projetos
@@ -2848,6 +2947,7 @@ async function desenhar() {
     if (aba === 'chat') return await telaChatLivre();
     if (aba === 'contas') return await telaContas();
     if (aba === 'ambiente') return await telaAmbiente();
+    if (aba === 'guia') return await telaGuia();
     return await telaProjetos();
   } catch (e) {
     toast(e.message, true);
