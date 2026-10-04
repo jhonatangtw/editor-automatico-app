@@ -1,0 +1,8 @@
+Fontes embutidas para o app funcionar sem internet (as mesmas do site
+editorblackbelt.com.br). Todas sob a SIL Open Font License 1.1:
+
+  Instrument Sans — Rodrigo Fuenzalida / Jordan Egstad
+  Manrope         — Mikhail Sharanda
+  IBM Plex Mono   — IBM Corp.
+
+https://openfontlicense.org — subconjunto latin, baixado do Google Fonts.

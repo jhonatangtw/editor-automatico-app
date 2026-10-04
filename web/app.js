@@ -6,7 +6,7 @@ const TOKEN = new URLSearchParams(location.search).get('t') || '';
 const raiz  = document.getElementById('raiz');
 
 let E = null;            // estado do app (conta, serviços, ferramentas)
-let aba = 'chat';
+let aba = 'inicio';
 let projetoAberto = null;
 let conversaAtual = null;
 let ATT = null;          // versão nova publicada, quando houver
@@ -224,9 +224,9 @@ function repintar(escopo) {
    novo; mostrar dado velho seria voltar ao bug. Então mostra o esqueleto. */
 function esqueleto(titulo, dica) {
   moldura(`
-    <div class="topo"><div><h1>${esc(titulo)}</h1>
+    <div class="topo"><div class="topo-texto"><span class="eyebrow">${esc(titulo)}</span><h1>${esc(titulo)}</h1>
       <p class="sub">${esc(dica)}</p></div></div>
-    <div class="cartao">
+    <div class="surf lista-servicos">
       ${[0, 1, 2, 3].map(() => `<div class="servico esqueleto">
         <div style="flex:1"><div class="barra-fantasma" style="width:34%"></div>
           <div class="barra-fantasma fina" style="width:56%"></div></div>
@@ -239,9 +239,9 @@ function esqueleto(titulo, dica) {
 // app volta a ser a única ideia que ocorre a quem está na frente dela.
 function telaErroEstado(titulo, msg, escopo) {
   moldura(`
-    <div class="topo"><div><h1>${esc(titulo)}</h1>
-      <p class="sub">Não consegui conferir o estado desta máquina.</p></div></div>
-    <div class="cartao"><div class="servico"><div>
+    <div class="topo"><div class="topo-texto"><span class="eyebrow">${esc(titulo)}</span><h1>${esc(titulo)}</h1>
+      <p class="sub">Não consegui conferir o estado deste computador.</p></div></div>
+    <div class="surf lista-servicos"><div class="servico"><div class="sv-corpo">
       <div class="titulo">Conferência falhou
         <span class="pastilha erro"><i class="ponto"></i>sem resposta</span></div>
       <div class="papel">${esc(msg || 'o app não respondeu')}</div>
@@ -361,6 +361,8 @@ function aoVoltar(porFoco) {
   voltouEm = agora;
   if (projetoAberto) return;
   if (FONTES[aba]) revalidar(aba);
+  else if (aba === 'inicio') { adobeEm = 0; CONFERENCIA.contas && (CONFERENCIA.contas.quando = 0);
+    CONFERENCIA.ambiente && (CONFERENCIA.ambiente.quando = 0); telaInicio(); }
 }
 window.addEventListener('focus', () => aoVoltar(true));
 document.addEventListener('visibilitychange', () => aoVoltar(false));
@@ -496,32 +498,85 @@ function telaCadastro() {
 }
 
 // ---------------------------------------------------------------- moldura
+/* Ícones de traço, 1.6 px, desenhados para 20 px. SVG inline: o app abre sem
+   internet, então nada de pacote de ícones de fora. */
+const ICONE = {
+  inicio: '<path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/>',
+  chat: '<path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-4.5 3.5V16H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/><path d="M8.5 10.5h7M8.5 13h4"/>',
+  projetos: '<circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/>',
+  contas: '<circle cx="9" cy="9" r="3.2"/><path d="M3.8 19c.6-3 2.6-4.6 5.2-4.6s4.6 1.6 5.2 4.6"/><path d="M15.5 6.2a3 3 0 0 1 0 5.6M17.8 14.8c1.3.7 2.1 2.1 2.4 4.2"/>',
+  ambiente: '<rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M9 20h6M12 16v4"/><path d="m8.5 10.5 2 2 4-4"/>',
+  aulas: '<rect x="3.5" y="5.5" width="17" height="12" rx="2"/><path d="m10.5 9.2 4 2.3-4 2.3z" fill="currentColor"/><path d="M8 20.5h8"/>',
+  seta: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  mais: '<circle cx="6" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="18" cy="12" r="1.3" fill="currentColor"/>',
+  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  sair: '<path d="M14 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8"/><path d="m16 8.5 3.5 3.5L16 15.5M19.5 12H10"/>',
+  atualizar: '<path d="M19 12a7 7 0 1 1-2.1-5"/><path d="M19 4.5V8h-3.5"/>',
+};
+const ic = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+  stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONE[n] || ''}</svg>`;
+
+/* As seções com o que cada uma é, em uma frase. Quem abre o app pela primeira
+   vez não sabe o que é "Ambiente" — a descrição é o que evita o chamado. */
+const SECOES = {
+  inicio:   ['Início', 'Seu painel: o que falta para editar e o próximo passo.'],
+  chat:     ['Conversa', 'Peça a edição em português — a IA confere o Premiere e monta para você.'],
+  projetos: ['Histórico', 'Suas conversas anteriores. Abrir uma volta com tudo o que já foi feito.'],
+  contas:   ['Contas', 'As ferramentas de IA que o app usa, cada uma entrando com a SUA conta.'],
+  ambiente: ['Ambiente', 'Os programas que o app precisa neste computador. Ele instala o que faltar.'],
+};
+
+function cabecalho(id, direita = '', titulo) {
+  const [t, d] = SECOES[id] || [titulo || '', ''];
+  return `<header class="topo">
+      <div class="topo-texto">
+        <span class="eyebrow">${esc(t)}</span>
+        <h1>${esc(titulo || t)}</h1>
+        <p class="sub">${esc(d)}</p>
+      </div>
+      ${direita ? `<div class="topo-acoes">${direita}</div>` : ''}
+    </header>`;
+}
+
+function iniciais(nome) {
+  const p = String(nome || '').trim().split(/\s+/).filter(Boolean);
+  return ((p[0] || '?')[0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase();
+}
+
 function moldura(conteudo) {
   const abas = [
-    ['chat',      '▸', 'Conversa (beta)'],
-    ['projetos',  '▤', 'Histórico'],
-    ['contas',    '◈', 'Contas'],
-    ['ambiente',  '⚙', 'Ambiente'],
+    ['inicio',    'inicio',   'Início'],
+    ['chat',      'chat',     'Conversa', '<span class="selo-beta">beta</span>'],
+    ['projetos',  'projetos', 'Histórico'],
+    ['contas',    'contas',   'Contas'],
+    ['ambiente',  'ambiente', 'Ambiente'],
   ];
+  const nome = E?.conta?.nome || 'Conectado';
   raiz.innerHTML = `
   <div class="app">
     <aside class="rail">
-      <div class="marca"><div class="selo">EA</div>
-        <div><b>Editor Automático</b><span>Editor Black Belt</span></div></div>
-      <nav class="nav">
-        ${abas.map(([id, g, t]) => `<button data-aba="${id}" class="${aba === id ? 'ativo' : ''}">
-            <span class="glifo">${g}</span>${t}</button>`).join('')}
+      <div class="marca">
+        <div class="selo" aria-hidden="true"><i></i></div>
+        <div><b>Editor Automático</b><span>Editor Black Belt</span></div>
+      </div>
+      <nav class="nav" aria-label="Seções">
+        ${abas.map(([id, i, t, extra]) => `<button data-aba="${id}" class="${aba === id && !projetoAberto ? 'ativo' : ''}"
+            ${aba === id ? 'aria-current="page"' : ''}>${ic(i)}<span>${t}</span>${extra || ''}</button>`).join('')}
+        <div class="nav-sep"></div>
+        <button class="nav-aulas" id="aulas" title="Abre a área do aluno no navegador, já conectado">
+          ${ic('aulas')}<span>Minhas aulas</span>${ic('seta', 'mini')}</button>
       </nav>
       <div class="rodape">
-        <button class="att aulas" id="aulas" title="Abre a área do aluno no navegador, já conectado">
-          ▶ Minhas aulas</button>
+        <div class="quem">
+          <div class="avatar" aria-hidden="true">${esc(iniciais(nome))}</div>
+          <div class="quem-texto"><b title="${esc(nome)}">${esc(nome)}</b>
+            <span class="${E?.conta?.offline ? 'offline' : ''}">${E?.conta?.offline ? 'modo offline' : 'conta ativa'}</span></div>
+          <button class="sair" id="sair" title="Sair da conta">${ic('sair')}</button>
+        </div>
         ${controleAtualizacao()}
-        <div class="quem"><b>${esc(E?.conta?.nome || 'Conectado')}</b>
-          ${E?.conta?.offline ? 'modo offline' : 'sessão ativa'}</div>
-        <button class="sair" id="sair">Sair</button>
       </div>
     </aside>
-    <main class="palco" id="palco">${conteudo}</main>
+    <main class="palco" id="palco"><div class="palco-dentro">${conteudo}</div></main>
   </div>`;
   raiz.querySelectorAll('[data-aba]').forEach((b) => {
     b.onclick = () => { aba = b.dataset.aba; projetoAberto = null; desenhar(); };
@@ -538,32 +593,32 @@ function moldura(conteudo) {
 // "Minhas aulas": o app pede um passe de 60 s e abre o navegador padrão já
 // logado na área do aluno. O link nunca passa pela tela.
 async function abrirAulas() {
-  const b = document.getElementById('aulas');
-  if (b) { b.disabled = true; b.textContent = 'abrindo…'; }
+  const bs = document.querySelectorAll('#aulas, [data-aulas]');
+  bs.forEach((b) => { b.disabled = true; b.classList.add('ocupado'); });
   try {
     const r = await post('/api/conta/aulas');
     if (r.ok) toast(r.msg || 'Abrindo a área do aluno no navegador…');
     else toast(r.msg || 'Não consegui abrir a área do aluno.', true);
   } catch (e) { toast(e.message, true); }
-  if (b) { b.disabled = false; b.textContent = '▶ Minhas aulas'; }
+  bs.forEach((b) => { b.disabled = false; b.classList.remove('ocupado'); });
 }
 
 // O controle fica SEMPRE visível, mesmo em dia. Quando ele só aparecia havendo
 // versão nova, quem estava atualizado via um rodapé mudo e concluía que não
 // dava para atualizar — foi exatamente o que aconteceu no plugin antes.
 function controleAtualizacao() {
-  if (!ATT) return `<button class="att buscando" id="att">procurando atualização…</button>`;
+  if (!ATT) return `<button class="att buscando" id="att"><i class="giro"></i>procurando atualização…</button>`;
   if (ATT.tem_nova) {
     return `<button class="att nova" id="att" title="${esc(ATT.notas || '')}">
-      ⬆ Atualizar para ${esc(ATT.ultima)}</button>`;
+      ${ic('atualizar')}Atualizar para ${esc(ATT.ultima)}</button>`;
   }
   if (ATT.erro) {
     return `<button class="att" id="att" title="${esc(ATT.erro)}">
-      v${esc(ATT.versao)} · tentar de novo</button>`;
+      <span class="v">v${esc(ATT.versao)}</span>tentar de novo</button>`;
   }
-  const leve = ATT.rodando_codigo ? ' ⬇' : '';
   return `<button class="att" id="att" title="${ATT.rodando_codigo
-    ? 'rodando código atualizado sem reinstalar' : ''}">v${esc(ATT.versao)}${leve} · procurar atualização</button>`;
+    ? 'rodando código atualizado sem reinstalar' : 'Você está na versão mais nova'}">
+    <span class="v">v${esc(ATT.versao)}</span>procurar atualização</button>`;
 }
 
 async function procurarAtualizacao() {
@@ -635,6 +690,172 @@ function baixarAtualizacao() {
   }).catch((e) => { v.remove(); toast(e.message, true); });
 }
 
+// ---------------------------------------------------------------- início
+/* A tela que responde "o que eu faço agora?". Três passos, cada um em
+   português de gente, e UMA ação — a do primeiro passo que falta. Quem precisa
+   ver o detalhe vai para Contas ou Ambiente; aqui é só a direção.
+
+   Lê os MESMOS retratos das abas (SVC e AMB) e reconfere os dois atrás, então
+   o que está aqui nunca discorda do que está lá. */
+
+// as ferramentas sem as quais a edição não sai: quem decide, quem gera a
+// imagem e quem faz a voz. ChatGPT, HeyGen e MiniMax são extras.
+const ESSENCIAIS = ['claude', 'higgsfield', 'elevenlabs'];
+let ADOBE = null;          // última leitura do /api/adobe (só para o Início)
+let adobeEm = 0;
+
+function contasResumo(s) {
+  if (!s) return null;
+  const nomes = { claude: 'Claude', higgsfield: 'Higgsfield', elevenlabs: 'ElevenLabs' };
+  const pronto = (id) => id === 'claude'
+    ? !!(s.claude ? s.claude.conectado : (s.servicos || []).find((x) => x.id === id)?.pronto)
+    : !!(s.servicos || []).find((x) => x.id === id)?.pronto;
+  const faltam = ESSENCIAIS.filter((id) => !pronto(id)).map((id) => nomes[id]);
+  const extras = (s.servicos || []).filter((x) => !ESSENCIAIS.includes(x.id) && x.pronto).length
+    + (((s.ia && s.ia.provedores) || []).find((x) => x.id === 'chatgpt')?.pronto ? 1 : 0);
+  return { faltam, ok: !faltam.length, total: ESSENCIAIS.length,
+           prontas: ESSENCIAIS.length - faltam.length, extras };
+}
+
+function passosInicio() {
+  const amb = AMB, c = contasResumo(SVC);
+  const pl = amb && amb.plugin;
+  const p1 = !amb ? { estado: 'conferindo', nota: 'conferindo os programas…' }
+    : amb.pronto ? { estado: 'ok', nota: 'Tudo o que é essencial está instalado.' }
+    : { estado: 'falta', nota: 'Falta instalar: ' + amb.faltam.join(', ') + '.',
+        acao: ['preparar', 'Preparar este computador'] };
+  const p2 = !c ? { estado: 'conferindo', nota: 'conferindo suas contas…' }
+    : c.ok ? { estado: 'ok', nota: `Claude, Higgsfield e ElevenLabs conectados${c.extras ? ` · +${c.extras} extra${c.extras > 1 ? 's' : ''}` : ''}.` }
+    : { estado: 'falta', nota: 'Falta conectar: ' + c.faltam.join(', ') + '.',
+        acao: ['contas', 'Conectar minhas contas'] };
+  let p3;
+  if (!amb) p3 = { estado: 'conferindo', nota: 'procurando o plugin…' };
+  else if (!pl || !pl.instalado) p3 = { estado: 'falta', nota: 'O plugin Tools PRO ainda não está no Premiere.', acao: ['plugin', 'Instalar o plugin'] };
+  else if (pl.ponte && !pl.ponte.tem_debug) p3 = { estado: 'falta', nota: 'Plugin instalado, mas a conexão com o app ainda não foi preparada.', acao: ['ponte', 'Preparar a conexão'] };
+  else if (ADOBE && ADOBE.utilizavel) p3 = { estado: 'ok', nota: 'Conectado agora' + (ADOBE.projeto ? ' — projeto ' + ADOBE.projeto : '') + '.' };
+  else if (ADOBE && ADOBE.apps && !ADOBE.apps.premiere) p3 = { estado: 'espera', nota: 'Plugin pronto. Abra o Premiere quando for editar — o app conecta sozinho.' };
+  else if (ADOBE) p3 = { estado: 'espera', nota: 'Premiere aberto: abra o painel em Janela › Extensões › Tools PRO.', acao: ['reconectar', 'Conectar agora'] };
+  else p3 = { estado: 'ok', nota: `Plugin v${pl.instalado} instalado e conexão preparada.` };
+  return [
+    { n: 1, titulo: 'Programas instalados', porque: 'FFmpeg, Whisper e o Claude Code rodam a edição no seu computador.', ...p1 },
+    { n: 2, titulo: 'Contas conectadas', porque: 'A IA que decide a edição, a que gera imagem e a que faz a voz.', ...p2 },
+    { n: 3, titulo: 'Plugin conectado ao Premiere', porque: 'É por ele que o app escreve na sua timeline.', ...p3 },
+  ];
+}
+
+const ROTULO_PASSO = { ok: 'Pronto', falta: 'Falta', espera: 'Quase', conferindo: 'Conferindo' };
+
+function saudacao() {
+  const h = new Date().getHours();
+  return h < 5 ? 'Boa noite' : h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+}
+
+async function telaInicio() {
+  // na hora com o que já se sabe; reconfere atrás e repinta se mudou
+  pintarInicio();
+  const antes = JSON.stringify([assinatura('contas', SVC), assinatura('ambiente', AMB), ADOBE && ADOBE.utilizavel]);
+  const vel = Date.now() - adobeEm > 20000;
+  await Promise.all([
+    revalidarSeVelho('contas', 8000), revalidarSeVelho('ambiente', 8000),
+    vel ? api('/api/adobe').then((a) => { ADOBE = a; adobeEm = Date.now(); }).catch(() => {}) : null,
+  ]);
+  const depois = JSON.stringify([assinatura('contas', SVC), assinatura('ambiente', AMB), ADOBE && ADOBE.utilizavel]);
+  if (aba === 'inicio' && !projetoAberto && antes !== depois) pintarInicio();
+}
+
+function pintarInicio() {
+  const passos = passosInicio();
+  const feitos = passos.filter((p) => p.estado === 'ok').length;
+  const proximo = passos.find((p) => p.acao) || null;
+  const tudo = feitos === passos.length || (!proximo && passos.every((p) => p.estado !== 'falta' && p.estado !== 'conferindo'));
+  const conferindo = passos.some((p) => p.estado === 'conferindo');
+  const primeiro = (E?.conta?.nome || '').trim().split(/\s+/)[0] || '';
+
+  const destaque = conferindo && !proximo
+    ? { titulo: 'Conferindo este computador…', texto: 'Leva um segundo. Nada é instalado sem você pedir.', botao: '' }
+    : proximo
+      ? { titulo: `Próximo passo: ${proximo.titulo.toLowerCase()}`, texto: proximo.nota,
+          botao: `<button class="bt principal grande" id="proximo">${esc(proximo.acao[1])}${ic('seta')}</button>` }
+      : { titulo: 'Tudo pronto para editar', texto: 'Abra a Conversa e diga o que quer fazer — por exemplo, "analise esta timeline".',
+          botao: `<button class="bt principal grande" id="proximo">Começar uma edição${ic('seta')}</button>` };
+
+  moldura(`
+    <section class="inicio">
+      <header class="topo">
+        <div class="topo-texto">
+          <span class="eyebrow">Início</span>
+          <h1>${esc(saudacao())}${primeiro ? ', ' + esc(primeiro) : ''}.</h1>
+          <p class="sub">${tudo ? 'Seu computador está pronto. É só editar.'
+            : `${feitos} de 3 passos prontos. Faltam poucos cliques para o app editar por você.`}</p>
+        </div>
+      </header>
+
+      <div class="inicio-grade">
+        <div class="surf passos-cartao">
+          <div class="passos-cab">
+            <span class="rotulo">Para o app editar por você</span>
+            <span class="progresso" aria-label="${feitos} de 3 prontos"><i style="width:${Math.round(feitos / 3 * 100)}%"></i></span>
+            <span class="rotulo">${feitos}/3</span>
+          </div>
+          <ol class="passos-lista">
+            ${passos.map((p) => `<li class="passo-inicio ${p.estado}">
+              <span class="passo-n">${p.estado === 'ok' ? ic('check') : p.estado === 'conferindo' ? '<i class="giro"></i>' : p.n}</span>
+              <div class="passo-txt">
+                <div class="passo-titulo">${esc(p.titulo)}
+                  <span class="chip ${p.estado === 'ok' ? 'ok' : p.estado === 'falta' ? 'atencao' : ''}">${ROTULO_PASSO[p.estado]}</span></div>
+                <div class="passo-nota">${esc(p.nota)}</div>
+                <div class="passo-porque">${esc(p.porque)}</div>
+              </div>
+            </li>`).join('')}
+          </ol>
+          <div class="proximo ${tudo ? 'pronto' : ''}">
+            <div>
+              <b>${esc(destaque.titulo)}</b>
+              <p>${esc(destaque.texto)}</p>
+            </div>
+            ${destaque.botao}
+          </div>
+        </div>
+
+        <div class="inicio-lado">
+          <button class="surf aulas-cartao" data-aulas>
+            <span class="aulas-ic">${ic('aulas')}</span>
+            <span class="aulas-txt"><span class="eyebrow pequeno">Área do aluno</span>
+              <b>Minhas aulas</b>
+              <span>Abre as aulas no navegador, já conectado com a sua conta.</span></span>
+            <span class="aulas-seta">${ic('seta')}</span>
+          </button>
+          <div class="surf versao-cartao">
+            <span class="rotulo">Versão do app</span>
+            <div class="versao-linha">
+              <b class="mono">v${esc(ATT?.versao || '…')}</b>
+              ${!ATT ? '<span class="chip"><i class="giro"></i>procurando</span>'
+                : ATT.tem_nova ? `<span class="chip atencao">nova: v${esc(ATT.ultima)}</span>`
+                : ATT.erro ? '<span class="chip">sem conferir</span>'
+                : '<span class="chip ok">em dia</span>'}
+            </div>
+            <p class="sub">${ATT?.tem_nova ? esc(ATT.notas || 'Tem versão nova com melhorias.')
+              : 'O app procura atualização sozinho quando abre.'}</p>
+            <button class="bt ${ATT?.tem_nova ? 'principal' : ''}" id="inicio-att">${ATT?.tem_nova
+              ? 'Atualizar agora' : 'Procurar atualização'}</button>
+          </div>
+        </div>
+      </div>
+    </section>`);
+
+  document.querySelectorAll('[data-aulas]').forEach((b) => { b.onclick = abrirAulas; });
+  const at = document.getElementById('inicio-att');
+  if (at) at.onclick = () => (ATT?.tem_nova ? atualizar() : procurarAtualizacao());
+  const px = document.getElementById('proximo');
+  if (px) px.onclick = () => {
+    const qual = proximo ? proximo.acao[0] : 'chat';
+    if (qual === 'preparar') return prepararMaquina();
+    if (qual === 'ponte') return prepararPonte();
+    if (qual === 'reconectar') return reconectarToolsPro().then(() => { adobeEm = 0; telaInicio(); });
+    aba = qual === 'plugin' ? 'ambiente' : qual; projetoAberto = null; desenhar();
+  };
+}
+
 // ---------------------------------------------------------------- projetos
 async function telaProjetos() {
   const { conversas } = await api('/api/conversas');
@@ -647,12 +868,7 @@ async function telaProjetos() {
   };
 
   moldura(`
-    <div class="topo">
-      <div><h1>Histórico</h1>
-        <p class="sub">Suas conversas. Abrir uma volta com o contexto inteiro —
-          o que já foi feito, aprovado e gerado.</p></div>
-      <button class="bt principal" id="nova">+ Nova conversa</button>
-    </div>
+    ${cabecalho('projetos', '<button class="bt principal" id="nova">+ Nova conversa</button>')}
     ${conversas.length ? `<div class="lista-proj">
       ${conversas.map((c) => `
         <div class="proj" data-conversa="${esc(c.id)}">
@@ -1612,36 +1828,50 @@ async function telaContas() {
     revalidarSeVelho('contas');
   }
   const s = SVC;
-  const claudeHtml = cartaoClaude(s.claude);
-  const gptHtml = cartaoChatGPT(s.ia);
+  const outros = s.servicos.filter((x) => x.id !== 'claude');
   moldura(`
-    <div class="topo">
-      <div><h1>Contas</h1>
-        <p class="sub">Suas credenciais ficam no ${esc(s.cofre === 'arquivo' ? 'disco' : 'cofre do sistema')}, nesta máquina. Nunca no nosso servidor.</p></div>
-      ${barraEstado('contas')}
-    </div>
+    ${cabecalho('contas', barraEstado('contas'))}
     ${s.cofre === 'arquivo' ? `<div class="aviso" style="margin-bottom:16px">
         O cofre do sistema não está disponível — as chaves ficam num arquivo protegido.</div>` : ''}
-    <div class="cartao" style="margin-bottom:12px">
-      <div class="servico">
-        <div>
-          <div class="titulo">Sua conta
-            <span class="pastilha ok"><i class="ponto"></i>${esc(E?.conta?.nome || 'conectado')}</span></div>
-          <div class="papel">Editor Black Belt — é ela que libera o app${E?.conta?.adm ? ' · administrador' : ''}</div>
-          <div id="saida-senha" style="margin-top:10px"></div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:flex-start">
-          <button class="bt" id="trocar-senha">Trocar senha</button>
-          <button class="bt discreto perigo" id="sair-conta">Sair</button>
+
+    <section class="grupo">
+      <div class="grupo-cab">
+        <h2>Sua conta Editor Black Belt</h2>
+        <p class="sub">É ela que libera o app, o plugin e as aulas.</p>
+      </div>
+      <div class="surf lista-servicos">
+        <div class="servico">
+          <div class="sv-marca conta">${esc(iniciais(E?.conta?.nome || ''))}</div>
+          <div class="sv-corpo">
+            <div class="titulo">${esc(E?.conta?.nome || 'Sua conta')}
+              <span class="chip ok"><i class="ponto"></i>Conectado</span></div>
+            <div class="papel">${esc(E?.conta?.email || 'Editor Black Belt')}${E?.conta?.adm ? ' · administrador' : ''}${E?.conta?.offline ? ' · sem internet agora' : ''}</div>
+            <div id="saida-senha"></div>
+          </div>
+          <div class="sv-acoes">
+            <button class="bt" data-aulas>${ic('aulas')}Minhas aulas</button>
+            ${menuMais('conta', `
+              <button class="item-menu" id="trocar-senha">Trocar senha</button>
+              <button class="item-menu perigo" id="sair-conta">Sair da conta</button>`)}
+          </div>
         </div>
       </div>
-    </div>
-    <div class="cartao">
-      ${claudeHtml}
-      ${gptHtml}
-      ${s.servicos.filter((x) => x.id !== 'claude').map((x) => cartaoServico(x)).join('')}
-    </div>`);
+    </section>
 
+    <section class="grupo">
+      <div class="grupo-cab">
+        <h2>Ferramentas de IA conectadas</h2>
+        <p class="sub">Cada uma entra com a sua conta. As chaves ficam no ${esc(s.cofre === 'arquivo' ? 'disco' : 'cofre do sistema')}, neste computador — nunca no nosso servidor.</p>
+      </div>
+      <div class="surf lista-servicos">
+        ${cartaoClaude(s.claude)}
+        ${cartaoChatGPT(s.ia)}
+        ${outros.map((x) => cartaoServico(x)).join('')}
+      </div>
+    </section>`);
+
+  ligarMenus();
+  document.querySelectorAll('[data-aulas]').forEach((b) => { b.onclick = abrirAulas; });
   pintarBarra('contas');
   document.getElementById('trocar-senha').onclick = () => telaSenha();
   document.getElementById('sair-conta').onclick = async () => {
@@ -1661,7 +1891,7 @@ async function telaContas() {
           ${r.saldo ? `<span class="pastilha" style="margin-left:6px">${esc(r.saldo)}</span>` : ''}
           ${r.conta ? `<span class="pastilha" style="margin-left:6px">${esc(r.conta)}</span>` : ''}`;
       } catch (e) { toast(e.message, true); }
-      b.disabled = false; b.textContent = 'Testar';
+      b.disabled = false; b.textContent = 'Testar conexão';
     };
   });
 
@@ -1775,22 +2005,94 @@ function ligarDesconectar() {
 // bug que este arquivo está consertando.
 function cartaoClaude(c) {
   if (!c) return '';
-  return `<div class="servico" id="cartao-claude">
-    <div>
-      <div class="titulo">Claude
-        <span class="pastilha ${c.conectado ? 'ok' : 'erro'}"><i class="ponto"></i>${c.conectado ? 'conectado' : 'não conectado'}</span>
-      </div>
-      <div class="papel">${esc(c.rotulo)}${c.conta ? ' · ' + esc(c.conta) : ''}</div>
-      ${c.msg ? `<div class="aviso" style="margin-top:10px">${esc(c.msg)}</div>` : ''}
-      <div id="saida-claude" style="margin-top:10px"></div>
+  const primaria = c.conectado ? ''
+    : c.instalar ? `<button class="bt principal" id="claude-instalar">Instalar</button>`
+    : c.entrar ? `<button class="bt principal" id="claude-entrar">Conectar</button>`
+    : `<button class="bt principal" id="claude-testar">Reconectar</button>`;
+  return linhaServico({
+    id: 'claude', marca: 'C', nome: 'Claude',
+    descricao: 'A IA que lê a fala, decide a edição e opera o Premiere por você.',
+    estado: c.conectado ? 'ok' : 'atencao',
+    meta: [c.rotulo, c.conta].filter(Boolean).join(' · '),
+    ajuda: !c.conectado && c.msg ? c.msg : '',
+    saida: '<div id="saida-claude" class="saida"></div>',
+    primaria,
+    menu: `${c.conectado ? `<button class="item-menu" id="claude-testar">Testar conexão</button>` : ''}
+           <button class="item-menu" id="claude-trocar">Trocar método de entrada</button>`,
+  });
+}
+
+/* Uma linha de ferramenta: marca, nome, para que serve, estado em palavras e
+   SÓ a ação principal à vista. O resto (testar, trocar, desconectar) fica no
+   "⋯" — quem está bem conectado não precisa de seis botões olhando para ele. */
+const CHIP = { ok: ['ok', 'Conectado'], atencao: ['atencao', 'Precisa de atenção'], nao: ['', 'Não conectado'] };
+
+function linhaServico(o) {
+  const [cls, txt] = CHIP[o.estado] || CHIP.nao;
+  return `<div class="servico" id="cartao-${esc(o.id)}">
+    <div class="sv-marca">${esc(o.marca)}</div>
+    <div class="sv-corpo">
+      <div class="titulo">${esc(o.nome)}
+        <span class="chip ${cls}"><i class="ponto"></i>${txt}</span></div>
+      <div class="papel">${esc(o.descricao)}</div>
+      ${o.meta ? `<div class="meta">${esc(o.meta)}</div>` : ''}
+      ${o.ajuda ? `<div class="ajuda">${esc(o.ajuda)}</div>` : ''}
+      ${o.extra || ''}
+      ${o.saida || ''}
     </div>
-    <div style="display:flex;gap:8px;align-items:flex-start">
-      ${c.entrar ? `<button class="bt principal" id="claude-entrar">Entrar</button>` : ''}
-      ${c.instalar ? `<button class="bt principal" id="claude-instalar">Instalar</button>` : ''}
-      <button class="bt" id="claude-testar">${c.conectado ? 'Testar' : 'Reconectar'}</button>
-      <button class="bt discreto" id="claude-trocar">Trocar método</button>
+    <div class="sv-acoes">
+      ${o.primaria || ''}
+      ${o.menu ? menuMais(o.id, o.menu) : ''}
     </div>
   </div>`;
+}
+
+function menuMais(id, itens) {
+  return `<div class="mais">
+    <button class="bt icone" data-mais="${esc(id)}" aria-haspopup="menu" aria-expanded="false"
+      title="Mais opções">${ic('mais')}</button>
+    <div class="menu" role="menu" data-menu="${esc(id)}" hidden>${itens}</div>
+  </div>`;
+}
+
+/* Abre e fecha os "⋯". Os botões de dentro continuam com os mesmos ids e
+   data-* de antes — quem liga o clique deles não sabe que mudaram de lugar. */
+function ligarMenus() {
+  const fechar = (exceto) => document.querySelectorAll('.menu').forEach((m) => {
+    if (m === exceto) return;
+    m.hidden = true;
+    const b = document.querySelector(`[data-mais="${m.dataset.menu}"]`);
+    if (b) b.setAttribute('aria-expanded', 'false');
+  });
+  document.querySelectorAll('[data-mais]').forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const m = document.querySelector(`[data-menu="${b.dataset.mais}"]`);
+      fechar(m);
+      m.hidden = !m.hidden;
+      b.setAttribute('aria-expanded', String(!m.hidden));
+    };
+  });
+  // clicar num item faz a ação E fecha; clicar fora fecha
+  document.querySelectorAll('.menu').forEach((m) => {
+    m.addEventListener('click', (e) => {
+      if (e.target.closest('[data-revelar]')) return;
+      setTimeout(() => fechar(), 0);
+    });
+  });
+  if (!window.__menusLigados) {
+    window.__menusLigados = true;
+    document.addEventListener('click', (e) => { if (!e.target.closest('.mais')) fechar(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fechar(); });
+  }
+  // "Trocar a chave" mostra o campo que estava guardado
+  document.querySelectorAll('[data-revelar]').forEach((b) => {
+    b.onclick = () => {
+      const alvo = document.getElementById(b.dataset.revelar);
+      if (alvo) { alvo.hidden = false; const i = alvo.querySelector('input'); if (i) i.focus(); }
+      fechar();
+    };
+  });
 }
 
 // O ChatGPT é uma CONTA como as outras — tem que estar aqui, não só escondido
@@ -1800,21 +2102,23 @@ function cartaoChatGPT(d) {
   const p = (d.provedores || []).find((x) => x.id === 'chatgpt');
   if (!p) return '';
   const assinatura = p.metodo === 'sessao';
-  return `<div class="servico" id="cartao-gpt">
-    <div>
-      <div class="titulo">ChatGPT
-        <span class="pastilha ${p.pronto ? 'ok' : 'erro'}"><i class="ponto"></i>${p.pronto ? 'conectado' : 'não conectado'}</span>
-      </div>
-      <div class="papel">${assinatura ? 'Assinatura, pelo Codex CLI' : 'Chave de API'}${p.origem ? ' · ' + esc(p.origem) : ''}</div>
-      ${p.msg ? `<div class="aviso" style="margin-top:10px">${esc(p.msg)}</div>` : ''}
-      <div id="saida-gpt" style="margin-top:10px"></div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:flex-start">
-      ${assinatura ? `<button class="bt principal" id="gpt-entrar">${p.pronto ? 'Entrar de novo' : 'Entrar com a conta'}</button>`
-                   : `<button class="bt" id="gpt-chave">Colar chave</button>`}
-      <button class="bt discreto" id="gpt-metodo">${assinatura ? 'usar chave' : 'usar assinatura'}</button>
-    </div>
-  </div>`;
+  const primaria = p.pronto ? ''
+    : assinatura ? `<button class="bt" id="gpt-entrar">Conectar</button>`
+    : `<button class="bt" id="gpt-chave">Colar chave</button>`;
+  const menu = assinatura
+    ? `${p.pronto ? `<button class="item-menu" id="gpt-entrar">Entrar de novo</button>` : ''}
+       <button class="item-menu" id="gpt-metodo">Usar chave de API</button>`
+    : `${p.pronto ? `<button class="item-menu" id="gpt-chave">Colar outra chave</button>` : ''}
+       <button class="item-menu" id="gpt-metodo">Usar a assinatura</button>`;
+  return linhaServico({
+    id: 'gpt', marca: 'G', nome: 'ChatGPT',
+    descricao: 'Opcional: uma segunda IA para conversar, pela sua assinatura do ChatGPT.',
+    estado: p.pronto ? 'ok' : 'nao',
+    meta: [assinatura ? 'Assinatura, pelo Codex' : 'Chave de API', p.origem].filter(Boolean).join(' · '),
+    ajuda: !p.pronto && p.msg ? p.msg : '',
+    saida: '<div id="saida-gpt" class="saida"></div>',
+    primaria, menu,
+  });
 }
 
 function ligarChatGPT() {
@@ -1831,7 +2135,7 @@ function ligarChatGPT() {
           ((d.ia && d.ia.provedores || []).find((x) => x.id === 'chatgpt') || {}).pronto);
       }
     } catch (e) { toast(e.message, true); }
-    en.disabled = false; en.textContent = 'Entrar com a conta';
+    en.disabled = false; en.textContent = en.classList.contains('item-menu') ? 'Entrar de novo' : 'Conectar';
   };
   const ch = document.getElementById('gpt-chave');
   if (ch) ch.onclick = async () => {
@@ -1860,7 +2164,7 @@ function ligarClaude() {
       document.getElementById('saida-claude').innerHTML =
         `<span class="pastilha ${r.ok ? 'ok' : 'erro'}"><i class="ponto"></i>${esc(r.msg)}</span>`;
     } catch (e) { toast(e.message, true); }
-    t.disabled = false; t.textContent = 'Testar';
+    t.disabled = false; t.textContent = t.classList.contains('item-menu') ? 'Testar conexão' : 'Reconectar';
   };
   const tr = document.getElementById('claude-trocar');
   if (tr) tr.onclick = () => trocarMetodo();
@@ -1966,43 +2270,54 @@ function trocarMetodo() {
   });
 }
 
+const DESCRICAO = {
+  elevenlabs: ['E', 'A voz do vídeo — narração e locução. É a única fonte de áudio do app.'],
+  heygen:     ['Hg', 'Opcional: avatar falante, quando o criativo pede um apresentador.'],
+  minimax:    ['M', 'Opcional: mais um gerador de vídeo, imagem e música.'],
+  higgsfield: ['Hf', 'Gera as imagens e os b-rolls que entram na sua timeline.'],
+};
+
 function cartaoServico(x) {
   const conectado = x.pronto;
-  const acao = x.modo === 'chave'
-    ? `<div class="linha-chave">
-         <input data-chave="${x.id}" type="password" placeholder="${conectado ? 'Trocar a chave…' : 'Cole a chave de API'}">
-         <button class="bt" data-salvar="${x.id}">Guardar</button>
-       </div>`
-    : `<button class="bt ${conectado ? '' : 'principal'}" data-entrar="${x.id}">
-         ${conectado ? 'Entrar de novo' : 'Entrar com a conta'}</button>
-       ${x.id === 'minimax' ? '<button class="bt discreto" data-chave-cli="minimax">ou usar chave</button>' : ''}`;
-  // desconectar só aparece conectado: botão que não faz nada é ruído
-  const sair = !conectado ? ''
-    : x.modo === 'chave'
-      ? `<button class="bt discreto perigo" data-remover="${x.id}">Remover chave</button>`
-      : `<button class="bt discreto perigo" data-sair-servico="${x.id}">Desconectar</button>`;
-
-  return `<div class="servico">
-    <div>
-      <div class="titulo">${esc(x.titulo)}
-        <span class="pastilha ${conectado ? 'ok' : ''}"><i class="ponto"></i>${conectado ? 'conectado' : 'sem credencial'}</span>
-        ${x.verificado === false ? '<span class="pastilha aviso">endereço não verificado</span>' : ''}
-      </div>
-      <div class="papel">${esc(x.papel)}${x.conta ? ' · ' + esc(x.conta) : ''}${x.fim ? ' · ' + esc(x.fim) : ''}</div>
-      ${x.alerta ? `<div class="aviso" style="margin-top:10px">${esc(x.alerta)}</div>` : ''}
-      ${x.modo === 'anthropic' && !x.tem_cli
-        ? `<div class="sub" style="margin-top:8px;font-size:12px">Para entrar com a conta:
-             <code>brew tap anthropics/tap && brew install ant</code> — ou cole uma chave de API.</div>
-           <div class="linha-chave"><input data-chave="claude" type="password" placeholder="sk-ant-…">
-             <button class="bt" data-salvar="claude">Guardar</button></div>` : ''}
-      <div data-saida="${x.id}" style="margin-top:10px"></div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:flex-start">
-      ${acao}
-      <button class="bt discreto" data-testar="${x.id}">Testar</button>
-      ${sair}
-    </div>
-  </div>`;
+  const [marca, descricao] = DESCRICAO[x.id] || [String(x.titulo || '?')[0], x.papel];
+  const essencial = ESSENCIAIS.includes(x.id);
+  const chave = x.modo === 'chave';
+  const campo = (escondido) => `<div class="linha-chave" id="chave-${x.id}" ${escondido ? 'hidden' : ''}>
+       <input data-chave="${x.id}" type="password" autocomplete="off"
+         placeholder="${conectado ? 'Cole a chave nova' : 'Cole aqui a chave de API'}">
+       <button class="bt ${conectado ? '' : 'principal'}" data-salvar="${x.id}">Guardar</button>
+     </div>`;
+  const primaria = conectado ? ''
+    : chave ? ''
+    : `<button class="bt ${essencial ? 'principal' : ''}" data-entrar="${x.id}">Conectar</button>`;
+  const menu = [
+    `<button class="item-menu" data-testar="${x.id}">Testar conexão</button>`,
+    conectado && chave ? `<button class="item-menu" data-revelar="chave-${x.id}">Trocar a chave</button>` : '',
+    conectado && !chave ? `<button class="item-menu" data-entrar="${x.id}">Entrar de novo</button>` : '',
+    x.id === 'minimax' ? `<button class="item-menu" data-chave-cli="minimax">Usar chave em vez da conta</button>` : '',
+    conectado ? (chave
+      ? `<button class="item-menu perigo" data-remover="${x.id}">Remover chave</button>`
+      : `<button class="item-menu perigo" data-sair-servico="${x.id}">Desconectar</button>`) : '',
+  ].join('');
+  // "endereço não verificado" era uma pastilha solta que ninguém entendia: o
+  // teste automático deste serviço não foi conferido por nós ainda. Vira uma
+  // frase de ajuda, embaixo, só onde importa.
+  const ajudas = [
+    x.alerta || '',
+    !conectado && x.msg ? x.msg : '',
+    x.verificado === false
+      ? 'Se o “Testar conexão” falhar com a chave certa, a chave continua valendo — o teste desta ferramenta ainda está em observação.'
+      : '',
+  ].filter(Boolean);
+  return linhaServico({
+    id: x.id, marca, nome: x.titulo, descricao,
+    estado: conectado ? (x.alerta ? 'atencao' : 'ok') : essencial ? 'atencao' : 'nao',
+    meta: [x.conta, x.saldo, x.fim].filter(Boolean).join(' · '),
+    extra: (chave ? campo(conectado) : '') +
+      ajudas.map((a) => `<div class="ajuda">${esc(a)}</div>`).join(''),
+    saida: `<div data-saida="${x.id}" class="saida"></div>`,
+    primaria, menu,
+  });
 }
 
 // ---------------------------------------------------------------- chat livre
@@ -2184,18 +2499,12 @@ async function telaAmbiente() {
     || (pl && (!pl.instalado || pl.tem_nova || (pl.ponte && !pl.ponte.tem_debug)));
 
   moldura(`
-    <div class="topo">
-      <div><h1>Ambiente</h1>
-        <p class="sub">O app instala o que falta. Você não precisa abrir o Terminal.</p></div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        ${barraEstado('ambiente')}
-        ${pendente ? `<button class="bt principal" id="preparar">Preparar esta máquina</button>`
-                   : `<span class="pastilha ok">✓ tudo pronto</span>`}
-      </div>
-    </div>
-    ${d.pronto ? `<div class="aviso" style="background:rgba(61,214,140,.1);color:var(--ok);border-color:rgba(61,214,140,.2);margin-bottom:16px">
-        ✓ Tudo que é essencial está instalado.</div>`
-      : `<div class="aviso ruim" style="margin-bottom:16px">Falta: ${esc(d.faltam.join(', '))}</div>`}
+    ${cabecalho('ambiente', `${barraEstado('ambiente')}
+        ${pendente ? `<button class="bt principal" id="preparar">Preparar este computador</button>`
+                   : `<span class="chip ok"><i class="ponto"></i>Tudo pronto</span>`}`)}
+    ${d.pronto ? `<div class="aviso bom" style="margin-bottom:16px">
+        ${ic('check')} Tudo o que é essencial está instalado. Você não precisa abrir o Terminal.</div>`
+      : `<div class="aviso ruim" style="margin-bottom:16px">Falta instalar: ${esc(d.faltam.join(', '))}. O botão “Preparar este computador” instala na ordem certa.</div>`}
     ${!d.brew ? (d.gerenciador === 'winget' ? `<div class="aviso" style="margin-bottom:16px">
       O <b>winget</b> não respondeu — sem ele não consigo instalar o FFmpeg sozinho.
       Ele vem no Windows 10 e 11: abra a Microsoft Store e instale o
@@ -2207,13 +2516,15 @@ async function telaAmbiente() {
       </div>`) : ''}
     ${sk ? cartaoSkills(sk) : ''}
     ${pl ? cartaoPlugin(pl) : ''}
-    <div class="cartao">
+    <div class="grupo-cab"><h2>Programas deste computador</h2>
+      <p class="sub">Os essenciais precisam estar instalados. Os opcionais só valem para quem usa aquela ferramenta.</p></div>
+    <div class="surf lista-servicos deps">
       ${d.itens.map((i) => `
         <div class="dep">
           <div class="dep-marca ${i.tem ? 'ok' : i.essencial ? 'falta' : 'opcional'}">${i.tem ? '✓' : i.essencial ? '!' : '○'}</div>
           <div style="flex:1;min-width:0">
             <div class="dep-nome">${esc(i.nome)}
-              ${!i.essencial ? '<span class="credito" style="background:rgba(255,255,255,.06);color:var(--texto-3)">opcional</span>' : ''}</div>
+              ${!i.essencial ? '<span class="chip">opcional</span>' : ''}</div>
             <div class="dep-para">${esc(i.para)}</div>
             ${!i.tem && i.manual ? `<div class="dep-para" style="color:var(--ouro)">${esc(i.manual)}</div>` : ''}
           </div>
@@ -2469,7 +2780,6 @@ function ligarSkills() {
 // ele fica no topo do Ambiente, e a instalação é um botão — não um tutorial.
 function cartaoPlugin(pl) {
   const tem = !!pl.instalado;
-  const cor = !tem ? 'var(--broll)' : pl.tem_nova ? 'var(--ouro)' : 'var(--ok)';
   const rotulo = !tem ? 'Instalar plugin no Premiere'
     : pl.tem_nova ? `Atualizar para ${esc(pl.ultima)}` : 'Reinstalar';
   return `
@@ -2490,8 +2800,7 @@ function cartaoPlugin(pl) {
       ${tem && pl.ponte && !pl.ponte.tem_debug
         ? `<button class="bt principal" id="pl-ponte">Preparar a ponte</button>` : ''}
       <a class="bt discreto" href="${esc(pl.pagina)}" target="_blank" rel="noreferrer">Página</a>
-      <button class="bt ${tem && !pl.tem_nova ? '' : 'principal'}" id="pl-instalar"
-        style="color:${tem && !pl.tem_nova ? '' : cor}">${rotulo}</button>
+      <button class="bt ${tem && !pl.tem_nova ? '' : 'principal'}" id="pl-instalar">${rotulo}</button>
     </div>`;
 }
 
@@ -2533,6 +2842,7 @@ function ligarPlugin() {
 async function desenhar() {
   try {
     if (projetoAberto) return await telaProjeto();
+    if (aba === 'inicio') return await telaInicio();
     if (aba === 'chat') return await telaChatLivre();
     if (aba === 'contas') return await telaContas();
     if (aba === 'ambiente') return await telaAmbiente();
