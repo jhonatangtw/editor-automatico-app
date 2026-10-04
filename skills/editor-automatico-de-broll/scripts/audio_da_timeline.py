@@ -14,7 +14,7 @@ Saida: um WAV 16 kHz mono, pronto para o Whisper.
             --out ad02_timeline.wav --duracao-esperada 711.28
 
 CONFERIR A DURACAO. Se nao bater com a da sequencia, parar e investigar antes
-de transcrever — foi assim que os tres ADs do LinfaFlow sairam certos
+de transcrever — foi assim que os tres ADs do MarcaC sairam certos
 (711,29 contra 711,28 e 599,67 exato).
 """
 import argparse, json, os, subprocess, sys, tempfile

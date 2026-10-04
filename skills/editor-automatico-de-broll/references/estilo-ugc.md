@@ -1,6 +1,6 @@
 # Estilo de edição — medido no acervo de ativos validados
 
-Base: **5 dos 27 ADs validados** da H&W (Diabetes, Joint Pain, Memory Loss, Weight Loss), medidos por detecção de cena em 28/07/2026.
+Base: **5 dos 27 ADs validados** (Diabetes, Joint Pain, Memory Loss, Weight Loss), medidos por detecção de cena em 28/07/2026.
 
 Quando houver vídeo de referência no job, **ele manda** — extrair o padrão dele por mosaico de frames e sobrescrever o que está aqui.
 
@@ -30,7 +30,7 @@ A escolha entre os dois é de estratégia, não de ofício:
 
 Se o formato for **alta densidade**, a referência é **1 corte a cada 3 a 5 segundos**.
 
-> Para dimensionar: o AD01 do LeafTide saiu com **15 cortes em 134s — 1 a cada 8,9s**. Está entre os dois grupos, e provavelmente **subcortado** para o padrão de alta densidade da casa. Serviu como corte seco conservador; não serve como referência de ritmo.
+> Para dimensionar: o AD01 do MarcaA saiu com **15 cortes em 134s — 1 a cada 8,9s**. Está entre os dois grupos, e provavelmente **subcortado** para o padrão de alta densidade da casa. Serviu como corte seco conservador; não serve como referência de ritmo.
 
 Contar corte inclui entrada e saída de insert, punch-in e troca de plano — tudo que muda a imagem.
 

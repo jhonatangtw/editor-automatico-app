@@ -30,7 +30,7 @@ Bloco único de texto corrido, **em inglês**, nesta ordem. Faltando qualquer um
 ### PALETTE
 
 > PALETTE: Background pure black #0B0B0C. Typography and card line-art off-white #F6F3EC. The single
-> accent is LeafTide green #3FB27A with real bloom — it appears ONLY as the edge light of a glass
+> accent is MarcaA green #3FB27A with real bloom — it appears ONLY as the edge light of a glass
 > panel at the instant it lands, and as the glow on the emphasised line. Jars keep their own deep
 > green #00562E body and #1B5E36 lid. No gold, no blue, no second accent.
 
@@ -118,7 +118,7 @@ green bar draws itself under the last line from left to right and halts. Silence
 `TIMELINE` — mantenha **um** elemento gráfico por beat. Quanto mais coisa, mais superfície para o
 modelo escrever besteira:
 
-> 0.0-1.5s a single LeafTide jar alone in the black void in the upper middle of the frame, camera
+> 0.0-1.5s a single MarcaA jar alone in the black void in the upper middle of the frame, camera
 > pushing in very slowly, absolutely no graphics and no text. 1.5-3.5s a plain glass panel with no
 > writing rises directly beneath the jar and its green edge lights as it lands, the panel stays
 > empty. 3.5-5.5s the words "100% MONEY BACK" resolve inside that panel in off-white — this is the

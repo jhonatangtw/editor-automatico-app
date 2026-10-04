@@ -5,7 +5,7 @@
 # AJUSTAR ANTES DE REUSAR NOUTRO JOB:
 #   REF_*        -> mockups do produto deste job (ver ../assets)
 #   MARCA_AZUL   -> nome da cor de acento por EXTENSO (nunca hex dentro do prompt)
-#   PRODUTO      -> como o produto e chamado no prompt ("MemoFlow bottle")
+#   PRODUTO      -> como o produto e chamado no prompt ("MarcaB bottle")
 #   N_UNIDADES   -> quantos frascos aparecem juntos; a contagem e travada no prompt
 #   MOTIONS      -> a lista de motions deste lote
 #   --aspect-ratio -> confira getSettings() da sequencia ANTES (SKILL.md secao 0)
@@ -22,20 +22,20 @@ import json, os, subprocess, sys
 
 S = os.path.dirname(os.path.abspath(__file__))
 A = os.path.join(os.path.dirname(S), "assets")
-# ATENCAO: os PNGs em ../assets sao do LeafTide (job original da skill escura).
-# Para MemoFlow a ancora que existe hoje e o frasco SOLO abaixo — a pasta com os 7 mockups
-# oficiais (1/2/3/4/6/9/12 frascos) citada na memoria memoflow-produto-mockups nao esta mais
+# ATENCAO: os PNGs em ../assets sao do MarcaA (job original da skill escura).
+# Para MarcaB a ancora que existe hoje e o frasco SOLO abaixo — a pasta com os 7 mockups
+# oficiais (1/2/3/4/6/9/12 frascos) citada na memoria MarcaB-produto-mockups nao esta mais
 # no disco. Enquanto nao aparecer um mockup de 3 frascos, gera-se com o solo + a trava
 # "exactly three bottles" do NOSPEECH_PROD, e o QC confere a contagem primeiro.
-REF_SOLO = os.path.expanduser("~/Documents/Codex/2026-08-19/ADV-MemoFlow-GIFs/00_ancoras/REF_bottle_memoflow.png")
+REF_SOLO = os.environ.get("REF_PRODUTO", "ancoras/REF_produto.png")   # foto do produto, de frente
 REF_KIT = REF_SOLO
-# close do rotulo — a memoria memoflow-produto-mockups diz que so o frasco inteiro NAO basta
+# close do rotulo — a memoria MarcaB-produto-mockups diz que so o frasco inteiro NAO basta
 # para o rotulo sair certo; passar os dois sempre.
-REF_LABEL = os.path.expanduser("~/Documents/Codex/2026-08-19/ADV-MemoFlow-GIFs/00_ancoras/REF_bottle_label.png")
+REF_LABEL = os.environ.get("REF_ROTULO", "ancoras/REF_rotulo.png")   # close do rótulo
 
-MARCA = "MemoFlow"
-MARCA_AZUL = "MemoFlow blue"
-PRODUTO = "MemoFlow bottle"
+MARCA = "MarcaB"
+MARCA_AZUL = "MarcaB blue"
+PRODUTO = "MarcaB bottle"
 N_UNIDADES = 3
 NUM = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six"}
 

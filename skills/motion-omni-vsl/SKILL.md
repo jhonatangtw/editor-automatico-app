@@ -14,7 +14,7 @@ description: >-
 # Motion Omni para VSL
 
 Produz motions de overlay em lote no **Gemini Omni Flash**, confere e aplica no Premiere.
-Validado no fechamento (CLOSE) da VSL LeafTide: 26 motions, 24 aplicados na timeline.
+Validado no fechamento (CLOSE) da VSL MarcaA: 26 motions, 24 aplicados na timeline.
 
 **O princípio:** o motion não é um clipe novo — é uma camada por cima do body que já existe.
 Ninguém fala nele, ninguém aparece nele. Se um motion precisa de uma pessoa em quadro, ele está
@@ -84,13 +84,13 @@ preto profundo por cima de body claro faz o corte piscar.
 |---|---|---|
 | Mundo | Vazio preto, haze volumétrica | Estúdio claro arejado, filamentos de sinapse esparsos |
 | Tipografia base | Off-white | Neutro escuro (tinta) |
-| Acento | Cor do produto (verde no LeafTide) | Azul da marca com bloom |
+| Acento | Cor do produto (verde no MarcaA) | Azul da marca com bloom |
 | Ritmo | Seis beats nos 10s inteiros | Reveal em 5s + hold calmo de 5s |
 | Fecho | Congela e dessatura | Segura flutuando |
 | Serve para | Dor, urgência, escassez, contraste de preço | Oferta, prova, credibilidade, saúde/farma |
 | Gerador | `scripts/gerar_lote.py` | `scripts/gerar_lote_clean.py` |
 
-O resto desta seção descreve o **ESCURO**, validado no CLOSE LeafTide.
+O resto desta seção descreve o **ESCURO**, validado no CLOSE MarcaA.
 
 | Camada | O que é |
 |---|---|
@@ -101,7 +101,7 @@ O resto desta seção descreve o **ESCURO**, validado no CLOSE LeafTide.
 | Fecho | Congela, dessatura um passo, uma barra do acento se desenha sob a última linha e para |
 
 **Paleta:** preto `#0B0B0C` · off-white `#F6F3EC` · acento = a cor do produto.
-No LeafTide o dourado padrão da skill original virou **verde `#3FB27A`**, tirado do rótulo.
+No MarcaA o dourado padrão da skill original virou **verde `#3FB27A`**, tirado do rótulo.
 Vermelho fica reservado para significado (preço riscado), nunca para decorar.
 
 ### Os seis beats de 10 segundos

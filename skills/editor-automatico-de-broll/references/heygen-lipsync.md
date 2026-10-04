@@ -2,7 +2,7 @@
 
 A skill principal começa no bruto. Este arquivo cobre o passo anterior: **copy → áudio → lipsync → bruto**, para quando o body ainda não existe.
 
-Chaves em `~/.config/hw-creative/.env`. Validado em 27/07/2026.
+Chaves: as que você conectou na aba Contas do Editor Automático (ou variáveis de ambiente). Validado em 27/07/2026.
 
 ---
 

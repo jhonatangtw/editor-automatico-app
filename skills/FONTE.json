@@ -1,19 +1,20 @@
 {
   "origem": "~/.claude/skills",
-  "sincronizado": "2026-09-16",
+  "sincronizado": "2026-10-04",
   "skills": {
-    "avatar-vsl-video-prompts": "52bf79fed24a3f65",
-    "blackbelt-omni": "cf7fda9fe12d0938",
-    "editor-automatico-de-broll": "26916528e5867486",
-    "gemini-omni": "bf91c230232ae726",
-    "motion-omni-vsl": "708e4eea7ea1c614",
-    "motion-viral-jhon1": "b958aebd4cad01b5",
-    "omni-flash-reverse": "d8ac81db815ea98e",
-    "photorealism-prompts": "d922d2083d8f15ae",
-    "pixar3d": "500330872fdc8d62",
-    "skill-black-belt": "3e7dc6e566effe56",
-    "storyboard-viral-3d": "acb40b868598406f",
-    "video-prompt-builder": "2b89d8b63b2afc5b",
-    "video-to-flow": "03cdd954e3d7ebf4"
+    "avatar-vsl-video-prompts": "2b5c217f987d6bf4",
+    "blackbelt-omni": "92bf9841442d048e",
+    "editor-automatico-de-broll": "4f6c1195e46116fe",
+    "hooks-meat-hook": "d5f1328093cbd923",
+    "motion-design": "3d8a4b7e98761e57",
+    "motion-omni-vsl": "51fe6a05cbed34f6",
+    "omni-flash-reverse": "96e47d7998e60cc3",
+    "photorealism-prompts": "aa018d7b55f2b600",
+    "pixar3d": "ec9eb29621659989",
+    "skill-black-belt": "b7fd5918ae3097af",
+    "storyboard-viral-3d": "76d199e6a4daaa3d",
+    "vibe-motion": "77668e7d744997e1",
+    "video-prompt-builder": "0b8aac800755d0b9",
+    "video-to-flow": "8fe438d2f2c8ffc6"
   }
 }

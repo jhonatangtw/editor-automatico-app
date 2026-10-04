@@ -57,10 +57,10 @@ def plano(com_opcionais=True):
                        "manual": bool(it.get("manual"))})
 
     sk = skills.estado()
-    if sk["faltam"]:
-        passos.append({"id": "skills", "nome": "Skills do Claude",
-                       "para": "%d de %d faltando na pasta do Claude"
-                               % (len(sk["faltam"]), sk["total"]),
+    if sk["faltam"] or sk.get("atualizar"):
+        passos.append({"id": "skills", "nome": "Skills da IA",
+                       "para": ("%d de %d faltando" % (len(sk["faltam"]), sk["total"])) if sk["faltam"]
+                               else "%d com versão nova no app" % len(sk["atualizar"]),
                        "tipo": "essencial"})
 
     pl = plugin.estado()
@@ -187,13 +187,13 @@ def rodar(com_opcionais=True, com_plugin=True, ao_vivo=None):
 
     # ---------------------------------------------------------- 3. skills
     sk = skills.estado()
-    if sk["faltam"]:
-        i = lista.novo("skills", "Skills do Claude")
-        lista.poe(i, "rodando", "copiando %d…" % len(sk["faltam"]))
+    if sk["faltam"] or sk.get("atualizar"):
+        i = lista.novo("skills", "Skills da IA")
+        lista.poe(i, "rodando", "copiando %d…" % (len(sk["faltam"]) + len(sk.get("atualizar") or [])))
         try:
             r = skills.instalar(ao_vivo=diz)
-            lista.poe(i, "ok", "%d instaladas" % r["novas"])
-            resumo["instalados"].append("Skills do Claude")
+            lista.poe(i, "ok", "%d instaladas ou atualizadas" % r["novas"])
+            resumo["instalados"].append("Skills da IA")
         except Exception as e:
             lista.poe(i, "erro", str(e)[:200])
             resumo["erros"].append("Skills: %s" % e)

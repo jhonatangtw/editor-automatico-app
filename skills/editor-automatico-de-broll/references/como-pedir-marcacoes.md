@@ -89,7 +89,7 @@ Assim você olha as marcações, corta o que não quer, e só então gasta.
 | **Premiere Pro** | com o projeto aberto |
 | **Tools PRO 1.2.0+** | painel aberto → *Conectar IA* → *Ligar* → comando colado no terminal |
 | **Claude Code** | reiniciado depois de registrar o MCP |
-| **A skill** | `/plugin marketplace add jhonatangtw/creative-automation` |
+| **A skill** | vem com o Editor Automático (Ambiente › Skills do Claude) |
 
 ### Para ancorar na fala
 
@@ -120,7 +120,7 @@ Isso importa: a parte que mais trava na instalação — o conector do Higgsfiel
 ## Conferir a máquina
 
 ```bash
-cd ~/Documents/hw-creative-automation && bash diagnostico.sh
+# no Editor Automático: aba Ambiente › Atualizar status
 ```
 
 Checa tudo isso e **não expõe nenhuma chave** — dá para colar a saída em qualquer lugar.

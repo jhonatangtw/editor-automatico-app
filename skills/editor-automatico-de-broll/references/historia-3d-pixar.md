@@ -2,7 +2,7 @@
 
 O outro formato da casa. Não tem avatar filmado, não tem plano fixo, não tem insert: **o anúncio inteiro é gerado**, cena a cena, sobre uma locução de 8 a 12 minutos.
 
-Validado em produção nos **AD08, AD02 e AD04** do LinfaFlow — 134 cenas geradas e montadas.
+Validado em produção nos **AD08, AD02 e AD04** do MarcaC — 134 cenas geradas e montadas.
 
 A referência aprovada é `02. IA/AD07 - JONAS/Ad Experience Preview (1).mp4`: 720×1280, 30 fps, personagens 3D estilizados, legenda queimada no terço inferior, corte a cada 5–8 s.
 

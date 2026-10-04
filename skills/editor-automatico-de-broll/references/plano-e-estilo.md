@@ -27,7 +27,7 @@ no plano, nada de conteúdo mora no estilo.**
 ```json
 {
   "versao": 1,
-  "job": "LEAFTIDE_AD01",
+  "job": "MarcaA_AD01",
   "formato": "ugc-9x16",
   "estilo": "alta-densidade",
   "saida": "AD01_FINAL_9x16.mp4",

@@ -2,7 +2,7 @@
 """
 Mapeia o que FALTA de video numa timeline ja parcialmente editada.
 
-Por que existe: nos tres ADs do LinfaFlow a primeira metade estava pronta e a
+Por que existe: nos tres ADs do MarcaC a primeira metade estava pronta e a
 segunda estava vazia — 64% e 63% da timeline sem video nenhum. Descobrir isso
 antes evita prometer "alguns espacos vazios" e entregar meio anuncio.
 

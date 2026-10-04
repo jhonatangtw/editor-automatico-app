@@ -1,6 +1,6 @@
 # Armadilhas do Omni Flash
 
-Sete bugs vistos no lote do CLOSE LeafTide (26 motions, agosto/2026), com a correção de cada um.
+Sete bugs vistos no lote do CLOSE MarcaA (26 motions, agosto/2026), com a correção de cada um.
 Todos são reproduzíveis: não são azar do renderizador, são brecha no prompt.
 
 ---
@@ -88,9 +88,9 @@ never repeated elsewhere.
 
 **Correção — reforço triplo.** A mesma informação em três lugares:
 
-- **TYPOGRAPHY:** `Line 2: "$19.99" is rendered in LeafTide green #3FB27A, not off-white — it is the only coloured text in the frame`
+- **TYPOGRAPHY:** `Line 2: "$19.99" is rendered in MarcaA green #3FB27A, not off-white — it is the only coloured text in the frame`
 - **PALETTE:** `the accent is ... the fill colour and glow of the second line, which must be green rather than off-white`
-- **TIMELINE:** `the words "$19.99" snap into place ... coloured LeafTide green #3FB27A, clearly green against the off-white struck-out "$89" above`
+- **TIMELINE:** `the words "$19.99" snap into place ... coloured MarcaA green #3FB27A, clearly green against the off-white struck-out "$89" above`
 - **DO NOT:** `do not render the second line in white or off-white`
 
 Resolveu em uma tentativa.
@@ -172,7 +172,7 @@ defeitos estavam nos dois unicos prompts com circulo — nao foi coincidencia.
 **Cifrão com decimal.** `$19.99` e `$1500` funcionaram, mas são o maior risco do lote —
 confira esses primeiro no QC.
 
-**Nome da marca.** O rótulo oscilou entre `Leaftide` (correto) e `LeafTide`. Em plano fechado
+**Nome da marca.** O rótulo oscilou entre `MarcaA` (correto) e `MarcaA`. Em plano fechado
 isso é visível; se o cliente for rígido, esses clipes precisam de outra passada.
 
 **Figurino não persiste.** Duas gerações com a mesma imagem de referência devolveram a pessoa com

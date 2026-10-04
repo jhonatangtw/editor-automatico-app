@@ -2495,7 +2495,7 @@ async function telaAmbiente() {
   // "não instalável"; o orquestrador instala o Node e eles passam a caber.
   const pendente = !d.brew
     || d.itens.some((i) => !i.tem && i.id !== 'premiere' && i.id !== 'toolspro' && i.id !== 'regra')
-    || (sk && sk.faltam.length)
+    || (sk && (sk.faltam.length || (sk.atualizar || []).length))
     || (pl && (!pl.instalado || pl.tem_nova || (pl.ponte && !pl.ponte.tem_debug)));
 
   moldura(`
@@ -2726,21 +2726,23 @@ function conferirInstalacao(qual, nome, resultado) {
 // Claude, responde com um vocabulário completamente diferente conforme a
 // máquina — e sem aviso nenhum. Por isso a tela mostra quantas ele tem.
 function cartaoSkills(sk) {
-  const falta = sk.faltam.length;
+  const falta = sk.faltam.length, novas = (sk.atualizar || []).length;
+  const suas = (sk.do_usuario || []).length;
+  const codex = (sk.destinos || []).length > 1;
+  const pendente = falta + novas;
   return `
     <div class="plugin">
       <div class="selo-pl">✦</div>
       <div style="flex:1;min-width:0">
-        <div class="pl-nome">Skills do Claude</div>
+        <div class="pl-nome">Skills da IA — o repertório Editor Black Belt</div>
         <div class="pl-sub">${falta
-          ? `<span style="color:var(--broll)">${falta} de ${sk.total} faltando</span>
-             — sem elas o Claude edita sem o repertório da casa`
-          : `${sk.total} instaladas — fotorrealismo, Pixar 3D, storyboard,
-             prompts de vídeo e a edição de b-roll`}</div>
-        <div class="pl-sub" style="font-size:11px;opacity:.7">${esc(sk.destino)}</div>
+          ? `<span style="color:var(--gold2)">${falta} de ${sk.total} faltando</span> — sem elas a IA edita sem o método da casa`
+          : novas ? `<span style="color:var(--gold2)">${novas} com versão nova</span> no app`
+          : `${sk.total} instaladas e em dia — inclusive a skill mestra (skill-black-belt)`}${codex ? ' · Claude e ChatGPT (Codex)' : ' · Claude'}</div>
+        ${suas ? `<div class="pl-sub">${suas} você modificou — o app não mexe nelas sem você pedir.</div>` : ''}
       </div>
-      ${falta ? `<button class="bt principal" id="sk-instalar">Instalar (${falta})</button>`
-              : `<button class="bt discreto" id="sk-instalar">Reinstalar</button>`}
+      ${pendente ? `<button class="bt principal" id="sk-instalar" data-modo="instalar">${falta ? 'Instalar' : 'Atualizar'} (${pendente})</button>`
+                 : `<button class="bt discreto" id="sk-instalar" data-modo="reinstalar">Reinstalar</button>`}
     </div>`;
 }
 
@@ -2748,11 +2750,11 @@ function ligarSkills() {
   const b = document.getElementById('sk-instalar');
   if (!b) return;
   b.onclick = () => {
-    const jaTem = b.textContent.trim() === 'Reinstalar';
+    const jaTem = b.dataset.modo === 'reinstalar';
     const v = modal(`<h2>Skills do Claude</h2>
       <p class="sub">${jaTem
-        ? 'Elas já estão na sua pasta. Reinstalar troca pelas versões que vieram no app — a sua cópia atual é guardada ao lado, não apagada.'
-        : 'Vou copiar as skills do app para a pasta do Claude. Nenhuma skill sua é sobrescrita.'}</p>
+        ? 'Reinstalar troca TODAS pelas versões que vieram no app — inclusive as que você modificou. As suas ficam guardadas em ~/.editorblackbelt/skills-anteriores, não apagadas.'
+        : 'Vou instalar e atualizar as skills do app para a IA. As que você modificou não são tocadas.'}</p>
       <div class="portao" id="log" style="max-height:160px;margin-top:10px">começando…</div>`);
     post('/api/skills/instalar', { substituir: jaTem }).then((r) => {
       const t = setInterval(async () => {

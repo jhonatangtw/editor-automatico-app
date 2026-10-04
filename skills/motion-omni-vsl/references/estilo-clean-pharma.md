@@ -5,7 +5,7 @@ acento único, seis beats. Este é o **CLARO**: estúdio claro de saúde/farma, 
 painel de vidro com borda azul, e um ritmo diferente — reveal compacto nos 5s iniciais e hold calmo
 no resto.
 
-Derivado do clipe de oferta do MemoFlow (`$19.99 PER BOTTLE` → `FIRST 3 FREE`, três frascos).
+Derivado do clipe de oferta do MarcaB (`$19.99 PER BOTTLE` → `FIRST 3 FREE`, três frascos).
 
 **Os dois sistemas não se misturam no mesmo lote.** Escolha um por criativo. Misturar preto profundo
 com estúdio claro no mesmo VSL faz o overlay parecer de dois jobs diferentes.

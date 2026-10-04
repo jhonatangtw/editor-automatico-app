@@ -1,6 +1,6 @@
 # Formato do `edicao.json`
 
-Entrada do `scripts/montar.py`. Este é o exemplo real do AD01 da LeafTide (aprovado).
+Entrada do `scripts/montar.py`. Este é o exemplo real do AD01 da MarcaA (aprovado).
 
 ```json
 {

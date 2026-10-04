@@ -10,22 +10,28 @@
 # tudo é instalador que ninguém baixa. Ficam de fora, de propósito:
 #   * as internas da casa (painel-hw-edicao, replicador-hw) — não são do aluno;
 #   * corte-viral — precisa de venv própria (3.10+), do modelo YuNet e de 8
-#     subagentes em ~/.claude/agents, pasta que o instalador ainda não instala.
-#     Levar assim entregaria uma skill que morre no primeiro comando;
-#   * motion-vox — a própria fonte está sem os 16 PNGs de asset.
+#     subagentes em ~/.claude/agents, pasta que o instalador ainda não instala;
+#   * motion-vox — a própria fonte continua sem os 16 PNGs de asset (o
+#     verificar.py dela reprova); entra quando o kit estiver completo;
+#   * motion-viral-jhon1 — é o motion dos Reels do PRÓPRIO autor (voz clonada
+#     dele, identidade visual dele, acervo no disco dele). Não é genérica;
+#   * gemini-omni — feita para os vídeos de uma pessoa específica;
+#   * cortar-aula — chama scripts que só existem na máquina do autor.
 #
-# ⚠️ `skills/` NÃO viaja na atualização leve (`codigo.PARTES` leva só app.py,
-# nucleo, web e version.json). Versão que muda esta lista precisa chegar pelo
-# INSTALADOR — marque `precisa_instalador` no version.json.
+# Depois de copiar, `limpar-skills.py` tira o que é do autor e do cliente
+# (caminhos, Drive, marcas, o registro de job) e AUDITA: se sobrar qualquer
+# coisa, este script para com erro e o retrato não é usado.
+#
+# `skills/` viaja na atualização leve: o CI põe a pasta no codigo.zip e o
+# app procura as skills primeiro ao lado do código em execução.
 set -e
 cd "$(dirname "$0")"
 ORIGEM="$HOME/.claude/skills"
 SKILLS="
-  editor-automatico-de-broll
-  photorealism-prompts video-prompt-builder pixar3d storyboard-viral-3d
-  skill-black-belt avatar-vsl-video-prompts blackbelt-omni
-  gemini-omni omni-flash-reverse video-to-flow
-  motion-viral-jhon1 motion-omni-vsl
+  skill-black-belt editor-automatico-de-broll hooks-meat-hook
+  blackbelt-omni motion-omni-vsl vibe-motion motion-design
+  photorealism-prompts video-prompt-builder avatar-vsl-video-prompts
+  pixar3d storyboard-viral-3d omni-flash-reverse video-to-flow
 "
 
 [ -d "$ORIGEM" ] || { echo "x nao achei $ORIGEM" >&2; exit 1; }
@@ -46,18 +52,19 @@ for s in $SKILLS; do
   printf "  %-30s %s\n" "$s" "$(du -sh skills/$s | cut -f1)"
 done
 
+echo "  --- limpando e auditando"
+python3 limpar-skills.py skills
+
 python3 - <<'PY'
-import hashlib, json, os, time
+import json, os, sys, time
+sys.path.insert(0, ".")
+from nucleo.skills import hash_pasta
 d = {}
 for s in sorted(os.listdir("skills")):
     p = os.path.join("skills", s)
     if not os.path.isdir(p):
         continue
-    h = hashlib.sha256()
-    for raiz, _, arqs in sorted(os.walk(p)):
-        for a in sorted(arqs):
-            h.update(open(os.path.join(raiz, a), "rb").read())
-    d[s] = h.hexdigest()[:16]
+    d[s] = hash_pasta(p)     # o MESMO hash que o instalador usa para saber o que é nosso
 json.dump({"origem": "~/.claude/skills", "sincronizado": time.strftime("%Y-%m-%d"),
            "skills": d}, open("skills/FONTE.json", "w", encoding="utf-8"),
           ensure_ascii=False, indent=2)

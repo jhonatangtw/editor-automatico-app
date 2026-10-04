@@ -124,7 +124,7 @@ Guie cada decisão por estes pontos:
 - **Sem áudio / só música:** os blocos vêm por tempo fixo e sem fala. Trabalhe a
   partir dos frames; sugira ritmo visual e motion alinhados à trilha.
 - **Transcrição já existe (copy/VSL):** use `--transcript`. Comum no fluxo do
-  usuário (HW Publishing já tem o doc de copy).
+  usuário (a equipe já tem o doc de copy).
 - **Rodando em sandbox sem Whisper:** peça a copy e rode com `--transcript`, ou,
   se nem isso, trabalhe só pelos frames e sinalize que faltou a fala.
 - **Vídeo muito longo:** ok — o script gera quantos blocos forem necessários.
