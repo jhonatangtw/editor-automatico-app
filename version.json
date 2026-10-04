@@ -1,6 +1,6 @@
 {
  "version": "0.21.0",
- "notes": "Área do aluno: agora dá para entrar com um código de 6 dígitos enviado por e-mail, sem senha (a senha continua valendo). O botão “Minhas aulas” abre a área do aluno no navegador, já conectado. As atualizações passam a vir primeiro do servidor do Editor Black Belt, conferidas pelo sha256 — se ele não tiver nada, o app segue pelo GitHub como antes.",
+ "notes": "App novo por fora: visual Editor Black Belt e uma tela de Início que diz o que falta e o próximo passo. Contas mais simples, com o que cada ferramenta faz. Novo Guia de comandos com os melhores pedidos para a IA, prontos para copiar. As skills da casa, inclusive a skill mestra, agora instalam e se atualizam sozinhas para o Claude e o ChatGPT — sem mexer nas que você editou. Área do aluno: entre com um código por e-mail e abra suas aulas pelo botão Minhas aulas.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",
