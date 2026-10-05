@@ -1,10 +1,11 @@
 {
   "origem": "~/.claude/skills",
-  "sincronizado": "2026-10-04",
+  "sincronizado": "2026-10-05",
   "skills": {
     "avatar-vsl-video-prompts": "2b5c217f987d6bf4",
     "blackbelt-omni": "92bf9841442d048e",
     "editor-automatico-de-broll": "4f6c1195e46116fe",
+    "editor-de-reels-do-jhon": "ed5b140358c6bf15",
     "hooks-meat-hook": "d5f1328093cbd923",
     "motion-design": "3d8a4b7e98761e57",
     "motion-omni-vsl": "51fe6a05cbed34f6",

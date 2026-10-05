@@ -576,19 +576,40 @@
     {
       "id": "reels-premium",
       "titulo": "Reels premium (talking head)",
-      "descricao": "Talking head 9:16 com legenda animada, cartões e cenas montados em código pelo HyperFrames e renderizados no seu computador — sem abrir o After.",
+      "descricao": "Talking head gravado no celular, do bruto ao Reels premium: decupagem dos takes, corte no Premiere, cor do iPhone e a edição premium (lettering, legenda palavra a palavra, telas em placas 3D, SFX) feita em código pelo HyperFrames.",
       "requer_skill": "editor-de-reels-do-jhon",
       "comandos": [
         {
-          "titulo": "Reels premium a partir do talking head",
+          "titulo": "Reels premium do bruto ao vídeo pronto",
           "nivel": "completo",
-          "comando": "Use a skill editor-de-reels-do-jhon para montar um Reels 9:16 premium a partir do take [VÍDEO DO TAKE] e da copy [COPY].\nFaça nesta ordem:\n1. Transcreva a fala com tempo por palavra e revise contra a copy.\n2. Me mostre o plano de cenas (legenda, cartões, letterings, CTA) com os tempos ANTES de construir.\n3. Monte o projeto HyperFrames numa pasta nova dentro de [PASTA DO JOB].\n4. Rode `hyperframes check` e corrija tudo o que ele apontar.\n5. Renderize uma prévia com `--quality draft` e me passe o caminho do arquivo.\nAtenção: o Whisper troca palavras parecidas — a legenda sai da copy, não da transcrição crua. Texto sempre dentro da área segura do 9:16. O áudio é o do take, sem reprocessar a voz.\nNo fim confira: ffprobe da prévia (1080×1920, mesma duração do take, com áudio) e a legenda palavra por palavra contra a copy.",
-          "faz": "Do take bruto à prévia do Reels com legenda animada e cenas em código.",
-          "quando": "Reels de talking head que pede motion premium, sem montar no After.",
+          "comando": "Use a skill editor-de-reels-do-jhon para editar o meu Reels.\nBruto: [VÍDEO BRUTO]. Pasta de trabalho: [PASTA DO JOB]. Roteiro (o que eu ia falar): [ROTEIRO].\nSiga as fases da skill e PARE em cada checkpoint para eu decidir:\n1. Rode os requisitos e me diga o que é o bruto (vertical? HDR do iPhone? fps?).\n2. Decupe os takes e me mostre o mapa (frase › takes › recomendado › alertas) com a prévia do corte.\n3. Monte o corte e os takes por frase no Premiere pelo Tools PRO; se o bruto for HDR, corrija a cor para Rec.709.\n4. Eu ajusto e exporto o corte; depois faça a edição premium no HyperFrames e me mostre um rascunho.\nAtenção: nunca altere o bruto nem escreva por cima de sequência minha — tudo em pasta e sequência novas. Música só com licença.\nNo fim confira: o QC da skill (formato, −14 LUFS, trecho parado, zona segura) e me diga o caminho do MP4.",
+          "faz": "Do bruto do celular ao Reels premium, com você decidindo take, cor, música e CTA.",
+          "quando": "Reels de talking head que vai ser postado com cara de produção.",
           "precisa": [
             "HyperFrames com ✓ na aba Ambiente (o teste de render passou)",
             "Skill editor-de-reels-do-jhon instalada (Ambiente › Skills da IA)",
-            "Whisper instalado"
+            "Whisper instalado",
+            "Premiere aberto com o painel Tools PRO e o Modo avançado ligado (rodapé › Conectar IA) — sem Premiere a skill corta pelo FFmpeg"
+          ],
+          "ia": "Claude",
+          "usa": [
+            "editor-de-reels-do-jhon",
+            "HyperFrames",
+            "Whisper",
+            "FFmpeg"
+          ]
+        },
+        {
+          "titulo": "Edição premium a partir do corte já exportado",
+          "nivel": "completo",
+          "comando": "Use a skill editor-de-reels-do-jhon, direto na fase da edição premium.\nCorte já aprovado e exportado: [CORTE .mp4]. Telas e gravações reais para mostrar: [PASTA DAS TELAS]. Pasta do projeto: [PASTA DO JOB]/Edicao premium.\n1. Transcreva a voz do corte e revise palavra a palavra (marca, produto, nomes) — é ela que vira legenda.\n2. Monte o rascunho do roteiro: gancho na tela no 1º quadro, um hit na frase-chave, telas nas placas 3D e o CTA [TEXTO DO CTA].\n3. Construa e me mostre um rascunho (--rascunho) com a folha de quadros.\nAtenção: lettering de 1 a 4 palavras por linha, entrando na palavra falada; nada fora da zona segura. Marca padrão é o dourado do Editor Black Belt — para a minha, use [MARCA: cores e fontes].\nNo fim confira: a folha de quadros com a zona segura e a legenda contra a fala.",
+          "faz": "Lettering, legenda palavra a palavra, telas 3D e SFX sobre um corte pronto.",
+          "quando": "Quando o corte já está aprovado (feito no Premiere ou em outro lugar).",
+          "precisa": [
+            "HyperFrames com ✓ na aba Ambiente (o teste de render passou)",
+            "Skill editor-de-reels-do-jhon instalada (Ambiente › Skills da IA)",
+            "Whisper instalado",
+            "O corte exportado em H.264 vertical, SDR"
           ],
           "ia": "Claude e ChatGPT",
           "usa": [
@@ -599,34 +620,18 @@
           ]
         },
         {
-          "titulo": "Legenda animada palavra por palavra no talking head",
+          "titulo": "Render final, QC e versão acelerada do Reels",
           "nivel": "rápido",
-          "comando": "Com o HyperFrames e o estilo da skill editor-de-reels-do-jhon, coloque uma legenda animada palavra por palavra sobre o take [VÍDEO DO TAKE] (9:16).\nTranscreva com tempo por palavra, revise contra a copy [COPY] e destaque UMA palavra por frase na cor [COR].\nMonte numa pasta nova dentro de [PASTA DO JOB], rode `hyperframes check` e renderize a prévia com `--quality draft`.\nAtenção: cada palavra entra no tempo da fala — o começo da primeira frase costuma vir grudado no zero.\nNo fim confira: tire um quadro do render no começo, no meio e no fim e veja se a palavra na tela é a que está sendo falada.",
-          "faz": "Só a legenda animada sobre o take, no tempo da fala.",
-          "quando": "Quando o Reels já está cortado e falta a legenda premium.",
+          "comando": "O rascunho do Reels em [PASTA DO JOB]/Edicao premium está aprovado. Pela skill editor-de-reels-do-jhon:\n1. Renderize a versão final com o nome [NOME DO REELS] — [COM ou SEM] música.\n2. Rode o QC da skill e olhe a folha da zona segura antes de me mostrar.\n3. Faça também a versão acelerada em [FATOR, ex.: 1.15]x e rode o QC nela.\nNão mude nada na composição nesta etapa.\nNo fim me diga: caminho dos MP4, duração, LUFS e true peak de cada um.",
+          "faz": "Mixagem a −14 LUFS, render 1080×1920, QC e a versão acelerada.",
+          "quando": "Depois que o rascunho foi aprovado.",
           "precisa": [
             "HyperFrames com ✓ na aba Ambiente (o teste de render passou)",
-            "Skill editor-de-reels-do-jhon instalada (Ambiente › Skills da IA)",
-            "Whisper instalado"
+            "Skill editor-de-reels-do-jhon instalada (Ambiente › Skills da IA)"
           ],
           "ia": "Claude e ChatGPT",
           "usa": [
             "editor-de-reels-do-jhon",
-            "HyperFrames",
-            "Whisper"
-          ]
-        },
-        {
-          "titulo": "Render final do Reels depois da prévia aprovada",
-          "nivel": "rápido",
-          "comando": "A prévia do Reels em [PASTA DO PROJETO HYPERFRAMES] está aprovada. Renderize a versão final sem mudar nada na composição:\n1. Rode `hyperframes check` de novo — se ele apontar algo, pare e me mostre.\n2. Rode `hyperframes render --quality delivery --output [ARQUIVO FINAL .mp4]`.\n3. Confira com ffprobe: 1080×1920, mesmo fps e mesma duração da prévia, com áudio.\nNo fim me diga o caminho e o tamanho do arquivo.",
-          "faz": "Renderiza a versão de entrega e prova que ela bate com a prévia.",
-          "quando": "Depois que a prévia foi aprovada.",
-          "precisa": [
-            "HyperFrames com ✓ na aba Ambiente (o teste de render passou)"
-          ],
-          "ia": "Claude e ChatGPT",
-          "usa": [
             "HyperFrames",
             "FFmpeg"
           ]

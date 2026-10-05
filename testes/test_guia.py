@@ -79,6 +79,7 @@ class Guia(unittest.TestCase):
         self.assertTrue(2 <= len(gr["comandos"]) <= 3)
         for c in gr["comandos"]:
             self.assertIn("HyperFrames", c["usa"])
+            self.assertIn("editor-de-reels-do-jhon", c["usa"])
             # só subcomandos que existem no CLI fixado no app
             for sub in re.findall(r"`hyperframes (\w+)", c["comando"]):
                 self.assertIn(sub, {"check", "render", "lint", "preview", "snapshot"}, c["titulo"])

@@ -1,0 +1,34 @@
+<template>
+  <style>
+    __FONTES__
+    #legendas-root { position: absolute; inset: 0; overflow: hidden; }
+    /* faixa da legenda: acima dos 20% de baixo do Reels (y < 1536) e longe da barra de ações da direita */
+    #cap-band { position: absolute; left: 120px; right: 120px; top: 1432px; height: 96px; }
+    .cg { position: absolute; left: 0; right: 0; top: 0; height: 96px; text-align: center; white-space: nowrap;
+      font-family: "__FONTE_LEGENDA__", sans-serif; font-weight: __PESO_LEGENDA__; font-size: __TAM_LEGENDA__px; line-height: 96px; letter-spacing: -0.01em;
+      color: __TEXTO__; text-shadow: 0 4px 18px rgba(0, 0, 0, 0.85), 0 0 2px rgba(0, 0, 0, 0.9); opacity: 0; }
+    .cw { display: inline-block; transform-origin: 50% 70%; margin: 0 0.13em; }
+  </style>
+  <div id="legendas-root" data-composition-id="legendas" data-width="1080" data-height="1920">
+    <div id="cap-band">
+__GRUPOS__
+    </div>
+  </div>
+  <script>
+    (function () {
+      const tl = gsap.timeline({ paused: true });
+      const ATIVA = "__COR_ATIVA__", BASE = "__TEXTO__";
+      function group(sel, s, e) {
+        tl.fromTo(sel, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.12, ease: "power2.out" }, s);
+        tl.fromTo(sel, { opacity: 1 }, { opacity: 0, duration: 0.08, ease: "none", immediateRender: false }, e - 0.08);
+      }
+      function word(sel, s, e) {
+        tl.fromTo(sel, { color: BASE, scale: 1 }, { color: ATIVA, scale: 1.06, duration: 0.1, ease: "power2.out" }, s);
+        tl.fromTo(sel, { color: ATIVA, scale: 1.06 }, { color: BASE, scale: 1, duration: 0.12, ease: "power1.out", immediateRender: false }, e);
+      }
+__PALAVRAS__
+      tl.to({}, { duration: __DUR__ }, 0);
+      window.__timelines["legendas"] = tl;
+    })();
+  </script>
+</template>

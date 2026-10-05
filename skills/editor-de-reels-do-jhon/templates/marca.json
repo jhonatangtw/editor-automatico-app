@@ -1,0 +1,20 @@
+{
+ "_leia": "Identidade visual do Reels. Padrão = Editor Black Belt (escuro + dourado). Para a sua marca, copie este arquivo para a pasta do projeto como marca.json e troque cores/fontes. Fontes: caminho relativo a ESTE arquivo ou absoluto (.woff2/.ttf/.otf). Só use fonte que você tem licença para usar em vídeo.",
+ "nome": "Editor Black Belt",
+ "cores": {
+  "fundo": "#08090b",
+  "fundo2": "#15171d",
+  "texto": "#f4f6f9",
+  "destaque": "#f2b33d",
+  "destaque_claro": "#fff1cc",
+  "tinta_sobre_destaque": "#120e06"
+ },
+ "fontes": {
+  "titulo": {"familia": "Instrument Sans", "arquivo": "fonts/InstrumentSans-var.woff2", "peso": 700},
+  "legenda": {"familia": "Manrope", "arquivo": "fonts/Manrope-var.woff2", "peso": 800},
+  "mono": {"familia": "IBM Plex Mono", "arquivo": "fonts/IBMPlexMono-500.woff2", "peso": 500}
+ },
+ "lettering": {"maiusculas": true},
+ "legenda": {"tamanho": 60, "max_caracteres": 19, "palavra_ativa_em_destaque": true, "expressoes": ["passo a passo", "dia a dia"]},
+ "punch_in": {"forte": 1.14, "leve": 1.05, "maximo": 1.16}
+}

@@ -651,6 +651,72 @@ Atenção: na propriedade copiada, os keyframes do destino são zerados (o valor
 - **Por baixo:** `pr_timeline_selecionar`, `pr_copiar_atributos`, `pr_smoothify`
 
 
+## Reels premium (talking head)
+
+Talking head gravado no celular, do bruto ao Reels premium: decupagem dos takes, corte no Premiere, cor do iPhone e a edição premium (lettering, legenda palavra a palavra, telas em placas 3D, SFX) feita em código pelo HyperFrames.
+
+### Reels premium do bruto ao vídeo pronto
+
+*Nível: completo*
+
+```text
+Use a skill editor-de-reels-do-jhon para editar o meu Reels.
+Bruto: [VÍDEO BRUTO]. Pasta de trabalho: [PASTA DO JOB]. Roteiro (o que eu ia falar): [ROTEIRO].
+Siga as fases da skill e PARE em cada checkpoint para eu decidir:
+1. Rode os requisitos e me diga o que é o bruto (vertical? HDR do iPhone? fps?).
+2. Decupe os takes e me mostre o mapa (frase › takes › recomendado › alertas) com a prévia do corte.
+3. Monte o corte e os takes por frase no Premiere pelo Tools PRO; se o bruto for HDR, corrija a cor para Rec.709.
+4. Eu ajusto e exporto o corte; depois faça a edição premium no HyperFrames e me mostre um rascunho.
+Atenção: nunca altere o bruto nem escreva por cima de sequência minha — tudo em pasta e sequência novas. Música só com licença.
+No fim confira: o QC da skill (formato, −14 LUFS, trecho parado, zona segura) e me diga o caminho do MP4.
+```
+
+- **O que faz:** Do bruto do celular ao Reels premium, com você decidindo take, cor, música e CTA.
+- **Quando usar:** Reels de talking head que vai ser postado com cara de produção.
+- **Precisa:** HyperFrames com ✓ na aba Ambiente (o teste de render passou); Skill editor-de-reels-do-jhon instalada (Ambiente › Skills da IA); Whisper instalado; Premiere aberto com o painel Tools PRO e o Modo avançado ligado (rodapé › Conectar IA) — sem Premiere a skill corta pelo FFmpeg
+- **Funciona com:** Claude
+- **Por baixo:** `editor-de-reels-do-jhon`, `HyperFrames`, `Whisper`, `FFmpeg`
+
+### Edição premium a partir do corte já exportado
+
+*Nível: completo*
+
+```text
+Use a skill editor-de-reels-do-jhon, direto na fase da edição premium.
+Corte já aprovado e exportado: [CORTE .mp4]. Telas e gravações reais para mostrar: [PASTA DAS TELAS]. Pasta do projeto: [PASTA DO JOB]/Edicao premium.
+1. Transcreva a voz do corte e revise palavra a palavra (marca, produto, nomes) — é ela que vira legenda.
+2. Monte o rascunho do roteiro: gancho na tela no 1º quadro, um hit na frase-chave, telas nas placas 3D e o CTA [TEXTO DO CTA].
+3. Construa e me mostre um rascunho (--rascunho) com a folha de quadros.
+Atenção: lettering de 1 a 4 palavras por linha, entrando na palavra falada; nada fora da zona segura. Marca padrão é o dourado do Editor Black Belt — para a minha, use [MARCA: cores e fontes].
+No fim confira: a folha de quadros com a zona segura e a legenda contra a fala.
+```
+
+- **O que faz:** Lettering, legenda palavra a palavra, telas 3D e SFX sobre um corte pronto.
+- **Quando usar:** Quando o corte já está aprovado (feito no Premiere ou em outro lugar).
+- **Precisa:** HyperFrames com ✓ na aba Ambiente (o teste de render passou); Skill editor-de-reels-do-jhon instalada (Ambiente › Skills da IA); Whisper instalado; O corte exportado em H.264 vertical, SDR
+- **Funciona com:** Claude e ChatGPT
+- **Por baixo:** `editor-de-reels-do-jhon`, `HyperFrames`, `Whisper`, `FFmpeg`
+
+### Render final, QC e versão acelerada do Reels
+
+*Nível: rápido*
+
+```text
+O rascunho do Reels em [PASTA DO JOB]/Edicao premium está aprovado. Pela skill editor-de-reels-do-jhon:
+1. Renderize a versão final com o nome [NOME DO REELS] — [COM ou SEM] música.
+2. Rode o QC da skill e olhe a folha da zona segura antes de me mostrar.
+3. Faça também a versão acelerada em [FATOR, ex.: 1.15]x e rode o QC nela.
+Não mude nada na composição nesta etapa.
+No fim me diga: caminho dos MP4, duração, LUFS e true peak de cada um.
+```
+
+- **O que faz:** Mixagem a −14 LUFS, render 1080×1920, QC e a versão acelerada.
+- **Quando usar:** Depois que o rascunho foi aprovado.
+- **Precisa:** HyperFrames com ✓ na aba Ambiente (o teste de render passou); Skill editor-de-reels-do-jhon instalada (Ambiente › Skills da IA)
+- **Funciona com:** Claude e ChatGPT
+- **Por baixo:** `editor-de-reels-do-jhon`, `HyperFrames`, `FFmpeg`
+
+
 ## Prompts de imagem e vídeo
 
 Quando a tarefa é só o prompt — para colar no Higgsfield, Flow, Kling ou Seedance.
