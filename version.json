@@ -1,6 +1,6 @@
 {
- "version": "0.21.1",
- "notes": "Guia de comandos refeito com as receitas de edições reais (webinário, upsell, VSL, criativos, aulas e Reels): cada comando já traz a ordem que funcionou, as regras aprovadas e as armadilhas.",
+ "version": "0.21.2",
+ "notes": "A busca do Guia de comandos agora ignora acento e maiúscula (\"silencio\" acha \"silêncio\"), e a Conversa mostra \"Pensando…\" com o tempo, a etapa e um botão Cancelar — com aviso quando o macOS pede acesso a uma pasta.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",

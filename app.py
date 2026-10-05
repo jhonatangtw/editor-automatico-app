@@ -86,8 +86,8 @@ if "--mcp" in sys.argv:
     mcp_servidor.main()
     sys.exit(0)
 
-from nucleo import (adobe, ambiente, atualizacao, chaves, claude, conta,  # noqa: E402
-                    conversa, conversas,
+from nucleo import (adobe, ambiente, atualizacao, cancelar, chaves, claude,  # noqa: E402
+                    conta, conversa, conversas,
                     decupar, etapas, gerar, ia, montagem, pipeline, plugin,
                     ponte, preparar, projetos, qc, servicos, skill, skills, voz)
 
@@ -99,6 +99,7 @@ WEB = os.path.join(RAIZ, "web")
 TOKEN = secrets.token_urlsafe(16)
 
 TAREFAS = {}
+CONTROLES = {}          # tid -> cancelar.Controle, só das tarefas que sabem parar
 _trava = threading.Lock()
 
 
@@ -120,6 +121,12 @@ def tarefa_log(tid, linha):
         if not t:
             return
         if isinstance(linha, dict):
+            # a ETAPA em curso ("abrindo o Claude", "conferindo o Adobe") não é
+            # passo da conversa: é o que a tela mostra ao lado do "Pensando…"
+            # enquanto nada mais chegou — antes a tela ficava muda nesse trecho
+            if linha.get("tipo") == "etapa":
+                t["etapa"] = linha.get("texto") or ""
+                return
             if linha.get("atualiza"):
                 i = linha.get("indice")
                 if i is not None and 0 <= i < len(t["passos"]):
@@ -131,20 +138,48 @@ def tarefa_log(tid, linha):
             t["log"] = (t["log"] + [str(linha)])[-40:]
 
 
-def tarefa_fim(tid, resultado=None, erro=None):
+def tarefa_fim(tid, resultado=None, erro=None, estado=None):
     with _trava:
         t = TAREFAS.get(tid)
         if t:
-            t["estado"] = "erro" if erro else "pronto"
+            t["estado"] = estado or ("erro" if erro else "pronto")
             t["resultado"], t["erro"] = resultado, erro
+        CONTROLES.pop(tid, None)
 
 
-def em_fundo(rotulo, fn):
+def tarefa_ver(tid):
+    """O retrato da tarefa para a tela — com `cancelavel` calculado na hora:
+    só é verdade enquanto existe um processo de pé para encerrar."""
+    with _trava:
+        t = TAREFAS.get(tid)
+        if not t:
+            return None
+        t = dict(t)
+        c = CONTROLES.get(tid)
+    t["cancelavel"] = bool(c and t["estado"] == "rodando" and c.cancelavel)
+    return t
+
+
+def tarefa_cancelar(tid):
+    with _trava:
+        c = CONTROLES.get(tid)
+    if not c:
+        return {"ok": False, "msg": "Esta tarefa não pode ser cancelada."}
+    c.cancelar()
+    return {"ok": True}
+
+
+def em_fundo(rotulo, fn, controle=None):
     tid = tarefa_nova(rotulo)
+    if controle is not None:
+        with _trava:
+            CONTROLES[tid] = controle
 
     def alvo():
         try:
             tarefa_fim(tid, resultado=fn(lambda l: tarefa_log(tid, l)))
+        except cancelar.Cancelado:
+            tarefa_fim(tid, estado="cancelado")
         except Exception as e:
             tarefa_fim(tid, erro=str(e) or e.__class__.__name__)
     threading.Thread(target=alvo, daemon=True).start()
@@ -586,8 +621,12 @@ class Handler(BaseHTTPRequestHandler):
             if len(partes) == 4 and partes[1] == "projetos" and partes[3] == "transcricao":
                 return self._json(decupar.ler(partes[2]) or {"palavras": []})
             if len(partes) == 3 and partes[1] == "tarefas":
-                with _trava:
-                    return self._json(TAREFAS.get(partes[2]) or {"erro": "sem tarefa"})
+                return self._json(tarefa_ver(partes[2]) or {"erro": "sem tarefa"})
+            if caminho == "/api/pasta":
+                # chamado logo ao abrir: no Mac é aqui que o sistema pergunta
+                # sobre a pasta Documentos — com a tela explicando o porquê —
+                # e não no meio da primeira mensagem, com a conversa parada
+                return self._json(conversas.garantir_acesso())
             return self._json({"erro": "rota não existe"}, 404)
         except Exception as e:
             traceback.print_exc()
@@ -681,10 +720,14 @@ class Handler(BaseHTTPRequestHandler):
             if caminho == "/api/conversa":
                 cid = corpo.get("conversa")
                 prov = corpo.get("provedor")
+                ctl = cancelar.Controle()
                 tid = em_fundo("Conversando", lambda log: conversa.falar(
                     cid, corpo.get("texto", ""), corpo.get("anexos"),
-                    conta.estado().get("nome") or "usuário", log, provedor=prov))
+                    conta.estado().get("nome") or "usuário", log, provedor=prov,
+                    controle=ctl), controle=ctl)
                 return self._json({"tarefa": tid})
+            if len(partes) == 4 and partes[1] == "tarefas" and partes[3] == "cancelar":
+                return self._json(tarefa_cancelar(partes[2]))
 
             if caminho == "/api/atualizacao/codigo":
                 tid = em_fundo("Atualizando",

@@ -22,6 +22,38 @@ ATUAL = os.path.expanduser("~/Documents/Editor Automático/conversa-atual.json")
 SESSAO_ANTIGA = os.path.expanduser("~/Documents/Editor Automático/sessao-livre.txt")
 
 
+CASA = os.path.expanduser("~/Documents/Editor Automático")
+
+
+def garantir_acesso():
+    """Toca a pasta de trabalho logo ao abrir o app — e diz se deu.
+
+    ⚠️ No Mac, a pasta Documentos é protegida: a primeira vez que o app ESCREVE
+    lá, o sistema mostra "Editor Automático quer acessar a pasta Documentos" e
+    a chamada fica PARADA até a pessoa responder. Sem este passo isso acontecia
+    na primeira mensagem da Conversa (é ela que cria a pasta da conversa): a
+    janela do sistema às vezes abria atrás do app e a tela parecia travada por
+    minutos. Aqui o pedido aparece num momento previsível, com a tela
+    explicando — e, se a pessoa negar, a gente sabe e diz onde liberar.
+
+    Escreve e apaga um arquivo de prova: só listar ou checar se existe não
+    garante a pergunta (o sistema deixa ler metadados sem perguntar)."""
+    pastas = [CASA, RAIZ]
+    try:
+        for d in pastas:
+            os.makedirs(d, exist_ok=True)
+        prova = os.path.join(CASA, ".acesso")
+        with open(prova, "w", encoding="utf-8") as f:
+            f.write("ok")
+        os.remove(prova)
+        os.listdir(RAIZ)
+        return {"ok": True, "pasta": CASA}
+    except PermissionError as e:
+        return {"ok": False, "negado": True, "pasta": CASA, "erro": str(e)}
+    except OSError as e:
+        return {"ok": False, "negado": False, "pasta": CASA, "erro": str(e)}
+
+
 def dir_conversa(cid):
     return os.path.join(RAIZ, cid)
 

@@ -13,6 +13,8 @@
       if (q.get('aba')) { aba = q.get('aba'); desenhar(); }
       if (q.get('grupo')) setTimeout(() => { const g = document.getElementById('g-' + q.get('grupo')); g && g.scrollIntoView(); }, 600);
       if (q.get('menu')) setTimeout(() => { const b = document.querySelector('[data-mais="' + q.get('menu') + '"]'); b && b.click(); }, 400);
+      if (q.get('busca')) setTimeout(() => { const i = document.getElementById('guia-busca'); if (i) { i.value = q.get('busca'); i.oninput(); } }, 500);
+      if (q.get('enviar')) setTimeout(() => { const e = document.getElementById('entrada'); if (e) { e.value = q.get('enviar'); document.getElementById('enviar').click(); } }, 500);
     }, 300);
   </script>
 </body>

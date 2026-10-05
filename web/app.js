@@ -869,6 +869,28 @@ function pintarInicio() {
 let GUIA = null;
 let guiaBusca = '';
 
+// ---- busca do guia (testes/test_guia.py roda este trecho no node: mexeu, rode)
+/* Sem acento e sem caixa dos DOIS lados: o aluno digita "silencio" e o guia
+   escreve "silêncio" — antes isso dava "nenhum comando". Espaço sobrando não
+   conta, e cada palavra pode estar em qualquer parte do cartão. */
+function normalizarBusca(t) {
+  return String(t == null ? '' : t)
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/\s+/g, ' ').trim();
+}
+function indiceGuia(gr, c) {
+  const t = normalizarBusca([gr.titulo, gr.descricao, c.titulo, c.nivel, c.ia, c.comando,
+    c.faz, c.quando, c.tempo, (c.precisa || []).join(' '), (c.usa || []).join(' '),
+    (c.tags || []).join(' ')].join(' '));
+  // "broll" acha "b-roll", "pushin" acha "push-in"
+  return t + ' ' + t.replace(/-/g, '');
+}
+function casaBusca(indice, q) {
+  const termos = normalizarBusca(q).split(' ').filter(Boolean);
+  return termos.every((x) => indice.includes(x));
+}
+// ---- fim da busca do guia
+
 async function copiarTexto(t) {
   try { await navigator.clipboard.writeText(t); return true; } catch (_) { /* cai no plano B */ }
   const ta = document.createElement('textarea');
@@ -900,7 +922,7 @@ async function telaGuia() {
           <div class="grupo-cab"><h2>${esc(gr.titulo)}</h2><p class="sub">${esc(gr.descricao)}</p></div>
           <div class="guia-grade">
             ${gr.comandos.map((c, i) => `
-              <article class="surf cmd" data-busca="${esc([gr.titulo, c.titulo, c.nivel, c.comando, c.faz, c.quando, (c.usa || []).join(' ')].join(' ').toLowerCase())}">
+              <article class="surf cmd" data-busca="${esc(indiceGuia(gr, c))}">
                 <header class="cmd-cab">
                   <h3>${esc(c.titulo)}</h3>
                   <span class="cmd-selos">
@@ -928,10 +950,10 @@ async function telaGuia() {
     <p class="sub guia-rodape">${total} comandos · o mesmo conteúdo está em <span class="mono">GUIA-DE-COMANDOS.md</span>, dentro da pasta do app.</p>`);
 
   const filtrar = () => {
-    const q = guiaBusca.trim().toLowerCase();
+    const q = normalizarBusca(guiaBusca);
     let vistos = 0;
     document.querySelectorAll('.cmd').forEach((c) => {
-      const ok = !q || c.dataset.busca.includes(q);
+      const ok = !q || casaBusca(c.dataset.busca, q);
       c.hidden = !ok; if (ok) vistos++;
     });
     document.querySelectorAll('.guia-grupo').forEach((gr) => {
@@ -1347,6 +1369,81 @@ function mostrarFalha(ultimoTexto, motivo) {
   };
 }
 
+// ---------------------------------------------- "Pensando…" enquanto a IA não fala
+/* A primeira mensagem chegou a levar 2 minutos sem NADA na tela: o macOS estava
+   pedindo acesso a uma pasta, com a janela do sistema escondida, e o app
+   parecia travado. Agora a tela mostra na hora que está trabalhando, há
+   quanto tempo, em que ponto (quando o servidor diz), e depois de um tempo
+   sem novidade explica o caso do pedido de permissão. */
+const VIVO_AJUDA_MS = 10000;
+
+function vivoEstadoHtml() {
+  return `<div class="vivo-estado" id="vivo-estado" role="status" aria-live="polite">
+      <span class="vivo-giro" aria-hidden="true"></span>
+      <b>Pensando…</b>
+      <span class="vivo-tempo" id="vivo-tempo">0 s</span>
+      <span class="vivo-etapa" id="vivo-etapa"></span>
+      <button class="bt discreto vivo-cancelar" id="vivo-cancelar" hidden>Cancelar</button>
+    </div>
+    <div class="vivo-ajuda" id="vivo-ajuda" hidden>Se o macOS pedir acesso a uma pasta, clique em
+      <b>Permitir</b> — a resposta continua depois disso.</div>`;
+}
+
+function tempoCurto(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`;
+}
+
+// em que ponto está: a ferramenta rodando agora vence a etapa do servidor
+function etapaAtual(s) {
+  const ps = (s && s.passos) || [];
+  for (let i = ps.length - 1; i >= 0; i--) {
+    if (ps[i].tipo === 'ferramenta' && (ps[i].estado || 'rodando') === 'rodando') return 'usando ' + nomeFerr(ps[i].nome);
+  }
+  return (s && s.etapa) || '';
+}
+
+function acompanharVivo() {
+  const inicio = Date.now();
+  let marca = inicio;          // última novidade: passo novo, etapa nova
+  let assinatura = '';
+  const ctl = { tarefa: null };
+  const pintar = () => {
+    const t = document.getElementById('vivo-tempo');
+    if (!t) return;
+    t.textContent = tempoCurto(Date.now() - inicio);
+    const aj = document.getElementById('vivo-ajuda');
+    if (aj) aj.hidden = Date.now() - marca < VIVO_AJUDA_MS;
+  };
+  const relogio = setInterval(pintar, 1000);
+  ctl.atualizar = (s) => {
+    const ps = (s && s.passos) || [];
+    const ass = ps.length + '|' + ps.map((p) => p.estado || '').join(',') + '|' + ((s && s.etapa) || '');
+    if (ass !== assinatura) { assinatura = ass; marca = Date.now(); }
+    const et = document.getElementById('vivo-etapa');
+    const txt = etapaAtual(s);
+    if (et) et.textContent = txt ? '· ' + txt : '';
+    // só existe Cancelar quando o servidor diz que há um processo para encerrar
+    const b = document.getElementById('vivo-cancelar');
+    if (b) b.hidden = !(s && s.cancelavel) || b.dataset.pedido === '1';
+    pintar();
+  };
+  ctl.parar = () => clearInterval(relogio);
+  const b = document.getElementById('vivo-cancelar');
+  if (b) b.onclick = async () => {
+    if (!ctl.tarefa) return;
+    b.dataset.pedido = '1'; b.hidden = true;
+    const et = document.getElementById('vivo-etapa');
+    if (et) et.textContent = '· cancelando…';
+    try {
+      const r = await post('/api/tarefas/' + ctl.tarefa + '/cancelar');
+      if (!r.ok) { toast(r.msg || 'Não deu para cancelar.', true); b.dataset.pedido = ''; }
+    } catch (e) { toast(e.message, true); b.dataset.pedido = ''; }
+  };
+  pintar();
+  return ctl;
+}
+
 const rolarFim = () => {
   const c = document.getElementById('conversa');
   if (c) c.scrollTop = c.scrollHeight;
@@ -1371,15 +1468,20 @@ function ligarChat(p, pp) {
     const c = document.getElementById('conversa');
     c.insertAdjacentHTML('beforeend',
       `<div class="msg eu"><div class="bolha">${esc(texto)}</div></div>
-       <div class="msg resposta" id="vivo"><div class="passos" id="passos-vivos"></div></div>`);
+       <div class="msg resposta" id="vivo"><div class="passos" id="passos-vivos"></div>${vivoEstadoHtml()}</div>`);
     rolarFim();
+    // "Pensando…" na HORA do Enter, antes de qualquer resposta do servidor
+    const vivo = acompanharVivo();
 
     try {
       const r = await post('/api/conversa',
         { texto, anexos, conversa: conversaAtual, provedor: IA?.escolhido });
+      vivo.tarefa = r.tarefa;
       let desenhados = 0;
       const t = setInterval(async () => {
-        const s = await api('/api/tarefas/' + r.tarefa);
+        let s;
+        try { s = await api('/api/tarefas/' + r.tarefa); } catch (_) { return; }
+        vivo.atualizar(s);
         const cx = document.getElementById('passos-vivos');
         if (cx) {
           // redesenha só o que mudou: o passo em curso vira ✓ quando termina
@@ -1389,16 +1491,24 @@ function ligarChat(p, pp) {
             if ((s.passos || []).length !== desenhados) { desenhados = s.passos.length; rolarFim(); }
           }
         }
-        if (s.estado === 'pronto') { clearInterval(t); conversando = false; desenhar(); }
+        if (s.estado === 'pronto') { clearInterval(t); vivo.parar(); conversando = false; desenhar(); }
+        else if (s.estado === 'cancelado') {
+          clearInterval(t); vivo.parar(); conversando = false;
+          const v = document.getElementById('vivo');
+          if (v) v.outerHTML = `<div class="msg resposta"><div class="passo cancelado"><span class="passo-bola"></span>
+            Cancelado. Esta mensagem não foi guardada no histórico — o texto voltou para a caixa.</div></div>`;
+          const e = document.getElementById('entrada');
+          if (e && !e.value) { e.value = texto; crescer(); }
+        }
         else if (s.estado === 'erro') {
-          clearInterval(t); conversando = false;
-          const vivo = document.getElementById('vivo');
-          if (vivo) vivo.remove();
+          clearInterval(t); vivo.parar(); conversando = false;
+          const v = document.getElementById('vivo');
+          if (v) v.remove();
           mostrarFalha(texto, s.erro);
         }
       }, 900);
     } catch (e) {
-      conversando = false; toast(e.message, true); desenhar();
+      vivo.parar(); conversando = false; toast(e.message, true); desenhar();
     }
   };
 
@@ -2953,6 +3063,46 @@ function ligarPlugin() {
   };
 }
 
+// ------------------------------------------- acesso à pasta Documentos (Mac)
+/* O app guarda conversas e projetos em Documentos/Editor Automático. No Mac,
+   a primeira escrita ali faz o sistema perguntar se o app pode acessar a pasta
+   — e a chamada fica parada até a resposta. Antes isso caía no meio da
+   primeira mensagem da Conversa, com a janela do sistema às vezes escondida
+   atrás do app. Agora a pergunta vem ao abrir, e a tela explica enquanto ela
+   está aberta. Se responder rápido (já liberado, ou Windows), nada aparece. */
+const PASTA_AVISO_MS = 700;
+
+async function conferirPasta() {
+  let veu = null;
+  const aviso = setTimeout(() => {
+    veu = modal(`<h2>Liberando a pasta de trabalho</h2>
+      <p class="sub" style="margin-bottom:10px">O app guarda suas conversas e projetos em
+        <span class="mono">Documentos/Editor Automático</span>. Se o macOS perguntar se o
+        <b>Editor Automático</b> pode acessar a pasta Documentos, clique em <b>Permitir</b>.</p>
+      <p class="sub">A janela do sistema pode ter aberto atrás deste app — se não estiver vendo,
+        procure por ela no Dock ou com Cmd+Tab. Isto só acontece uma vez.</p>
+      <div class="vivo-estado" style="margin-top:14px"><span class="vivo-giro" aria-hidden="true"></span>
+        <b>Esperando a resposta do macOS…</b></div>`);
+  }, PASTA_AVISO_MS);
+  let r;
+  try { r = await api('/api/pasta'); }
+  catch (_) { clearTimeout(aviso); if (veu) veu.remove(); return; }
+  clearTimeout(aviso);
+  if (veu) veu.remove();
+  if (r.ok) { if (veu) toast('Pasta liberada. Pode conversar.'); return; }
+  modal(`<h2>${r.negado ? 'O app ficou sem acesso à pasta Documentos' : 'Não consegui abrir a pasta de trabalho'}</h2>
+    <p class="sub" style="margin-bottom:10px">Sem ela a Conversa e os projetos não conseguem ser guardados
+      (<span class="mono">${esc(r.pasta || '')}</span>).</p>
+    ${r.negado ? `<p class="sub">Para liberar: <b>Ajustes do Sistema › Privacidade e Segurança ›
+      Arquivos e Pastas › Editor Automático</b> e ligue <b>Pasta Documentos</b>. Depois clique em Tentar de novo.</p>`
+      : `<p class="sub mono">${esc(r.erro || '')}</p>`}
+    <div class="acoes"><button class="bt discreto" data-fechar>Fechar</button>
+      <button class="bt principal" id="pasta-de-novo">Tentar de novo</button></div>`, (v) => {
+    v.querySelector('[data-fechar]').onclick = () => v.remove();
+    v.querySelector('#pasta-de-novo').onclick = () => { v.remove(); conferirPasta(); };
+  });
+}
+
 // ---------------------------------------------------------------- ciclo
 async function desenhar() {
   try {
@@ -2977,6 +3127,7 @@ async function iniciar() {
   }
   if (!E.conta.entrou) return telaPorta(E.conta.msg);
   desenhar();
+  conferirPasta();
   // depois de desenhar, nunca antes: sem internet o app abre igual
   api('/api/ia').then((d) => { IA = d; desenhar(); }).catch(() => {});
   api('/api/atualizacao').then((a) => {

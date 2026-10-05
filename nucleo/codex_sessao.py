@@ -150,7 +150,7 @@ def _gravar_thread(cid, tid):
         pass
 
 
-def conversar(cid, pid, texto, ao_vivo, _tentou_de_novo=False):
+def conversar(cid, pid, texto, ao_vivo, _tentou_de_novo=False, controle=None):
     """Uma rodada. Devolve (resposta, passos, thread)."""
     from . import conversa
 
@@ -177,7 +177,10 @@ def conversar(cid, pid, texto, ao_vivo, _tentou_de_novo=False):
     # dito, mas o AMBIENTE muda entre mensagens — o Premiere abre, a sequência
     # troca, um programa é instalado. Por isso o estado atual vai em TODA
     # mensagem; só as regras (que não mudam) ficam na primeira.
+    conversa._etapa(ao_vivo, "conferindo o Adobe")
     contexto = conversa._contexto_ambiente(pid)
+    if controle:
+        controle.conferir()
     if thread:
         pergunta = ("[estado atual, atualizado agora]\n" + contexto
                     + "\n\n---\n\n" + texto)
@@ -193,9 +196,13 @@ def conversar(cid, pid, texto, ao_vivo, _tentou_de_novo=False):
         ao_vivo and ao_vivo(ev)
         return len(passos) - 1
 
+    conversa._etapa(ao_vivo, "abrindo o Codex")
     proc = so.popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                     stdin=subprocess.DEVNULL, text=True, bufsize=1, cwd=casa,
                     env=_ambiente())
+    if controle:
+        controle.vincular(proc)
+    conversa._etapa(ao_vivo, "esperando o ChatGPT responder")
 
     for linha in proc.stdout:
         linha = linha.strip()
@@ -249,6 +256,12 @@ def conversar(cid, pid, texto, ao_vivo, _tentou_de_novo=False):
             erro = ((ev.get("error") or {}).get("message")
                     or "O Codex encerrou a rodada com erro.")
 
+    if controle:
+        # antes de ler o stderr: um filho órfão do processo encerrado pode
+        # segurar o cano aberto, e a leitura até o fim nunca voltaria
+        if controle.pedido:
+            proc.wait()
+        controle.encerrou(proc)      # encerrado por Cancelar: não é erro
     saida_erro = (proc.stderr.read() or "") if proc.stderr else ""
     proc.wait()
 
@@ -268,7 +281,8 @@ def conversar(cid, pid, texto, ao_vivo, _tentou_de_novo=False):
         except OSError:
             pass
         ao_vivo and ao_vivo({"tipo": "aviso", "texto": "retomando em conversa nova…"})
-        return conversar(cid, pid, texto, ao_vivo, _tentou_de_novo=True)
+        return conversar(cid, pid, texto, ao_vivo, _tentou_de_novo=True,
+                         controle=controle)
 
     if erro:
         raise SemCodex(erro)

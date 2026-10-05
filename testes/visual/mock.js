@@ -47,13 +47,35 @@
     ] : [] },
     '/api/conversa': { conversa: null, mensagens: [] },
   };
+  // Conversa em andamento (0.21.2): ?vivo=etapa|ferramenta|parado
+  //   etapa      — o servidor só disse em que ponto está (abrindo o Claude)
+  //   ferramenta — já há uma ferramenta rodando
+  //   parado     — nada muda: depois de 10 s aparece a dica da permissão
+  const vivo = q.get('vivo');
+  const TAREFA = {
+    estado: 'rodando', erro: null, log: [], cancelavel: true,
+    etapa: vivo === 'parado' ? 'esperando o Claude responder' : 'abrindo o Claude Code',
+    passos: vivo === 'ferramenta' ? [
+      { tipo: 'ferramenta', nome: 'mcp__editor__adobe_estado', resumo: '', estado: 'ok', saida: 'Premiere aberto · AD07_Body.prproj · sequência AD07 — corte 1' },
+      { tipo: 'ferramenta', nome: 'mcp__editor__adobe_extendscript', resumo: 'ler marcadores da sequência ativa', estado: 'rodando' },
+    ] : [],
+  };
+  if (vivo) { DADOS['/api/tarefas/t1'] = TAREFA; }
+  // Pasta Documentos: ?pasta=lenta (o macOS perguntando) | negada
+  const pasta = q.get('pasta');
+  DADOS['/api/pasta'] = pasta === 'negada'
+    ? { ok: false, negado: true, pasta: '~/Documents/Editor Automático', erro: 'Operation not permitted' }
+    : { ok: true, pasta: '~/Documents/Editor Automático' };
+
   const real = window.fetch.bind(window);
   window.fetch = async (rota, op) => {
     const caminho = String(rota).split('?')[0];
     // arquivos estáticos do app (o guia) vêm de verdade, da pasta web/
     if (!caminho.startsWith('/api/')) return real('../../web/' + caminho.replace(/^\//, ''), op);
-    const d = DADOS[caminho] || { ok: true };
-    await new Promise((r) => setTimeout(r, 30));
+    const post = op && op.method === 'POST';
+    let d = DADOS[caminho] || { ok: true };
+    if (post && caminho === '/api/conversa') d = { tarefa: 't1' };
+    await new Promise((r) => setTimeout(r, caminho === '/api/pasta' && pasta === 'lenta' ? 60000 : 30));
     return { ok: true, status: 200, json: async () => JSON.parse(JSON.stringify(d)) };
   };
 })();

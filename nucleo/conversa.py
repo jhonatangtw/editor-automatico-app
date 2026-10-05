@@ -544,17 +544,32 @@ def _esquema_ruim(bruto):
     return "input_schema" in b or ("tools." in b and "schema" in b)
 
 
-def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False, _so_nossas=False):
+def _etapa(ao_vivo, texto):
+    """Diz à tela em que ponto a rodada está, ANTES de existir qualquer passo.
+
+    O trecho entre o Enter e o primeiro evento da IA (conferir o Adobe, abrir o
+    CLI, o modelo começar a responder) pode levar dezenas de segundos — e era
+    exatamente aí que a tela ficava muda e parecia travada."""
+    if ao_vivo:
+        ao_vivo({"tipo": "etapa", "texto": texto})
+
+
+def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False, _so_nossas=False,
+                   controle=None):
     """Uma mensagem para a sessão do Claude Code.
 
     Cada passo sai por `ao_vivo` NA HORA em que acontece — pensamento, chamada de
     ferramenta, resultado, texto. Antes eu juntava tudo e só entregava no fim: o
     usuário ficava olhando "pensando…" por minutos sem saber se travou."""
     sid, retomar = _sessao_id(cid)
+    _etapa(ao_vivo, "conferindo o Adobe")
+    contexto = _contexto_ambiente(pid)
+    if controle:
+        controle.conferir()
     cmd = ["claude", "-p", texto,
            "--output-format", "stream-json", "--verbose",
            "--mcp-config", _mcp_config(),
-           "--append-system-prompt", _contexto_ambiente(pid),
+           "--append-system-prompt", contexto,
            "--permission-mode", "bypassPermissions",
            "--add-dir", RAIZ_APP]
     if pid:
@@ -567,9 +582,13 @@ def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False, _so_nossas=F
         # que ninguém quer perder por precaução.
         cmd.append("--strict-mcp-config")
 
+    _etapa(ao_vivo, "abrindo o Claude Code")
     proc = so.popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             text=True, bufsize=1, cwd=_casa(cid),
                             env=conta_claude.ambiente_isolado())
+    if controle:
+        controle.vincular(proc)
+    _etapa(ao_vivo, "esperando o Claude responder")
 
     passos, erro = [], None
     pendentes = {}                       # tool_use_id -> índice do passo
@@ -588,6 +607,8 @@ def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False, _so_nossas=F
         except Exception:
             continue
         tipo = ev.get("type")
+        if tipo == "system" and ev.get("subtype") == "init":
+            _etapa(ao_vivo, "Claude conectado, pensando")
 
         if tipo == "assistant":
             for b in (ev.get("message") or {}).get("content") or []:
@@ -618,6 +639,8 @@ def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False, _so_nossas=F
             erro = str(ev.get("result") or "")
 
     proc.wait()
+    if controle:
+        controle.encerrou(proc)      # encerrado por Cancelar: não é erro
     bruto_erro = (erro or "") + " " + ((proc.stderr.read() if proc.stderr else "") or "")
 
     if "no conversation found" in bruto_erro.lower() and not _tentou_de_novo:
@@ -626,7 +649,8 @@ def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False, _so_nossas=F
         except Exception:
             pass
         ao_vivo and ao_vivo({"tipo": "aviso", "texto": "retomando em sessão nova…"})
-        return _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=True)
+        return _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=True,
+                              controle=controle)
 
     # ferramenta de terceiro com esquema inválido: refaz só com as nossas, em
     # vez de devolver um erro que o usuário não tem como consertar sozinho
@@ -635,7 +659,8 @@ def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False, _so_nossas=F
             "Um servidor MCP de fora mandou uma ferramenta com esquema que a API "
             "recusa. Seguindo só com as ferramentas do app."})
         return _sessao_claude(cid, pid, texto, ao_vivo,
-                              _tentou_de_novo=_tentou_de_novo, _so_nossas=True)
+                              _tentou_de_novo=_tentou_de_novo, _so_nossas=True,
+                              controle=controle)
 
     if erro:
         raise SemAcesso(conta_claude._humano(erro))
@@ -646,7 +671,8 @@ def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False, _so_nossas=F
     return fala, passos
 
 
-def falar(cid, texto, anexos=None, quem="usuário", ao_vivo=None, provedor=None):
+def falar(cid, texto, anexos=None, quem="usuário", ao_vivo=None, provedor=None,
+          controle=None):
     """Uma rodada de conversa, com a IA que o usuário escolheu.
 
     No Claude por 'sessao' isto é uma mensagem para a sessão do Claude Code —
@@ -657,8 +683,12 @@ def falar(cid, texto, anexos=None, quem="usuário", ao_vivo=None, provedor=None)
     Cada mensagem guarda com QUAL IA ela foi trocada. A tela mostra todas — o
     histórico não some ao trocar de provedor — mas cada uma só recebe de volta o
     que foi conversado com ela. Misturar faria uma responder sobre o que a outra
-    fez como se tivesse feito, e ferramenta executada não volta atrás."""
+    fez como se tivesse feito, e ferramenta executada não volta atrás.
+
+    `controle` (nucleo.cancelar) deixa a tela encerrar a rodada — só nos
+    caminhos que rodam um processo (sessão do Claude Code e do Codex)."""
     from . import ia
+    _etapa(ao_vivo, "preparando a conversa")
     provedor = provedor or ia.escolhido()
     if provedor not in ia.PROVEDORES:
         raise SemAcesso("IA desconhecida: " + str(provedor))
@@ -679,10 +709,11 @@ def falar(cid, texto, anexos=None, quem="usuário", ao_vivo=None, provedor=None)
         if ia.metodo_chatgpt() == "sessao":
             from . import codex_sessao
             resposta, passos, _thread = codex_sessao.conversar(
-                cid, pid, conteudo, ao_vivo)
+                cid, pid, conteudo, ao_vivo, controle=controle)
             modelo = "codex (assinatura)"
         else:
             from . import openai_chat
+            _etapa(ao_vivo, "esperando o ChatGPT responder")
             resposta, passos, pid, modelo = openai_chat.conversar(
                 cid, pid, msgs, quem, ao_vivo)
         msgs.append({"role": "assistant", "content": resposta or "(sem resposta)",
@@ -702,7 +733,8 @@ def falar(cid, texto, anexos=None, quem="usuário", ao_vivo=None, provedor=None)
         raise SemAcesso("Escolha como entrar no Claude, na aba Contas.")
 
     if metodo == "sessao":
-        resposta, passos = _sessao_claude(cid, pid, conteudo, ao_vivo)
+        resposta, passos = _sessao_claude(cid, pid, conteudo, ao_vivo,
+                                          controle=controle)
         msgs.append({"role": "assistant", "content": resposta or "(sem resposta)",
                      "passos": [p for p in passos if p["tipo"] != "texto"],
                      "provedor": "claude", "quando": time.time()})
@@ -716,6 +748,7 @@ def falar(cid, texto, anexos=None, quem="usuário", ao_vivo=None, provedor=None)
         return {"mensagens": msgs, "conversa": cid, "projeto": pid,
                 "provedor": "claude"}
 
+    _etapa(ao_vivo, "esperando o Claude responder")
     return _laco_api(cid, pid, msgs, quem, ao_vivo)
 
 

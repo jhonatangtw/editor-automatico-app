@@ -8,6 +8,8 @@ import importlib.util
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import unittest
 
@@ -81,6 +83,92 @@ class Guia(unittest.TestCase):
         with open(os.path.join(RAIZ, "web", "GUIA-DE-COMANDOS.md"), encoding="utf-8") as f:
             self.assertEqual(f.read(), m.markdown(guia()),
                              "rode: python3 gerar-guia.py")
+
+
+# ------------------------------------------------------------ busca do guia
+# A busca vive no app.js (é o navegador que filtra). O teste recorta o trecho
+# marcado e roda no node, contra o guia.json de verdade — testar uma cópia em
+# Python provaria a cópia, não o que o aluno usa.
+NODE = shutil.which("node")
+
+
+def _rodar_busca(consultas):
+    with open(os.path.join(RAIZ, "web", "app.js"), encoding="utf-8") as f:
+        js = f.read()
+    ini = js.index("// ---- busca do guia")
+    fim = js.index("// ---- fim da busca do guia")
+    programa = js[ini:fim] + """
+const g = JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8'));
+const consultas = JSON.parse(process.argv[2]);
+const idx = [];
+for (const gr of g.grupos) for (const c of gr.comandos) idx.push([c.titulo, indiceGuia(gr, c)]);
+const r = { norm: {}, achados: {} };
+for (const q of consultas) {
+  r.norm[q] = normalizarBusca(q);
+  r.achados[q] = idx.filter(([, i]) => casaBusca(i, q)).map(([t]) => t);
+}
+process.stdout.write(JSON.stringify(r));
+"""
+    out = subprocess.run([NODE, "-e", programa, os.path.join(RAIZ, "web", "guia.json"),
+                          json.dumps(consultas)], capture_output=True, text=True, timeout=30)
+    if out.returncode:
+        raise AssertionError(out.stderr)
+    return json.loads(out.stdout)
+
+
+@unittest.skipUnless(NODE, "node não está instalado nesta máquina")
+class BuscaDoGuia(unittest.TestCase):
+
+    def test_sem_acento_acha_o_que_tem_acento(self):
+        # o defeito da gravação: "silencio" não achava nada, só "silêncio"
+        r = _rodar_busca(["silencio", "silêncio", "SILÊNCIO", "Silencio"])
+        com = r["achados"]["silêncio"]
+        self.assertIn("Cortar o silêncio de uma aula (corte suave)", com)
+        for q in ("silencio", "SILÊNCIO", "Silencio"):
+            self.assertEqual(r["achados"][q], com, q)
+
+    def test_acento_na_busca_acha_texto_sem_acento(self):
+        # e o contrário: digitar com acento o que o guia escreve sem
+        r = _rodar_busca(["prómpt", "prompt"])
+        self.assertTrue(r["achados"]["prompt"])
+        self.assertEqual(r["achados"]["prómpt"], r["achados"]["prompt"])
+
+    def test_cedilha_e_til(self):
+        r = _rodar_busca(["organizacao de job", "webinario", "preco"])
+        self.assertTrue(r["achados"]["organizacao de job"])
+        self.assertIn("Slides de webinário pela fala", r["achados"]["webinario"])
+        self.assertIn("Trocar o preço numa VSL de upsell", r["achados"]["preco"])
+
+    def test_espaco_sobrando_nao_atrapalha(self):
+        r = _rodar_busca(["  corte   suave  ", "corte suave", "suave\tcorte"])
+        self.assertEqual(r["norm"]["  corte   suave  "], "corte suave")
+        self.assertTrue(r["achados"]["corte suave"])
+        self.assertEqual(r["achados"]["  corte   suave  "], r["achados"]["corte suave"])
+        # palavra fora de ordem continua achando
+        self.assertEqual(r["achados"]["suave\tcorte"], r["achados"]["corte suave"])
+
+    def test_procura_em_titulo_descricao_ferramenta_e_comando(self):
+        g = guia()
+        gr = g["grupos"][0]
+        c = gr["comandos"][0]
+        trecho_cmd = " ".join(c["comando"].split()[3:6])
+        consultas = [gr["descricao"].split(":")[0], c["faz"].split(".")[0][:30],
+                     c["usa"][0], trecho_cmd, c["precisa"][0][:20]]
+        r = _rodar_busca(consultas)
+        for q in consultas:
+            self.assertIn(c["titulo"], r["achados"][q], q)
+
+    def test_hifen_opcional(self):
+        r = _rodar_busca(["broll", "b-roll"])
+        self.assertTrue(r["achados"]["b-roll"])
+        self.assertEqual(set(r["achados"]["b-roll"]) - set(r["achados"]["broll"]), set())
+
+    def test_busca_vazia_mostra_tudo_e_lixo_nao_acha_nada(self):
+        total = sum(len(gr["comandos"]) for gr in guia()["grupos"])
+        r = _rodar_busca(["", "   ", "xyzzyqwv"])
+        self.assertEqual(len(r["achados"][""]), total)
+        self.assertEqual(len(r["achados"]["   "]), total)
+        self.assertEqual(r["achados"]["xyzzyqwv"], [])
 
 
 # o guia vai para todo aluno: nada de cliente, produto, pessoa, job ou máquina
