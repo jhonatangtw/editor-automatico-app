@@ -13,6 +13,7 @@
 - --ini/--fim fazem um trecho (teste rápido) sem tocar no corte inteiro.
 """
 import argparse
+import json
 import os
 import re
 import shutil
@@ -23,7 +24,17 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(AQUI))
 from comum import TEMPLATES, exigir, info_video, sair  # noqa: E402
 
-VERSAO_HF = os.environ.get("HYPERFRAMES_VERSAO", "0.8.116")
+VERSAO_HF = os.environ.get("HYPERFRAMES_VERSAO", "0.8.134")
+
+
+def comando_hf():
+    """O atalho do Editor Automático (versão fixa, Node certo) ou o npx."""
+    pasta = os.environ.get("EDITOR_HF_BIN") or os.path.join(os.path.expanduser("~"), ".editorblackbelt", "bin")
+    for n in ("hyperframes", "hyperframes.cmd"):
+        a = os.path.join(pasta, n)
+        if os.path.isfile(a):
+            return '"%s"' % a
+    return "npx --yes hyperframes@%s" % VERSAO_HF
 
 
 def run(cmd):
@@ -101,9 +112,10 @@ def main():
                                                          '  "paths": { "blocks": "compositions", "components": "compositions/components", "assets": "assets" },\n'
                                                          '  "media": { "autoProxy": true }\n}\n')
     open(os.path.join(P, "meta.json"), "w").write('{"id": "%s", "name": "%s"}\n' % (nome, os.path.basename(P)))
-    open(os.path.join(P, "package.json"), "w").write('{\n  "name": "%s",\n  "private": true,\n  "type": "module",\n  "scripts": {\n'
-                                                     '    "dev": "npx --yes hyperframes@%s preview",\n    "check": "npx --yes hyperframes@%s check",\n'
-                                                     '    "render": "npx --yes hyperframes@%s render"\n  }\n}\n' % (nome, VERSAO_HF, VERSAO_HF, VERSAO_HF))
+    hf = comando_hf()
+    pacote = {"name": nome, "private": True, "type": "module",
+              "scripts": {"dev": hf + " preview", "check": hf + " check", "render": hf + " render"}}
+    open(os.path.join(P, "package.json"), "w").write(json.dumps(pacote, ensure_ascii=False, indent=2) + "\n")
     if not os.path.exists(os.path.join(P, "roteiro.json")):
         shutil.copy2(os.path.join(TEMPLATES, "roteiro-exemplo.json"), os.path.join(P, "roteiro-exemplo.json"))
     print("ok -> %s\nPróximo: transcrever assets/audio/voz.wav, revisar a transcrição e escrever roteiro.json." % P)

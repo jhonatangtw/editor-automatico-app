@@ -9,14 +9,14 @@ SEM=""; RASCUNHO=""; NOME="$(basename "$P")"
 while [ $# -gt 0 ]; do case "$1" in
   --sem-musica) SEM="--sem-musica";; --rascunho) RASCUNHO=1;;
   --nome) NOME="$2"; shift;; *) echo "opção desconhecida: $1"; exit 2;; esac; shift; done
-for d in /opt/homebrew/opt/node@24/bin /usr/local/opt/node@24/bin; do [ -x "$d/node" ] && export PATH="$d:$PATH"; done
-HF="npx --yes hyperframes@${HYPERFRAMES_VERSAO:-0.8.116}"
+. "$AQUI/../hf.sh"     # Node 22+ e o atalho do Editor Automático (ou npx)
+[ -n "$NODE_OK" ] || [ "$HF_ORIGEM" != "npx" ] || { echo "x falta o Node 22 ou mais novo — $HF_FALTA_MSG" >&2; exit 1; }
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=8192}"
 
 python3 "$AQUI/construir.py" "$P"
 cd "$P"
 echo "— check"
-$HF check 2>&1 | tail -4
+"${HF[@]}" check 2>&1 | tail -4
 echo "— mixagem"
 python3 "$AQUI/mixar.py" "$P" $SEM
 MIX=renders/mix.wav; [ -n "$SEM" ] && MIX=renders/mix-sem-musica.wav
@@ -24,7 +24,7 @@ MIX=renders/mix.wav; [ -n "$SEM" ] && MIX=renders/mix-sem-musica.wav
 echo "— render (pode levar alguns minutos)"
 rm -f renders/_hf-video.mp4
 if [ -n "$RASCUNHO" ]; then Q=(--quality draft); else Q=(--video-bitrate 22M); fi
-$HF render --fps 30 "${Q[@]}" -o renders/_hf-video.mp4 > qc/render.log 2>&1 || { tail -20 qc/render.log; exit 1; }
+"${HF[@]}" render --fps 30 "${Q[@]}" -o renders/_hf-video.mp4 > qc/render.log 2>&1 || { tail -20 qc/render.log; exit 1; }
 tail -2 qc/render.log
 SUF=""; [ -n "$SEM" ] && SUF=" sem musica"
 OUT="renders/$NOME - premium$SUF.mp4"

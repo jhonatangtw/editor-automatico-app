@@ -14,9 +14,12 @@ e CTA é **o aluno** — você pergunta, mostra e executa.
 
 ## Antes de tudo
 
-1. `bash "$SK/scripts/requisitos.sh"` — Node 24, HyperFrames (`npx hyperframes`),
-   ffmpeg, Whisper e numpy. Se faltar algo, mande o aluno ao **Editor Automático ›
-   Ambiente** (é ele que instala). Não instale nada por conta própria.
+1. `bash "$SK/scripts/requisitos.sh"` — Node 22+, HyperFrames, ffmpeg, Whisper e
+   numpy. O HyperFrames usado é o atalho do Editor Automático
+   (`~/.editorblackbelt/bin/hyperframes`, versão fixa e testada); sem ele, cai no
+   `npx hyperframes@0.8.134`. Se faltar algo, mande o aluno ao **Editor Automático ›
+   Ambiente › Preparar este computador** (é ele que instala). Não instale nada por
+   conta própria.
 2. Pergunte (uma mensagem só, curta):
    - onde está o **bruto** e em que pasta trabalhar;
    - se tem **roteiro** (texto do que ele ia falar) — melhora muito a decupagem;

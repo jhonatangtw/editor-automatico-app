@@ -5,20 +5,23 @@
 ok=0
 linha(){ printf "  %-22s %s\n" "$1" "$2"; }
 
-# Node 24: no Mac com Homebrew ele pode estar "keg-only" fora do PATH
-for d in /opt/homebrew/opt/node@24/bin /usr/local/opt/node@24/bin; do
-  [ -x "$d/node" ] && case ":$PATH:" in *":$d:"*) ;; *) export PATH="$d:$PATH";; esac
-done
+# Node 22+ e HyperFrames: mesmo critério do Editor Automático (hf.sh)
+. "$(dirname "$0")/hf.sh"
 
 echo "Editor de Reels — requisitos"
-if command -v node >/dev/null; then
-  v=$(node -v); maj=${v#v}; maj=${maj%%.*}
-  if [ "$maj" -ge 22 ]; then linha "Node.js" "ok ($v)"; else linha "Node.js" "VERSÃO VELHA ($v) — precisa 24"; ok=1; fi
-else linha "Node.js" "FALTA (instale o Node 24)"; ok=1; fi
+if [ -n "$NODE_OK" ]; then linha "Node.js" "ok ($("$NODE_OK" -v))"
+else
+  v=$(command -v node >/dev/null && node -v)
+  linha "Node.js" "FALTA o 22 ou mais novo${v:+ (achei só $v)} — $HF_FALTA_MSG"; ok=1
+fi
 
-if command -v npx >/dev/null; then
-  hv=$(npx --yes hyperframes@${HYPERFRAMES_VERSAO:-0.8.116} --version 2>/dev/null | tail -1)
-  [ -n "$hv" ] && linha "HyperFrames (npx)" "ok ($hv)" || { linha "HyperFrames (npx)" "não respondeu (sem internet na 1ª vez?)"; ok=1; }
+if [ -n "$NODE_OK" ] || [ "$HF_ORIGEM" != "npx" ]; then
+  hv=$("${HF[@]}" --version 2>/dev/null | tail -1)
+  if [ -n "$hv" ]; then linha "HyperFrames" "ok ($hv, $HF_ORIGEM)"
+  elif [ "$HF_ORIGEM" = "npx" ]; then linha "HyperFrames" "não respondeu (sem internet na 1ª vez?) — $HF_FALTA_MSG"; ok=1
+  else linha "HyperFrames" "o atalho não respondeu — no Editor Automático: Ambiente › HyperFrames › Reparar"; ok=1; fi
+else
+  linha "HyperFrames" "precisa do Node 22+ — $HF_FALTA_MSG"; ok=1
 fi
 
 for b in ffmpeg ffprobe; do
