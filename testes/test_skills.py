@@ -163,6 +163,16 @@ PROIBIDO = {
 }
 
 
+# A MESMA exceção do limpar-skills.py: o primeiro nome do autor do curso é a
+# vitrine da skill do Reels — só a palavra exata, só dentro daquela pasta.
+PERMITIDO = {"editor-de-reels-do-jhon": {"casa ou cliente": r"Jhon"}}
+
+
+def permitido(rel, tipo, trecho):
+    pad = PERMITIDO.get(rel.split(os.sep)[0], {}).get(tipo)
+    return bool(pad and re.fullmatch(pad, trecho))
+
+
 class RetratoDoPacote(unittest.TestCase):
 
     def arquivos(self):
@@ -180,6 +190,8 @@ class RetratoDoPacote(unittest.TestCase):
                 continue
             for tipo, pad in PROIBIDO.items():
                 for m in re.finditer(pad, t):
+                    if permitido(os.path.relpath(p, RETRATO), tipo, m.group(0)):
+                        continue
                     achados.append("%s:%d [%s] %s" % (os.path.relpath(p, RETRATO),
                                    t.count("\n", 0, m.start()) + 1, tipo, m.group(0)[:50]))
         self.assertEqual(achados, [], "\n".join(achados))
@@ -209,6 +221,45 @@ class RetratoDoPacote(unittest.TestCase):
         self.assertEqual(sorted(fonte["skills"]), pastas)
         for n in pastas:
             self.assertEqual(fonte["skills"][n], skills.hash_pasta(os.path.join(RETRATO, n)), n)
+
+
+class AuditoriaDaSkillDoReels(unittest.TestCase):
+    """A exceção do nome é estreita: só "Jhon", só na pasta da skill do Reels."""
+
+    def setUp(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("limpar_skills", os.path.join(RAIZ, "limpar-skills.py"))
+        self.ls = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.ls)
+        self.tmp = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def escrever(self, rel, texto):
+        p = os.path.join(self.tmp, rel)
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(texto)
+
+    def test_nome_do_autor_passa_so_na_skill_do_reels(self):
+        self.escrever("editor-de-reels-do-jhon/SKILL.md", "---\nname: editor-de-reels-do-jhon\n---\nO Reels do Jhon.\n")
+        self.escrever("outra/SKILL.md", "Estilo do Jhon.\n")
+        achados = self.ls.auditar(self.tmp)
+        self.assertEqual([(a[0].split(os.sep)[0], a[3]) for a in achados], [("outra", "Jhon")])
+
+    def test_o_resto_continua_barrado_dentro_dela(self):
+        self.escrever("editor-de-reels-do-jhon/SKILL.md",
+                      "Jhonatan\n/Users/fulano/x\njhonatangtw\nLeafTide\n")
+        tipos = sorted(a[2] for a in self.ls.auditar(self.tmp))
+        self.assertEqual(tipos, ["caminho pessoal", "casa ou cliente", "casa ou cliente", "casa ou cliente"])
+
+    def test_sincronizar_so_leva_skill_marcada_como_pronta(self):
+        with open(os.path.join(RAIZ, "sincronizar-skills.sh"), encoding="utf-8") as f:
+            sh = f.read()
+        self.assertIn("editor-de-reels-do-jhon", sh)
+        self.assertIn('"$ALUNOS/$s/.pronta"', sh)
+        self.assertIn("--exclude '.pronta'", sh)
 
 
 if __name__ == "__main__":

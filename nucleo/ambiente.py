@@ -14,7 +14,7 @@ import os
 import shutil
 import subprocess
 
-from . import so
+from . import hyperframes, so
 
 MAC, WIN = so.MAC, so.WIN
 
@@ -78,6 +78,25 @@ def _toolspro():
         return "instalado"
 
 
+def _hyperframes():
+    """Vídeo em código (Reels premium). Opcional: só quem faz Reels precisa.
+    `tem` só vira verdade depois de um render de teste que funcionou — ver
+    nucleo/hyperframes.py."""
+    try:
+        e = hyperframes.estado()
+    except Exception as ex:
+        e = {"tem": False, "rotulo": str(ex)[:40], "instalavel": False}
+    item = {"id": "hyperframes", "nome": "HyperFrames (vídeo em código)", "tem": e["tem"],
+            "para": "Reels premium: legenda animada, cartões e cenas montados em código "
+                    "e renderizados aqui mesmo",
+            "essencial": False, "instalavel": e["instalavel"],
+            "versao": e.get("rotulo") or ""}
+    if e.get("versao"):
+        # instalado: dá para testar o render de novo e reparar sem desinstalar
+        item["acoes"] = ["testar", "reparar"]
+    return item
+
+
 def conferir(reler_path=True):
     """O diagnóstico que a tela mostra. Cada item diz para que serve — sem isso
     o aluno vê uma lista de nomes técnicos e não sabe o que é opcional.
@@ -131,6 +150,7 @@ def conferir(reler_path=True):
          "essencial": False, "instalavel": brew and not WIN,
          "manual": ("No Windows, use a chave de API na tela de Contas."
                     if WIN else None)},
+        _hyperframes(),
         {"id": "regra", "nome": "Regra de edição", "tem": _regra()["ok"],
          "para": "onde entra o punch, a cadência e o marcador — vem dentro do app",
          "essencial": True, "instalavel": False,
@@ -275,6 +295,13 @@ def _instalar_heygen(ao_vivo=None):
 def instalar(qual, ao_vivo=None):
     if qual == "heygen":
         return _instalar_heygen(ao_vivo)
+    if qual == "hyperframes":
+        return hyperframes.instalar(ao_vivo)
+    if qual == "hyperframes-teste":
+        r = hyperframes.testar(ao_vivo)
+        if not r.get("ok"):
+            raise RuntimeError(r.get("msg") or "o render de teste falhou")
+        return dict(r, qual=qual)
     receita = RECEITAS.get(qual)
     if not receita:
         raise RuntimeError("Não sei instalar “%s” automaticamente." % qual)

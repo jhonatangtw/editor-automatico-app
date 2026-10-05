@@ -906,6 +906,14 @@ async function telaGuia() {
   if (!GUIA) {
     try { GUIA = await (await fetch('guia.json', { cache: 'no-store' })).json(); }
     catch (e) { moldura(cabecalho('guia') + `<div class="aviso ruim">Não consegui abrir o guia: ${esc(e.message)}</div>`); return; }
+    // grupo que depende de uma skill só aparece quando ela vem no app (o
+    // gerar-guia.py faz o mesmo filtro no .md) — pedido que cita skill que não
+    // existe é pedido que não funciona
+    if (GUIA.grupos.some((gr) => gr.requer_skill)) {
+      let nomes = [];
+      try { nomes = ((await api('/api/skills')).skills || []).map((x) => x.nome); } catch (_) { /* sem lista: esconde */ }
+      GUIA.grupos = GUIA.grupos.filter((gr) => !gr.requer_skill || nomes.includes(gr.requer_skill));
+    }
   }
   const g = GUIA;
   const total = g.grupos.reduce((n, gr) => n + gr.comandos.length, 0);
@@ -2752,7 +2760,9 @@ async function telaAmbiente() {
             ${!i.tem && i.manual ? `<div class="dep-para" style="color:var(--ouro)">${esc(i.manual)}</div>` : ''}
           </div>
           <div class="dep-versao">${esc(i.versao || '')}</div>
-          ${!i.tem && i.instalavel ? `<button class="bt" data-inst="${i.id}">Instalar</button>` : ''}
+          ${(i.acoes || []).includes('testar') ? `<button class="bt" data-inst="${i.id}-teste" title="Renderiza 1 segundo de vídeo para provar que funciona">Testar</button>` : ''}
+          ${(i.acoes || []).includes('reparar') ? `<button class="bt" data-inst="${i.id}">Reparar</button>`
+            : !i.tem && i.instalavel ? `<button class="bt" data-inst="${i.id}">Instalar</button>` : ''}
         </div>`).join('')}
     </div>`);
 
@@ -2760,8 +2770,11 @@ async function telaAmbiente() {
   // "pronto" da tarefa. `forcar` porque o instalador pode ter posto o binário
   // numa pasta que ainda não estava no PATH deste processo.
   const rodar = (qual) => {
-    const nome = qual ? (d.itens.find((i) => i.id === qual) || {}).nome || qual : null;
-    const v = modal(`<h2>Instalando${nome ? ' — ' + esc(nome) : ''}</h2>
+    // "x-teste" é o teste de um item instalado (hoje só o HyperFrames)
+    const teste = !!qual && qual.endsWith('-teste');
+    const base = teste ? qual.slice(0, -6) : qual;
+    const nome = qual ? (d.itens.find((i) => i.id === base) || {}).nome || base : null;
+    const v = modal(`<h2>${teste ? 'Testando' : 'Instalando'}${nome ? ' — ' + esc(nome) : ''}</h2>
       <div class="portao" id="log" style="max-height:280px">preparando…</div>`);
     post('/api/ambiente/instalar', qual ? { qual } : {}).then((r) => {
       const t = setInterval(async () => {
@@ -2772,10 +2785,11 @@ async function telaAmbiente() {
         if (s.estado === 'pronto') {
           clearInterval(t); v.remove();
           await revalidar('ambiente', { forcar: true, silencioso: true });
-          conferirInstalacao(qual, nome, s.resultado);
+          if (teste) toast('Render de teste ok — o ' + nome + ' está funcionando.');
+          else conferirInstalacao(qual, nome, s.resultado);
         } else if (s.estado === 'erro') {
           clearInterval(t); v.remove();
-          toast('A instalação falhou: ' + s.erro, true);
+          toast((teste ? 'O teste falhou: ' : 'A instalação falhou: ') + s.erro, true);
           revalidar('ambiente', { forcar: true });
         }
       }, 1200);

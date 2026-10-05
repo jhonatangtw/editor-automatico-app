@@ -98,7 +98,10 @@ def ambiente_isolado():
     env.pop("ANTHROPIC_API_KEY", None)
     env.pop("ANTHROPIC_AUTH_TOKEN", None)
     env.pop("ANTHROPIC_PROFILE", None)
-    return env
+    # `npx hyperframes` precisa de Node 22+; se o padrão do aluno é velho, o
+    # Node compatível que o app achou vai na frente (o padrão dele não muda)
+    from . import hyperframes
+    return hyperframes.no_path(env)
 
 
 def sessao_cli():

@@ -574,6 +574,66 @@
       ]
     },
     {
+      "id": "reels-premium",
+      "titulo": "Reels premium (talking head)",
+      "descricao": "Talking head 9:16 com legenda animada, cartões e cenas montados em código pelo HyperFrames e renderizados no seu computador — sem abrir o After.",
+      "requer_skill": "editor-de-reels-do-jhon",
+      "comandos": [
+        {
+          "titulo": "Reels premium a partir do talking head",
+          "nivel": "completo",
+          "comando": "Use a skill editor-de-reels-do-jhon para montar um Reels 9:16 premium a partir do take [VÍDEO DO TAKE] e da copy [COPY].\nFaça nesta ordem:\n1. Transcreva a fala com tempo por palavra e revise contra a copy.\n2. Me mostre o plano de cenas (legenda, cartões, letterings, CTA) com os tempos ANTES de construir.\n3. Monte o projeto HyperFrames numa pasta nova dentro de [PASTA DO JOB].\n4. Rode `hyperframes check` e corrija tudo o que ele apontar.\n5. Renderize uma prévia com `--quality draft` e me passe o caminho do arquivo.\nAtenção: o Whisper troca palavras parecidas — a legenda sai da copy, não da transcrição crua. Texto sempre dentro da área segura do 9:16. O áudio é o do take, sem reprocessar a voz.\nNo fim confira: ffprobe da prévia (1080×1920, mesma duração do take, com áudio) e a legenda palavra por palavra contra a copy.",
+          "faz": "Do take bruto à prévia do Reels com legenda animada e cenas em código.",
+          "quando": "Reels de talking head que pede motion premium, sem montar no After.",
+          "precisa": [
+            "HyperFrames com ✓ na aba Ambiente (o teste de render passou)",
+            "Skill editor-de-reels-do-jhon instalada (Ambiente › Skills da IA)",
+            "Whisper instalado"
+          ],
+          "ia": "Claude e ChatGPT",
+          "usa": [
+            "editor-de-reels-do-jhon",
+            "HyperFrames",
+            "Whisper",
+            "FFmpeg"
+          ]
+        },
+        {
+          "titulo": "Legenda animada palavra por palavra no talking head",
+          "nivel": "rápido",
+          "comando": "Com o HyperFrames e o estilo da skill editor-de-reels-do-jhon, coloque uma legenda animada palavra por palavra sobre o take [VÍDEO DO TAKE] (9:16).\nTranscreva com tempo por palavra, revise contra a copy [COPY] e destaque UMA palavra por frase na cor [COR].\nMonte numa pasta nova dentro de [PASTA DO JOB], rode `hyperframes check` e renderize a prévia com `--quality draft`.\nAtenção: cada palavra entra no tempo da fala — o começo da primeira frase costuma vir grudado no zero.\nNo fim confira: tire um quadro do render no começo, no meio e no fim e veja se a palavra na tela é a que está sendo falada.",
+          "faz": "Só a legenda animada sobre o take, no tempo da fala.",
+          "quando": "Quando o Reels já está cortado e falta a legenda premium.",
+          "precisa": [
+            "HyperFrames com ✓ na aba Ambiente (o teste de render passou)",
+            "Skill editor-de-reels-do-jhon instalada (Ambiente › Skills da IA)",
+            "Whisper instalado"
+          ],
+          "ia": "Claude e ChatGPT",
+          "usa": [
+            "editor-de-reels-do-jhon",
+            "HyperFrames",
+            "Whisper"
+          ]
+        },
+        {
+          "titulo": "Render final do Reels depois da prévia aprovada",
+          "nivel": "rápido",
+          "comando": "A prévia do Reels em [PASTA DO PROJETO HYPERFRAMES] está aprovada. Renderize a versão final sem mudar nada na composição:\n1. Rode `hyperframes check` de novo — se ele apontar algo, pare e me mostre.\n2. Rode `hyperframes render --quality delivery --output [ARQUIVO FINAL .mp4]`.\n3. Confira com ffprobe: 1080×1920, mesmo fps e mesma duração da prévia, com áudio.\nNo fim me diga o caminho e o tamanho do arquivo.",
+          "faz": "Renderiza a versão de entrega e prova que ela bate com a prévia.",
+          "quando": "Depois que a prévia foi aprovada.",
+          "precisa": [
+            "HyperFrames com ✓ na aba Ambiente (o teste de render passou)"
+          ],
+          "ia": "Claude e ChatGPT",
+          "usa": [
+            "HyperFrames",
+            "FFmpeg"
+          ]
+        }
+      ]
+    },
+    {
       "id": "prompts",
       "titulo": "Prompts de imagem e vídeo",
       "descricao": "Quando a tarefa é só o prompt — para colar no Higgsfield, Flow, Kling ou Seedance.",

@@ -26,7 +26,7 @@ from . import ambiente, caminho, plugin, ponte, skills, so
 # Ordem de DEPENDÊNCIA, não a ordem da tela. Node antes de tudo que é npm;
 # ffmpeg antes do whisper só porque é mais rápido de falhar (sem Homebrew).
 ESSENCIAIS = ["node", "ffmpeg", "whisper", "claude", "higgsfield"]
-OPCIONAIS = ["codex", "mmx", "ant", "heygen"]
+OPCIONAIS = ["codex", "mmx", "ant", "heygen", "hyperframes"]
 
 # Quanto tempo esperar por um Terminal de fora antes de desistir do passo.
 ESPERA_GERENCIADOR = 15 * 60     # o Homebrew baixa o Xcode CLT — demora mesmo
@@ -166,8 +166,8 @@ def rodar(com_opcionais=True, com_plugin=True, ao_vivo=None):
             resumo["pulados"].append(atual["nome"])
             continue
         if not atual.get("instalavel"):
-            falta = ("Homebrew" if qual in ("ffmpeg", "node", "ant") and so.MAC
-                     else "winget" if qual in ("ffmpeg", "node") else "Node.js")
+            falta = ("Homebrew" if qual in ("ffmpeg", "node", "ant", "hyperframes") and so.MAC
+                     else "winget" if qual in ("ffmpeg", "node", "hyperframes") else "Node.js")
             lista.poe(i, "pulado", "precisa do %s primeiro" % falta)
             resumo["pulados"].append(atual["nome"])
             continue

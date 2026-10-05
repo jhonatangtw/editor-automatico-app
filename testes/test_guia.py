@@ -29,7 +29,7 @@ TOOLSPRO = {
     "ae_legendas_info", "ae_legendas_importar", "ae_legendas_limpar", "ae_titulos_info", "ae_titulos_inserir",
     "pr_extendscript", "ae_extendscript",
 }
-LOCAIS = {"FFmpeg", "Whisper", "etapas do app", "pastas do computador"}
+LOCAIS = {"FFmpeg", "Whisper", "HyperFrames", "etapas do app", "pastas do computador"}
 # as contas que o PRÓPRIO aluno conecta na aba Contas
 CONTAS = {"Higgsfield", "ElevenLabs", "HeyGen", "MiniMax"}
 REGISTRO = os.path.expanduser("~/Documents/03_Apps/Editor Black Belt/src-toolspro/js/mcp/registry.js")
@@ -54,8 +54,34 @@ class Guia(unittest.TestCase):
         skills = {n for n in os.listdir(os.path.join(RAIZ, "skills"))
                   if os.path.isdir(os.path.join(RAIZ, "skills", n))}
         conhecido = TOOLSPRO | app | skills | LOCAIS | CONTAS
-        faltam = ["%s → %s" % (c["titulo"], u) for _, c in comandos() for u in c["usa"] if u not in conhecido]
+        # um grupo com `requer_skill` pode citar a skill antes de ela entrar no
+        # pacote — ele fica ESCONDIDO até lá (ver test_grupo_que_requer_skill...)
+        faltam = ["%s → %s" % (c["titulo"], u) for gr, c in comandos() for u in c["usa"]
+                  if u not in conhecido and u != gr.get("requer_skill")]
         self.assertEqual(faltam, [])
+
+    def test_grupo_que_requer_skill_some_sem_ela(self):
+        spec = importlib.util.spec_from_file_location("gerar_guia", os.path.join(RAIZ, "gerar-guia.py"))
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        g = guia()
+        com = [gr for gr in g["grupos"] if gr.get("requer_skill")]
+        self.assertTrue(com, "o grupo do Reels premium sumiu do guia")
+        for gr in com:
+            self.assertNotIn(gr, m.visiveis(g, set()))
+            self.assertIn(gr, m.visiveis(g, {gr["requer_skill"]}))
+            # e a tela filtra igual
+            with open(os.path.join(RAIZ, "web", "app.js"), encoding="utf-8") as f:
+                self.assertIn("nomes.includes(gr.requer_skill)", f.read())
+
+    def test_reels_premium_usa_hyperframes_de_verdade(self):
+        gr = [x for x in guia()["grupos"] if x["id"] == "reels-premium"][0]
+        self.assertTrue(2 <= len(gr["comandos"]) <= 3)
+        for c in gr["comandos"]:
+            self.assertIn("HyperFrames", c["usa"])
+            # só subcomandos que existem no CLI fixado no app
+            for sub in re.findall(r"`hyperframes (\w+)", c["comando"]):
+                self.assertIn(sub, {"check", "render", "lint", "preview", "snapshot"}, c["titulo"])
 
     @unittest.skipUnless(os.path.isfile(REGISTRO), "código do Tools PRO não está nesta máquina")
     def test_lista_do_tools_pro_bate_com_o_registro(self):

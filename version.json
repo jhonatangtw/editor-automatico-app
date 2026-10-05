@@ -1,6 +1,6 @@
 {
- "version": "0.21.2",
- "notes": "A busca do Guia de comandos agora ignora acento e maiúscula (\"silencio\" acha \"silêncio\"), e a Conversa mostra \"Pensando…\" com o tempo, a etapa e um botão Cancelar — com aviso quando o macOS pede acesso a uma pasta.",
+ "version": "0.21.3",
+ "notes": "A aba Ambiente agora instala o HyperFrames (vídeo em código, para os Reels premium) com o Node certo, sem mexer no seu, e só dá ✓ depois de renderizar um vídeo de teste.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",

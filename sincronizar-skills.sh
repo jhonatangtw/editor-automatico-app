@@ -34,6 +34,17 @@ SKILLS="
   pixar3d storyboard-viral-3d omni-flash-reverse video-to-flow
 "
 
+# Segunda origem: skills escritas DIRETO para os alunos (não moram no
+# ~/.claude/skills do autor). Só entram quando a pasta tem SKILL.md E o
+# arquivo `.pronta` — skill pela metade não viaja por acidente num sync feito
+# por outro motivo. Quando a do Reels estiver pronta:
+#   touch "$HOME/Documents/03_Apps/Editor Black Belt/skills-alunos/editor-de-reels-do-jhon/.pronta"
+#   ./sincronizar-skills.sh && python3 gerar-guia.py && .venv/bin/python -m unittest discover -s testes
+ALUNOS="${SKILLS_ALUNOS:-$HOME/Documents/03_Apps/Editor Black Belt/skills-alunos}"
+SKILLS_ALUNOS_LISTA="
+  editor-de-reels-do-jhon
+"
+
 [ -d "$ORIGEM" ] || { echo "x nao achei $ORIGEM" >&2; exit 1; }
 rm -rf skills; mkdir -p skills
 
@@ -50,6 +61,20 @@ for s in $SKILLS; do
         --exclude 'runs' --exclude 'assets/produto_*.png' \
         "$ORIGEM/$s" skills/
   printf "  %-30s %s\n" "$s" "$(du -sh skills/$s | cut -f1)"
+done
+
+for s in $SKILLS_ALUNOS_LISTA; do
+  if [ ! -f "$ALUNOS/$s/SKILL.md" ]; then
+    printf "  %-30s %s\n" "$s" "- ainda nao existe em skills-alunos (pulei)"; continue
+  fi
+  if [ ! -f "$ALUNOS/$s/.pronta" ]; then
+    printf "  %-30s %s\n" "$s" "- sem o arquivo .pronta (pulei)"; continue
+  fi
+  rsync -a --exclude '__pycache__' --exclude '.DS_Store' --exclude '*.pyc' \
+        --exclude '.venv' --exclude '.git' --exclude 'node_modules' \
+        --exclude 'runs' --exclude '.pronta' --exclude 'renders' \
+        "$ALUNOS/$s" skills/
+  printf "  %-30s %s\n" "$s" "$(du -sh skills/$s | cut -f1)  (skills-alunos)"
 done
 
 echo "  --- limpando e auditando"

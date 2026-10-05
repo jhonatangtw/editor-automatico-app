@@ -121,6 +121,21 @@ PADROES = {
 }
 PULAR = {".venv", "node_modules", ".git", "runs", "__pycache__"}
 
+# O que é PÚBLICO numa skill específica e por isso não é achado. A do Reels
+# leva o nome do autor do curso no título e no estilo ("o Reels do Jhon") —
+# é a vitrine, não dado pessoal. Só a palavra exata, só naquela pasta: o resto
+# (sobrenome, e-mail, caminho da máquina, cliente) continua barrado lá dentro.
+# O teste testes/test_skills.py tem a MESMA lista.
+PERMITIDO = {
+    "editor-de-reels-do-jhon": {"casa ou cliente": re.compile(r"Jhon")},
+}
+
+
+def _permitido(rel, tipo, trecho):
+    skill = rel.split(os.sep)[0]
+    pad = PERMITIDO.get(skill, {}).get(tipo)
+    return bool(pad and pad.fullmatch(trecho))
+
 
 def auditar(raiz):
     achados = []
@@ -135,6 +150,8 @@ def auditar(raiz):
                 continue
             for tipo, pad in PADROES.items():
                 for m in pad.finditer(t):
+                    if _permitido(os.path.relpath(p, raiz), tipo, m.group(0)):
+                        continue
                     linha = t.count("\n", 0, m.start()) + 1
                     achados.append((os.path.relpath(p, raiz), linha, tipo, m.group(0)[:60]))
     return achados

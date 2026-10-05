@@ -60,7 +60,8 @@ def _ambiente():
     enxergar `higgsfield`, `heygen` e `ffmpeg`, que moram em pastas que um app
     aberto pelo Finder não herda. Sem isso o ChatGPT diz que as ferramentas não
     estão instaladas, numa máquina onde elas estão."""
-    return dict(os.environ)
+    from . import hyperframes
+    return hyperframes.no_path(dict(os.environ))
 
 
 class SemCodex(RuntimeError):
