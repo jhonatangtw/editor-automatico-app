@@ -292,7 +292,7 @@
         {
           "titulo": "Criativo UGC 9:16 completo (b-roll + punch-in + legenda)",
           "nivel": "completo",
-          "comando": "Edite este criativo UGC 9:16 a partir do bruto do avatar: [PASTA COM BODY, COPY E FOTO DO AVATAR].\nFaça nesta ordem, me pedindo aprovação antes de cada etapa que gasta crédito:\n1. Confira a fala contra a copy (palavra por palavra).\n2. Marque os pontos de b-roll ancorados na fala: vermelho = b-roll, azul = lettering, roxo = decisão minha.\n3. Gere o b-roll da MESMA pessoa em roupas e cenários diferentes, casando com o que ela diz (ex.: aparece de roupa nova no segundo em que diz \"troquei o guarda-roupa\").\n4. Anime os b-rolls no Kling 3.0 Turbo, 9:16.\n5. Punch-in variando entre 110% e 116% de clipe para clipe, foco no rosto.\n6. Legenda sincronizada e revisada contra a copy.\n7. Monte no Premiere e salve.\nRegras aprovadas: corte seco, sem transição nem efeito (em UGC transição denuncia produção). A alavanca é o b-roll, não o corte. Eu coloco música e transição depois, se quiser.\nNo fim confira: legenda contra a copy palavra a palavra, nenhum b-roll repetido e áudio só do body.",
+          "comando": "Edite este criativo UGC 9:16 a partir do bruto do avatar: [PASTA COM BODY, COPY E FOTO DO AVATAR].\nFaça nesta ordem, me pedindo aprovação antes de cada etapa que gasta crédito:\n1. Confira a fala contra a copy (palavra por palavra).\n2. Marque os pontos de b-roll ancorados na fala: vermelho = b-roll, azul = lettering, roxo = decisão minha.\n3. Gere o b-roll da MESMA pessoa em roupas e cenários diferentes, casando com o que ela diz (ex.: aparece de roupa nova no segundo em que diz \"troquei o guarda-roupa\").\n4. Anime os b-rolls no Kling 3.0 Turbo, 9:16.\n5. Punch-in variando entre 110% e 116% de clipe para clipe, foco no rosto.\n6. Legenda sincronizada e revisada contra a copy, entrando no Premiere como faixa de legenda criada direto do .srt (nada de arrastar à mão).\n7. Monte no Premiere e salve.\nRegras aprovadas: corte seco, sem transição nem efeito (em UGC transição denuncia produção). A alavanca é o b-roll, não o corte. Eu coloco música e transição depois, se quiser.\nNo fim confira: legenda contra a copy palavra a palavra, nenhum b-roll repetido e áudio só do body.",
           "faz": "As 12 etapas do app num pedido só, com as regras validadas em criativo que foi ao ar.",
           "quando": "Body de avatar falante em plano fixo, 9:16.",
           "precisa": [
@@ -392,6 +392,24 @@
             "Higgsfield",
             "ElevenLabs",
             "FFmpeg"
+          ]
+        },
+        {
+          "titulo": "Legenda no Premiere a partir de um .srt",
+          "nivel": "rápido",
+          "comando": "Coloque a legenda [ARQUIVO .srt] na sequência [NOME DA SEQUÊNCIA] do Premiere.\nNativa (editável no painel Texto): crie a faixa de legenda direto do .srt — nada de arrastar à mão.\nAnimada: me mostre os estilos das Legendas MOGRT e use [ESTILO] numa trilha nova, simulando antes. Se faltar o After Effects, me avise antes de aplicar.\nNo fim, me diga quantos blocos entraram e em qual trilha.",
+          "faz": "Legenda do .srt na timeline sem arrastar nada: faixa de legenda nativa ou um clipe animado por bloco.",
+          "quando": "Depois de revisar o .srt contra a copy.",
+          "precisa": [
+            "Premiere aberto com o projeto salvo",
+            "Tools PRO 1.8.1 ou mais novo",
+            "After Effects 2026 só para a legenda animada"
+          ],
+          "ia": "Claude",
+          "usa": [
+            "pr_legenda_nativa_criar",
+            "pr_legendas_mogrt_info",
+            "pr_legendas_mogrt_aplicar"
           ]
         },
         {

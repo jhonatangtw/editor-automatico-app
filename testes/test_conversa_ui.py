@@ -6,6 +6,9 @@ Roda os testes JS da Conversa (testes/js/) pelo node, dentro da suíte Python
   fila, painel de tarefas, /custo e conversas antigas abrindo na tela nova.
 - conversa-ui-dom.test.js: o mesmo componente no DOM (jsdom da banca do Tools
   PRO, se existir na máquina): teclado do menu, fila visível, Esc, ↑.
+- conversa-ui-midia-dom.test.js (0.22.1): prévia de imagem/vídeo/áudio,
+  lightbox, "Colocar na timeline" só com clique, entrega remota baixando para
+  o projeto, barra do topo com Histórico/+ Nova/renomear/apagar.
 """
 
 import os
@@ -31,10 +34,17 @@ class ConversaUI(unittest.TestCase):
         return saida
 
     def test_pecas_puras(self):
-        self.assertIn("# pass 21", self.rodar("conversa-ui.test.js"))
+        self.assertIn("# pass 24", self.rodar("conversa-ui.test.js"))
 
     def test_no_dom(self):
         self.rodar("conversa-ui-dom.test.js")
+
+    def test_midia_e_historico_no_dom(self):
+        # prévia das entregas, lightbox, "Colocar na timeline", barra do topo
+        # e histórico (0.22.1). Sem jsdom na máquina, o node marca "skipped".
+        saida = self.rodar("conversa-ui-midia-dom.test.js")
+        if "# skipped 0" in saida:
+            self.assertIn("# pass 9", saida)
 
 
 if __name__ == "__main__":

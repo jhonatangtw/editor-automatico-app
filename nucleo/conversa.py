@@ -402,6 +402,29 @@ def mcp_vivo(forcar=False):
     return r
 
 
+# Regra do Jhon (0.22.1). Mídia fora da pasta do projeto vira mídia OFFLINE no
+# Premiere quando o projeto muda de lugar ou a pasta temporária é limpa — e a
+# IA, sem ninguém dizer, salva no scratchpad ou em Downloads. Vai no contexto
+# de TODA conversa, nos dois provedores (o Codex e o ChatGPT leem este mesmo
+# `_contexto_ambiente`).
+REGRA_PASTA = ("Todo arquivo baixado ou gerado (Higgsfield, HeyGen, ElevenLabs, renders, "
+               "downloads) é salvo na pasta do projeto ativo, organizado por tipo. Nunca em "
+               "pasta temporária, Downloads ou fora do projeto. Antes de importar no "
+               "Premiere, confira se o arquivo está dentro da pasta do projeto.")
+
+# Legenda no Premiere (0.22.1). A Conversa já tentou insertClip com um .srt,
+# disse que "captionTracks não existe na API" e mandou o usuário arrastar à
+# mão. O que não existe é LER a legenda nativa; CRIAR existe e o Tools PRO
+# 1.8.1 tem ferramenta pronta para isso.
+REGRA_LEGENDA = ("Legenda no Premiere: para faixa de legenda nativa a partir de .srt, use "
+                 "`pr_legenda_nativa_criar` (Tools PRO ≥ 1.8.1); para legenda estilizada/animada, "
+                 "`pr_legendas_mogrt_aplicar`. Se essas ferramentas não existirem, use "
+                 "`pr_extendscript` (Modo avançado) com `importFiles` + `seq.createCaptionTrack(item,0)` "
+                 "(tente também `(item,0,3)` e `(item)`), SRT com quebra de linha LF salvo na pasta "
+                 "do projeto. Nunca diga que não existe API para criar legenda; o que não existe é "
+                 "LER legenda nativa. Nunca use insertClip com .srt.")
+
+
 def _contexto_ambiente(pid):
     """O que o Claude recebe de graça a cada mensagem. Sem isto ele começaria
     cego e gastaria turno perguntando o que já dá para saber."""
@@ -419,6 +442,10 @@ def _contexto_ambiente(pid):
               "- Antes de mexer no Adobe, confira `adobe_estado` e mostre ao usuário.",
               "- Se faltar informação, pergunte aqui na conversa.",
               "- Nunca peça chave de API nem senha — isso se resolve na aba Contas.",
+              "- " + REGRA_PASTA,
+              "- " + REGRA_LEGENDA,
+              "- Quando entregar mídia, escreva o CAMINHO COMPLETO de cada arquivo na "
+              "resposta: a conversa mostra a prévia (imagem, vídeo, áudio) a partir dele.",
               ""]
 
     # ⚠️ Dizer QUE os programas existem, e ONDE. Sem isto o modelo responde que
@@ -481,6 +508,8 @@ def _contexto_ambiente(pid):
                        "PROJETO DE TRABALHO: %s (id `%s`)" % (p["plano"].get("job"), pid),
                        "- Body: %s" % p["plano"]["fonte"]["body"],
                        "- Pasta: %s" % projetos.dir_projeto(pid),
+                       "- Mídia nova deste projeto vai em %s (imagens/, videos/, audio/)"
+                       % os.path.join(projetos.dir_projeto(pid), "media"),
                        "- Pipeline: %d de %d etapas concluídas; agora em `%s`"
                        % (pnl["concluidas"], pnl["total"], pnl["atual"])]
             travadas = [e for e in pnl["etapas"] if not e["pode"] and e["bloqueio"]]
@@ -496,7 +525,9 @@ def _contexto_ambiente(pid):
             pass
     else:
         linhas += ["", "Ainda não há projeto de trabalho. Se o usuário quiser editar "
-                       "um criativo, pergunte o caminho do vídeo e use `projeto_criar`."]
+                       "um criativo, pergunte o caminho do vídeo e use `projeto_criar`.",
+                   "Sem projeto, NÃO salve mídia em pasta temporária nem em Downloads: "
+                   "pergunte antes em qual pasta de projeto salvar."]
     return "\n".join(linhas)
 
 
@@ -598,7 +629,8 @@ def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False, _so_nossas=F
         controle.vincular(proc)
     _etapa(ao_vivo, "esperando o Claude responder")
 
-    leitor = LeitorClaude(ao_vivo)
+    from . import midia as _midia
+    leitor = LeitorClaude(ao_vivo, midias=_midia.detectar_permitidas)
     for linha in proc.stdout:
         if leitor.linha(linha) == "init":
             _etapa(ao_vivo, "Claude conectado, pensando")

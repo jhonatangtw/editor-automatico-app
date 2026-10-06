@@ -121,8 +121,7 @@ def conferir(reler_path=True):
         {"id": "whisper", "nome": "Whisper", "tem": _tem("whisper"),
          "para": "transcrever a fala palavra por palavra, sem subir nada",
          "essencial": True,
-         "instalavel": _tem("py") or _tem("python") if WIN
-                       else (_tem("pip3") or _tem("python3"))},
+         "instalavel": True},   # o uv traz o próprio Python
         {"id": "node", "nome": "Node.js", "tem": _tem("npm"),
          "para": "é por ele que Claude, Higgsfield e MiniMax se instalam",
          "essencial": True, "instalavel": brew,
@@ -196,9 +195,7 @@ RECEITAS_MAC = {
     "claude":     [["npm", "install", "-g", "@anthropic-ai/claude-code"]],
     "ffmpeg":     [["brew", "install", "ffmpeg"]],
     "ffprobe":    [["brew", "install", "ffmpeg"]],   # vem no mesmo pacote
-    # faster-whisper em vez do whisper oficial: mesma qualidade sem arrastar o
-    # torch inteiro (~2GB), que é o que fazia a instalação desistir no meio.
-    "whisper":    [["pip3", "install", "--user", "--upgrade", "openai-whisper"]],
+    # whisper: ver _instalar_whisper (uv, Python próprio) — pip3 --user quebrava
     "higgsfield": [["npm", "install", "-g", "@higgsfield/cli"]],
     "mmx":        [["npm", "install", "-g", "mmx-cli"]],
     "ant":        [["brew", "tap", "anthropics/tap"],
@@ -213,7 +210,6 @@ RECEITAS_WIN = {
     "claude":     [["npm", "install", "-g", "@anthropic-ai/claude-code"]],
     "ffmpeg":     [_WINGET + ["Gyan.FFmpeg"]],
     "ffprobe":    [_WINGET + ["Gyan.FFmpeg"]],
-    "whisper":    [["python", "-m", "pip", "install", "--upgrade", "openai-whisper"]],
     "higgsfield": [["npm", "install", "-g", "@higgsfield/cli"]],
     "mmx":        [["npm", "install", "-g", "mmx-cli"]],
 }
@@ -292,9 +288,78 @@ def _instalar_heygen(ao_vivo=None):
     return {"ok": _tem("heygen"), "qual": "heygen", "versao": rel.get("tag_name")}
 
 
+def _rodar(cmd, ao_vivo=None, env=None, shell=False):
+    ao_vivo and ao_vivo("$ " + (cmd if shell else " ".join(cmd)))
+    proc = so.popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, bufsize=1, env=env, shell=shell)
+    saida = []
+    for linha in proc.stdout:
+        saida.append(linha.rstrip())
+        ao_vivo and ao_vivo(linha.rstrip()[:160])
+    proc.wait()
+    return proc.returncode, "\n".join(saida[-12:])
+
+
+def _achar_uv():
+    for c in (shutil.which("uv"), os.path.join(BIN, "uv.exe" if WIN else "uv"),
+              os.path.expanduser("~/.local/bin/uv"), os.path.expanduser("~/.cargo/bin/uv")):
+        if c and os.path.isfile(c):
+            return c
+    return None
+
+
+def _instalar_whisper(ao_vivo=None):
+    """Whisper num ambiente PRÓPRIO, com Python 3.12 baixado pelo uv.
+
+    ⚠️ A receita antiga era `pip3 install --user openai-whisper` e quebrava no
+    Mac do aluno: o pip3 do sistema é o Python 3.9 da Apple (pip 21, sem roda
+    para as dependências novas) ou o Python do Homebrew, que RECUSA instalar
+    fora de venv (PEP 668, "externally-managed-environment"). E mesmo quando
+    instalava, o binário caía em ~/Library/Python/3.x/bin, fora do PATH.
+    O uv resolve as três coisas: baixa o Python certo sozinho, isola o Whisper
+    num ambiente dele e põe o comando em ~/.editorblackbelt/bin, que o app já
+    enxerga. Não depende do Python que a máquina tem (ou não tem)."""
+    diz = ao_vivo or (lambda _: None)
+    os.makedirs(BIN, exist_ok=True)
+    uv = _achar_uv()
+    if not uv:
+        diz("instalando o uv (gerenciador de Python, uma vez só)…")
+        env = dict(os.environ, UV_INSTALL_DIR=BIN, UV_NO_MODIFY_PATH="1",
+                   INSTALLER_NO_MODIFY_PATH="1")
+        if WIN:
+            cod, fim = _rodar(["powershell", "-ExecutionPolicy", "ByPass", "-NoProfile", "-Command",
+                               "irm https://astral.sh/uv/install.ps1 | iex"], diz, env=env)
+        elif _tem(GERENCIADOR):
+            cod, fim = _rodar(["brew", "install", "uv"], diz)
+        else:
+            cod, fim = _rodar("curl -LsSf https://astral.sh/uv/install.sh | sh", diz,
+                              env=env, shell=True)
+        uv = _achar_uv()
+        if cod != 0 or not uv:
+            raise RuntimeError("Não consegui instalar o uv, que instala o Whisper. "
+                               "Confira a internet e tente de novo.\n" + fim)
+    diz("instalando o Whisper com Python 3.12 próprio (baixa uns 300 MB na 1ª vez)…")
+    env = dict(os.environ, UV_TOOL_BIN_DIR=BIN)
+    cod, fim = _rodar([uv, "tool", "install", "--force", "--python", "3.12",
+                       "openai-whisper"], diz, env=env)
+    if cod != 0:
+        raise RuntimeError("A instalação do Whisper falhou. Tente de novo; se repetir, "
+                           "mande este final para o suporte:\n" + fim)
+    from . import caminho
+    caminho.recarregar(com_shell=False)
+    exe = shutil.which("whisper") or os.path.join(BIN, "whisper.exe" if WIN else "whisper")
+    cod, fim = _rodar([exe, "--help"], None)
+    if cod != 0:
+        raise RuntimeError("O Whisper instalou mas não abriu:\n" + fim)
+    diz("Whisper pronto.")
+    return {"ok": True, "qual": "whisper"}
+
+
 def instalar(qual, ao_vivo=None):
     if qual == "heygen":
         return _instalar_heygen(ao_vivo)
+    if qual == "whisper":
+        return _instalar_whisper(ao_vivo)
     if qual == "hyperframes":
         return hyperframes.instalar(ao_vivo)
     if qual == "hyperframes-teste":

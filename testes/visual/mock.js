@@ -42,8 +42,10 @@
       verificado: { ponte: cheio, leu_timeline: cheio, resumo: cheio ? { clipes: 42, marcadores: 18 } : null }, mcp: { ok: cheio, ferramentas: 64 }, utilizavel: cheio },
     '/api/atualizacao': cheio ? { versao: '0.21.0', tem_nova: false } : { versao: '0.21.0', tem_nova: true, ultima: '0.21.1', notas: 'Correções na tela de Contas.', modo: 'codigo' },
     '/api/conversas': { conversas: cheio ? [
-      { id: 'a', titulo: 'AD07 — b-roll do body', quando: Date.now() / 1000 - 3600, mensagens: 24, passos: 9, projeto: true },
+      { id: 'a', titulo: 'AD07 — b-roll do body', quando: Date.now() / 1000 - 3600, mensagens: 24, passos: 9, projeto: 'ad07', projeto_nome: 'AD07 — Body Produto X' },
       { id: 'b', titulo: 'Cortar silêncio da aula 3', quando: Date.now() / 1000 - 90000, mensagens: 8, passos: 3 },
+      { id: 'c', titulo: 'Legenda karaokê do hook 2', quando: Date.now() / 1000 - 3 * 86400, mensagens: 12, passos: 5, projeto: 'ad08', projeto_nome: 'AD08 — VSL 3D' },
+      { id: 'd', titulo: 'Clone de AD validado — persona nova', quando: Date.now() / 1000 - 12 * 86400, mensagens: 31, passos: 22, projeto: 'ad05', projeto_nome: 'AD05 — Clone' },
     ] : [] },
     '/api/conversa': { conversa: null, mensagens: [] },
   };
@@ -115,6 +117,52 @@
       { tipo: 'parcial', texto: 'O motor mais barato que mantém a **consistência do personagem** é o `nano_banana_pro`, a 2 cr por imagem. Com 9 inserts' },
     ];
   }
+  // Entregas de mídia (0.22.1): ?midias=1 — grade de 9 imagens + folha de
+  // contato, faixa de 3 vídeos (9:16, 16:9, 1:1), locução com a onda e uma
+  // entrega remota do Higgsfield ainda baixando. Mídia SINTÉTICA de
+  // testes/visual/amostras (rode gerar-amostras.sh antes). ?midias=destino —
+  // conversa sem projeto: o cartão pergunta em qual projeto salvar.
+  const PASTA = '/Users/marina/Documents/Editor Automático/Projetos/ad07-body-produto-x/media';
+  const img = (n) => `${PASTA}/imagens/${n}`;
+  const MSGS_MIDIA = [
+    { role: 'user', content: 'Gere as 9 imagens de b-roll aprovadas, anime 3 delas e faça a locução do hook', provedor: 'claude' },
+    { role: 'assistant', provedor: 'claude', content: '…', passos: [
+      { tipo: 'texto', texto: 'Gerando as 9 imagens aprovadas no `nano_banana_pro` (18 cr, autorizados por você).' },
+      { tipo: 'ferramenta', nome: 'Bash', entrada: { command: 'higgsfield generate create nano_banana_pro --json …', description: 'Gera as 9 imagens de b-roll' }, estado: 'ok', dur: 48.2,
+        resultado: '9 imagens salvas em ' + PASTA + '/imagens',
+        midias: [1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => ({ tipo: 'imagem', caminho: img(`broll-0${i}.png`), nome: `broll-0${i}.png` })) },
+      { tipo: 'ferramenta', nome: 'Bash', entrada: { command: 'ffmpeg -i … tile=6x1 qc-folha-de-contato.jpg', description: 'Monta a folha de contato do QC' }, estado: 'ok', dur: 1.1,
+        resultado: '', midias: [{ tipo: 'imagem', caminho: img('qc-folha-de-contato.jpg'), nome: 'qc-folha-de-contato.jpg' }] },
+      { tipo: 'ferramenta', nome: 'Bash', entrada: { command: 'higgsfield generate create kling3_0_turbo --json …', description: 'Anima 3 b-rolls no Kling' }, estado: 'ok', dur: 96.4,
+        resultado: '{"result_url":"https://cdn.exemplo.invalid/entrega/hf_kling_4.mp4","min_result_url":"https://cdn.exemplo.invalid/entrega/hf_kling_4_min.webp"}',
+        midias: [{ tipo: 'video', caminho: `${PASTA}/videos/avatar-hook-9x16.mp4` }, { tipo: 'video', caminho: `${PASTA}/videos/broll-produto-16x9.mp4` },
+          { tipo: 'video', caminho: `${PASTA}/videos/broll-detalhe-1x1.mp4` }, { tipo: 'video', url: 'https://cdn.exemplo.invalid/entrega/hf_kling_4.mp4' }] },
+      { tipo: 'ferramenta', nome: 'Bash', entrada: { command: 'python3 tts.py --voz …', description: 'Gera a locução no ElevenLabs' }, estado: 'ok', dur: 6.3,
+        resultado: 'ok', midias: [{ tipo: 'audio', caminho: `${PASTA}/audio/locucao-hook-01.mp3` }] },
+      { tipo: 'texto', texto: 'Pronto: **9 imagens**, **3 vídeos** (o 4º ainda está descendo do Higgsfield) e a **locução do hook** (12 s), tudo em `media/` do projeto. Confira e me diga o que vai para a timeline.' },
+    ], uso: { duracao_ms: 158000, tokens_entrada: 92000, tokens_saida: 1800, custo_usd: 0.61, turnos: 6 } },
+  ];
+  const midias = q.get('midias');
+  if (midias) {
+    const meta = midias === 'destino'
+      ? { id: 'a', titulo: 'Entregas', projeto: null, destino: null }
+      : { id: 'a', titulo: 'AD07 — entregas', projeto: 'ad07', projeto_nome: 'AD07 — Body Produto X',
+          destino: { pasta: PASTA.replace(/\/media$/, ''), projeto: 'ad07', nome: 'AD07 — Body Produto X' } };
+    const msgs = midias === 'destino'
+      ? [MSGS_MIDIA[0], { role: 'assistant', provedor: 'claude', content: '…', passos: [
+          { tipo: 'ferramenta', nome: 'Bash', entrada: { command: 'heygen video get …', description: 'Busca o vídeo do avatar na HeyGen' }, estado: 'ok', dur: 2.2,
+            resultado: '{"data":{"video_url":"https://files.exemplo.invalid/avatar.mp4"}}', midias: [{ tipo: 'video', url: 'https://files.exemplo.invalid/avatar.mp4' }] },
+          { tipo: 'texto', texto: 'O vídeo do avatar ficou pronto.' }] }]
+      : MSGS_MIDIA;
+    DADOS['/api/conversa'] = { conversa: 'a', mensagens: msgs };
+    DADOS['/api/conversas/a'] = { conversa: 'a', mensagens: msgs, meta };
+  }
+  let AMOSTRAS = null;
+  async function amostra(p) {
+    if (!AMOSTRAS) AMOSTRAS = await (await real('amostras/dados.json')).json().catch(() => ({}));
+    return AMOSTRAS[String(p || '').split('/').pop()] || null;
+  }
+
   // Pasta Documentos: ?pasta=lenta (o macOS perguntando) | negada
   const pasta = q.get('pasta');
   DADOS['/api/pasta'] = pasta === 'negada'
@@ -128,6 +176,21 @@
     if (!caminho.startsWith('/api/')) return real('../../web/' + caminho.replace(/^\//, ''), op);
     const post = op && op.method === 'POST';
     let d = DADOS[caminho] || { ok: true };
+    if (caminho === '/api/midia/info' || caminho === '/api/midia/picos') {
+      const u = new URL(String(rota), location.href);
+      const a = await amostra(u.searchParams.get('p'));
+      d = !a ? { erro: 'sem amostra' } : caminho === '/api/midia/info' ? a
+        : { picos: u.searchParams.get('n') === '64' ? a.picos64 : a.picos110, duracao: a.duracao };
+    }
+    if (post && caminho === '/api/midia/baixar') {
+      const corpo = JSON.parse(op.body || '{}');
+      if (midias === 'destino') {
+        return { ok: false, status: 409, json: async () => ({ erro: 'Em qual projeto salvar?', precisa_destino: true,
+          projetos: [{ id: 'ad07', nome: 'AD07 — Body Produto X' }, { id: 'ad08', nome: 'AD08 — VSL 3D' }] }) };
+      }
+      await new Promise(() => {});           // o 4º vídeo segue "baixando…" na foto
+      d = { caminho: corpo.url };
+    }
     if (caminho === '/api/conversas/nova') d = { conversa: 'a' };
     if (post && caminho === '/api/conversa') d = { tarefa: 't1' };
     await new Promise((r) => setTimeout(r, caminho === '/api/pasta' && pasta === 'lenta' ? 60000 : 30));

@@ -128,7 +128,8 @@ test('rodapé mostra IA, projeto; nada de undefined/NaN no texto', { skip: !JSDO
   const { w, el } = montar({ mensagens: [{ role: 'assistant', content: 'ok', passos: [{ tipo: 'ferramenta', nome: 'Skill', entrada: { skill: 'cortar-aula' }, estado: 'ok' }] }] });
   await espera(80);
   const rod = el.querySelector('.cv-rodape').textContent;
-  assert.match(rod, /Claude/); assert.match(rod, /ChatGPT/); assert.match(rod, /AD07/); assert.match(rod, /cortar-aula/);
+  assert.match(rod, /Claude/); assert.match(rod, /ChatGPT/); assert.match(rod, /AD07/); assert.match(rod, /Cortar aula/);
+  assert.equal(el.querySelector('.cv-rod-skill').title, 'Skill em uso: cortar-aula');
   const ruins = [];
   const tw = w.document.createTreeWalker(el, 4);
   for (let n = tw.nextNode(); n; n = tw.nextNode()) if (/\b(undefined|NaN|Infinity)\b/.test(n.nodeValue)) ruins.push(n.nodeValue);

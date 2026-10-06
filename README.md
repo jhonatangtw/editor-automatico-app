@@ -80,6 +80,27 @@ aprovado nunca é.
 | 11 | **Montagem no Premiere** | |
 | 12 | **Controle de qualidade** (portão) | |
 
+## Prévia das entregas na Conversa
+
+O que a IA entrega aparece dentro da própria conversa: imagens em grade (clique
+abre grande, com setas, Esc e contador "3 de 9"), vídeos com player na proporção
+certa e áudios com a forma da onda. Cada mídia tem **Mostrar no Finder**
+(no Windows, *Mostrar na pasta*), **Colocar na timeline** — que só escreve o
+pedido no campo; quem envia é você — e **Copiar caminho**.
+
+Link de entrega (Higgsfield, HeyGen) expira: o app **baixa para a pasta do
+projeto** (`media/imagens`, `media/videos`, `media/audio`) antes de mostrar, uma
+vez só, e do Higgsfield usa o `result_url`, nunca a miniatura. Conversa sem
+projeto pergunta onde salvar — nunca em pasta temporária, Downloads ou na pasta
+da conversa. Nada é gerado nem refeito sozinho.
+
+O app só serve arquivo de dentro das pastas do app, da pasta do job ligada a um
+projeto e da pasta de projeto escolhida (caminho resolvido antes de comparar;
+`..` e atalho para fora são recusados), sempre com o token da sessão.
+
+A barra do topo da Conversa (no app e no painel do Premiere) tem o título
+editável, **+ Nova** e **Histórico**, com busca pelo título ou pelo conteúdo.
+
 ## Qual IA conduz a conversa
 
 O seletor fica embaixo do campo de mensagem, colado no compositor. Cada mensagem

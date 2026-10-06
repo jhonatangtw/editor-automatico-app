@@ -79,7 +79,7 @@ test('rótulos amigáveis em português', () => {
   assert.equal(r('mcp__toolspro-pr__pr_timeline_colocar', { clipes: new Array(12).fill({}) }), 'Colocou 12 clipes na timeline (Tools PRO)');
   assert.equal(r('mcp__editor__adobe_estado', {}), 'Conferiu o Adobe');
   assert.equal(r('mcp__editor__etapa_rodar', { etapa: 'imagens' }), 'Rodou a etapa imagens');
-  assert.equal(r('Skill', { skill: 'cortar-aula' }), 'Usou a skill cortar-aula');
+  assert.equal(r('Skill', { skill: 'cortar-aula' }), 'Usou a skill Cortar aula');
   assert.equal(r('TodoWrite', { todos: [] }), 'Atualizou as tarefas');
   assert.equal(r('WebFetch', { url: 'https://docs.exemplo.com/a' }), 'Abriu docs.exemplo.com');
   // Codex: o servidor vem separado do nome
@@ -267,4 +267,62 @@ test('muitas ações seguidas ficam recolhidas', () => {
   const h = I.htmlMensagem({ role: 'assistant', content: 'fim', passos }, 0, UI(), API);
   assert.ok(h.includes('mais 37 ações'));
   assert.equal((h.match(/class="cv-acao /g) || []).length, 3);
+});
+
+// ------------------------------------------------------------------ 0.22.1
+test('nome da skill: nunca JSON cru, amigável na tela e técnico no tooltip', () => {
+  const t = (p) => I.tecnicoDaSkill(Object.assign({ tipo: 'ferramenta', nome: 'Skill' }, p));
+  assert.equal(t({ entrada: { skill: 'editor-automatico-de-broll' } }), 'editor-automatico-de-broll');
+  assert.equal(t({ entrada: '{"skill": "editor-automatico-de-broll", "args": "x"}' }), 'editor-automatico-de-broll');
+  assert.equal(t({ entrada: {}, resumo: '{"skill": "editor-autom…' }), 'editor-autom');
+  assert.equal(t({ entrada: { skill: '{"skill": "pixar3d"' } }), 'pixar3d');
+  assert.equal(t({ entrada: { command: '/cortar-aula' } }), 'cortar-aula');
+  assert.equal(t({ entrada: {}, resumo: '' }), null);
+  assert.equal(I.nomeSkill('editor-automatico-de-broll'), 'Editor automático de b-roll');
+  assert.equal(I.nomeSkill('editor-autom'), 'Editor automático de b-roll');          // cortado no meio
+  assert.equal(I.nomeSkill('editor-broll:marcar-vsl'), 'Marcar VSL');
+  assert.equal(I.nomeSkill('analise-de-video-ugc'), 'Análise de vídeo UGC');
+  const msgs = [{ role: 'assistant', passos: [{ tipo: 'ferramenta', nome: 'Skill', entrada: {}, resumo: '{"skill": "editor-automatico-de-broll", "a…' }] }];
+  assert.equal(I.skillEmUso(msgs, null), 'editor-automatico-de-broll');
+  assert.equal(I.rotuloAcao(msgs[0].passos[0]).texto, 'Usou a skill Editor automático de b-roll');
+});
+
+test('data relativa do histórico', () => {
+  const agora = new Date(2026, 9, 6, 18, 0).getTime();
+  const s = (d) => d.getTime() / 1000;
+  assert.equal(I.quandoRelativo(s(new Date(2026, 9, 6, 17, 40)), agora), 'hoje 17:40');
+  assert.equal(I.quandoRelativo(s(new Date(2026, 9, 5, 9, 5)), agora), 'ontem 09:05');
+  assert.equal(I.quandoRelativo(s(new Date(2026, 9, 2, 10, 0)), agora), 'sex 10:00');
+  assert.equal(I.quandoRelativo(s(new Date(2026, 8, 12, 10, 0)), agora), '12/09');
+  assert.equal(I.quandoRelativo(s(new Date(2025, 8, 12, 10, 0)), agora), '12/09/25');
+  assert.equal(I.quandoRelativo(0, agora), '');
+});
+
+const API_FALSA = { raiz: '', arquivoUrl: (c) => '/api/arquivo?p=' + encodeURIComponent(c), quadroUrl: (c, w) => '/api/midia/quadro?p=' + encodeURIComponent(c) + '&w=' + w };
+
+test('mídias: grade, vídeo, áudio, remota, limite e sem repetir', () => {
+  const ui = I.uiMidia({ api: API_FALSA });
+  const imgs = Array.from({ length: 15 }, (_, i) => ({ tipo: 'imagem', caminho: `/p/media/imagens/i${i}.png` }));
+  const h = I.htmlMidias(imgs.concat([{ tipo: 'video', caminho: '/p/v.mp4' }]), 'm1:2:m', ui);
+  assert.equal((h.match(/class="cv-mid-img"/g) || []).length, 12);           // limite por mensagem
+  assert.match(h, /ver todas \(16\)/);
+  assert.equal(ui.lb.get('m1:2:m').length, 15);                              // o lightbox navega TODAS
+  assert.deepEqual(lixoNoTexto(h), []);
+  ui.midiasTodas.add('m1:2:m');
+  const todas = I.htmlMidias(imgs.concat([{ tipo: 'video', caminho: '/p/v.mp4' }]), 'm1:2:m', ui);
+  assert.equal((todas.match(/class="cv-mid-img"/g) || []).length, 15);
+  assert.match(todas, /<video controls preload="metadata" playsinline poster="\/api\/midia\/quadro[^"]*" data-src="\/api\/arquivo/);
+  assert.ok(!/<video[^>]* src=/.test(todas), 'vídeo não pode carregar antes de aparecer');
+  const a = I.htmlMidias([{ tipo: 'audio', caminho: '/p/voz.mp3' }], 'k', ui);
+  assert.match(a, /data-audio-play/); assert.match(a, /<canvas/); assert.match(a, /<audio preload="none" data-src=/);
+  const r = I.htmlMidias([{ tipo: 'video', url: 'https://cdn.exemplo.invalid/x.mp4' }], 'r', ui);
+  assert.match(r, /baixando…/); assert.match(r, /data-mid-url="https:\/\/cdn\.exemplo\.invalid\/x\.mp4"/);
+  // a entrega que já desceu vira arquivo local, e não repete se aparecer de novo
+  ui.baixas.set('https://cdn.exemplo.invalid/x.mp4', { estado: 'ok', caminho: '/p/media/videos/x.mp4', tipo: 'video' });
+  const seq = I.dedupeMidias([{ tipo: 'ferramenta', midias: [{ tipo: 'video', url: 'https://cdn.exemplo.invalid/x.mp4' }] },
+    { tipo: 'texto', texto: 'x', midias: [{ tipo: 'video', caminho: '/p/media/videos/x.mp4' }, { tipo: 'imagem', caminho: '/p/a.png' }] }], ui);
+  assert.equal(seq[0].midias.length, 1);
+  assert.deepEqual(seq[1].midias.map((m) => m.caminho), ['/p/a.png']);
+  assert.equal(I.proporcao(1080, 1920), '9:16'); assert.equal(I.proporcao(1920, 1080), '16:9'); assert.equal(I.proporcao(1080, 1080), '1:1');
+  assert.match(I.mensagemTimeline('/p/a b.mp4'), /"\/p\/a b\.mp4"/);
 });

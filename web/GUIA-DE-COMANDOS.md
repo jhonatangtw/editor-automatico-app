@@ -342,7 +342,7 @@ Faça nesta ordem, me pedindo aprovação antes de cada etapa que gasta crédito
 3. Gere o b-roll da MESMA pessoa em roupas e cenários diferentes, casando com o que ela diz (ex.: aparece de roupa nova no segundo em que diz "troquei o guarda-roupa").
 4. Anime os b-rolls no Kling 3.0 Turbo, 9:16.
 5. Punch-in variando entre 110% e 116% de clipe para clipe, foco no rosto.
-6. Legenda sincronizada e revisada contra a copy.
+6. Legenda sincronizada e revisada contra a copy, entrando no Premiere como faixa de legenda criada direto do .srt (nada de arrastar à mão).
 7. Monte no Premiere e salve.
 Regras aprovadas: corte seco, sem transição nem efeito (em UGC transição denuncia produção). A alavanca é o b-roll, não o corte. Eu coloco música e transição depois, se quiser.
 No fim confira: legenda contra a copy palavra a palavra, nenhum b-roll repetido e áudio só do body.
@@ -454,6 +454,23 @@ No fim confira: grade com o quadro do silêncio (boca fechada) e 3 quadros de pi
 - **Precisa:** Higgsfield conectado (créditos); Áudios de voz prontos (ElevenLabs); Python com OpenCV para a recolagem (pip install opencv-python)
 - **Funciona com:** Claude e ChatGPT
 - **Por baixo:** `Higgsfield`, `ElevenLabs`, `FFmpeg`
+
+### Legenda no Premiere a partir de um .srt
+
+*Nível: rápido*
+
+```text
+Coloque a legenda [ARQUIVO .srt] na sequência [NOME DA SEQUÊNCIA] do Premiere.
+Nativa (editável no painel Texto): crie a faixa de legenda direto do .srt — nada de arrastar à mão.
+Animada: me mostre os estilos das Legendas MOGRT e use [ESTILO] numa trilha nova, simulando antes. Se faltar o After Effects, me avise antes de aplicar.
+No fim, me diga quantos blocos entraram e em qual trilha.
+```
+
+- **O que faz:** Legenda do .srt na timeline sem arrastar nada: faixa de legenda nativa ou um clipe animado por bloco.
+- **Quando usar:** Depois de revisar o .srt contra a copy.
+- **Precisa:** Premiere aberto com o projeto salvo; Tools PRO 1.8.1 ou mais novo; After Effects 2026 só para a legenda animada
+- **Funciona com:** Claude
+- **Por baixo:** `pr_legenda_nativa_criar`, `pr_legendas_mogrt_info`, `pr_legendas_mogrt_aplicar`
 
 ### Conferir a legenda queimada contra a copy
 

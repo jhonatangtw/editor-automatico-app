@@ -16,7 +16,7 @@ import unittest
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RAIZ)
 
-# as 44 ferramentas do registro do Tools PRO (js/mcp/registry.js, plugin 1.9.x)
+# as 47 ferramentas do registro do Tools PRO (js/mcp/registry.js; as 3 de legenda desde o plugin 1.8.1)
 TOOLSPRO = {
     "pr_zoom_info", "pr_zoom_aplicar", "pr_zoom_limpar", "pr_organizar_info", "pr_organizar_analisar",
     "pr_organizar_aplicar", "pr_organizar_desfazer", "pr_autoclip_info", "pr_autoclip", "pr_marcadores_info",
@@ -28,6 +28,7 @@ TOOLSPRO = {
     "pr_smoothify_info", "pr_smoothify", "pr_smoothify_resetar", "pr_anypaste_info", "pr_anypaste",
     "ae_legendas_info", "ae_legendas_importar", "ae_legendas_limpar", "ae_titulos_info", "ae_titulos_inserir",
     "pr_extendscript", "ae_extendscript",
+    "pr_legenda_nativa_criar", "pr_legendas_mogrt_info", "pr_legendas_mogrt_aplicar",
 }
 LOCAIS = {"FFmpeg", "Whisper", "HyperFrames", "etapas do app", "pastas do computador"}
 # as contas que o PRÓPRIO aluno conecta na aba Contas

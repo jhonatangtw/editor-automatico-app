@@ -15,6 +15,10 @@
     const cv = montarConversa(document.getElementById('c'), { api: '', token: 'tk', compacto: true });
     const campo = () => document.querySelector('.cv-entrada');
     if (q.get('enviar')) setTimeout(() => { campo().value = q.get('enviar'); document.querySelector('.cv-enviar').click(); }, 500);
+    // entregas de mídia: ?abrirlb=N abre a N-ésima imagem no lightbox; ?rolarmidia=1 desce até as prévias
+    if (q.get('abrirlb')) setTimeout(() => { const b = document.querySelectorAll('[data-lb]')[(+q.get('abrirlb') || 1) - 1]; b && b.click(); }, 1500);
+    if (q.get('rolarmidia')) setTimeout(() => { const m = document.querySelector(q.get('rolarmidia') === '1' ? '.cv-midias' : q.get('rolarmidia')); m && m.scrollIntoView({ block: 'start' }); }, 1300);
+    if (q.get('hist')) setTimeout(() => { const b = document.querySelector('[data-historico]'); b && b.click(); }, 1200);
     if (q.get('digitar')) setTimeout(() => { const e = campo(); e.focus(); e.value = q.get('digitar'); e.setSelectionRange(e.value.length, e.value.length); e.dispatchEvent(new Event('input', { bubbles: true })); }, 900);
   </script>
 </body>

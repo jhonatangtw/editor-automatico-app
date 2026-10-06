@@ -147,8 +147,62 @@ def listar():
     return saida
 
 
+def _sem_acento(t):
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFD", str(t or ""))
+                   if unicodedata.category(c) != "Mn").lower()
+
+
+def _texto_da(m):
+    partes = [str(m.get("content") or "")]
+    for p in m.get("passos") or []:
+        if isinstance(p, dict) and p.get("tipo") == "texto":
+            partes.append(str(p.get("texto") or ""))
+    return "\n".join(partes)
+
+
+def buscar(q):
+    """O Histórico da Conversa procura pelo TÍTULO ou pelo CONTEÚDO, sem
+    ligar para acento nem maiúscula ("legenda karaoke" acha "Legenda
+    karaokê"). Cada achado diz onde casou e traz um trecho."""
+    alvo = _sem_acento(q).strip()
+    lista = listar()
+    if not alvo:
+        return lista
+    saida = []
+    for c in lista:
+        if alvo in _sem_acento(c["titulo"]):
+            saida.append(dict(c, casou="titulo"))
+            continue
+        for m in mensagens(c["id"]):
+            if m.get("role") not in ("user", "assistant"):
+                continue
+            t = _texto_da(m)
+            k = _sem_acento(t).find(alvo)
+            if k >= 0:
+                ini = max(0, k - 40)
+                trecho = " ".join(t[ini:k + len(alvo) + 60].split())
+                saida.append(dict(c, casou="conteudo",
+                                  trecho=("…" if ini else "") + trecho + "…"))
+                break
+    return saida
+
+
+def renomear(cid, titulo):
+    titulo = " ".join(str(titulo or "").split())[:120]
+    if not titulo:
+        raise ValueError("O título não pode ficar vazio.")
+    if not os.path.isfile(caminho(cid, "meta.json")):
+        raise ValueError("Conversa não encontrada.")
+    return gravar_meta(cid, titulo=titulo, titulo_manual=True)
+
+
 def apagar(cid):
     import shutil
+    # o id vem da tela (agora também do painel do Premiere): nada de "..",
+    # barra ou vazio — senão "apagar conversa" viraria apagar qualquer pasta
+    if not cid or not isinstance(cid, str) or any(x in cid for x in ("/", "\\", "..")) or cid.startswith("."):
+        raise ValueError("Conversa inválida.")
     d = dir_conversa(cid)
     if os.path.isdir(d):
         shutil.rmtree(d)

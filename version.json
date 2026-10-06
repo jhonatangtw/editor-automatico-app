@@ -1,6 +1,6 @@
 {
- "version": "0.22.0",
- "notes": "Conversa nova, no jeito do Claude Code: a resposta aparece enquanto a IA escreve, cada ação vira uma linha que abre e fecha, lista de tarefas ao vivo, comandos com / e arquivos com @, anexos arrastando, fila de mensagens e aprovação de crédito dentro do chat.\n\nSkills novas: Clone de AD validado (trocar o personagem de um anúncio que já vende), Plataforma de IA com o Higgsfield e Boas práticas Black Belt. O Guia de comandos ganhou os pedidos prontos delas.\n\nA mesma Conversa agora funciona dentro do painel do Tools PRO, no Premiere: o app liga a IA sem abrir janela.",
+ "version": "0.22.1",
+ "notes": "Prévia das entregas dentro da Conversa: imagens em grade (clique abre grande, com setas e contador), vídeos com player e áudios com a forma da onda. Cada mídia tem Mostrar no Finder, Colocar na timeline e Copiar caminho.\n\nLinks do Higgsfield e da HeyGen são baixados sozinhos para a pasta do projeto (media/imagens, media/videos, media/audio) antes de aparecer — o link expira. Sem projeto, a Conversa pergunta onde salvar.\n\nA Conversa ganhou barra no topo, também no painel do Premiere: título editável, + Nova e Histórico com busca. O nome da skill em uso aparece certo no rodapé.\n\nLegenda no Premiere: peça para colocar um .srt na timeline e a Conversa cria a faixa de legenda sozinha, ou a legenda animada no estilo que você escolher (precisa do Tools PRO 1.8.1).\n\nCorrigido: a instalação do Whisper na aba Ambiente falhava em alguns Macs. Agora ele vem com um Python próprio e instala sozinho.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",

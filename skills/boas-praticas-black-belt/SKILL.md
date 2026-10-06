@@ -19,6 +19,7 @@ Três regras que atravessam tudo:
 - **Retorno de sucesso não prova resultado.** Ferramenta que diz "ok" pode ter feito nada (efeito não aplicado, clipe no lugar errado, miniatura no lugar da imagem). Prove lendo de volta, medindo com `ffprobe`, ou OLHANDO um quadro.
 - **Timeout não quer dizer que nada aconteceu.** Leia o estado antes de repetir — repetir geração é pagar duas vezes; repetir escrita no Premiere duplica.
 - **Aprovação antes de gastar crédito**, com a estimativa na mesma mensagem.
+- **Tudo o que é baixado ou gerado fica na PASTA DO PROJETO**, organizado por tipo (`media/imagens`, `media/videos`, `media/audio`, ou as pastas que o job já usa). Nunca em pasta temporária, Downloads, scratchpad ou pasta da conversa. Antes de importar no Premiere, confira se o arquivo está dentro da pasta do projeto.
 
 ---
 
@@ -223,9 +224,15 @@ Três regras que atravessam tudo:
 - Causa: cache do Premiere.
 - Faça: importe com **nome novo** (`_v2`), ou `item.changeMediaPath(caminho, true)`. AV1 importa **só com áudio**, sem erro: converta para H.264 com nome novo.
 
-**Mídia offline no dia seguinte**
-- Causa: foi importada de pasta **temporária** (do sistema ou da sessão da IA), que é limpa sem aviso.
-- Faça: tudo que entra num projeto (TTS, imagem gerada, render intermediário) é gravado **na pasta do job antes de importar**. Temporário só para o descartável (quadros de conferência, logs).
+**Mídia offline no dia seguinte (arquivo fora da pasta do projeto)**
+- Sintoma: abriu o projeto e os itens estão offline ("mídia ausente"); ou o projeto foi copiado/levado para outra máquina e metade da mídia não veio junto.
+- Causa: a mídia foi baixada ou gerada FORA da pasta do projeto — pasta **temporária** (do sistema ou da sessão da IA, limpa sem aviso), Downloads, Mesa ou a pasta da conversa. O Premiere guarda o caminho; quando a pasta temporária é limpa ou o projeto muda de lugar, o arquivo não está mais onde ele procura.
+- Faça: todo arquivo baixado ou gerado (Higgsfield, HeyGen, ElevenLabs, renders, downloads) é salvo **direto na pasta do projeto ativo**, organizado por tipo (`media/imagens`, `media/videos`, `media/audio`, ou as pastas que o job já usa, como `broll/`). Antes de importar, confira que o caminho está DENTRO da pasta do projeto; se não estiver, copie para lá primeiro e importe a cópia. Temporário só para o descartável (quadros de conferência, logs). Para religar o que já ficou offline: `item.changeMediaPath(novo_caminho, true)`.
+
+**Legenda .srt "não entra" na timeline**
+- Sintoma: `insertClip`/`pr_timeline_colocar` com o `.srt` falha ou não aparece nada; a IA diz que "captionTracks não existe na API" e manda arrastar à mão; ou o import do `.srt` dá "O importador informou um erro genérico".
+- Causa: `.srt` não é clipe — vira **faixa de legenda**, criada com `app.project.importFiles([srt])` + `seq.createCaptionTrack(item, 0)`. O que não existe é **LER** a legenda nativa (`seq.captionTracks`); criar existe. O "erro genérico" é o `.srt` gravado pelo ExtendScript no Mac com quebra só-CR, ou com bloco de texto vazio.
+- Faça: legenda nativa → `pr_legenda_nativa_criar {srt}` (Tools PRO ≥ 1.8.1); legenda estilizada/animada → `pr_legendas_mogrt_info` e depois `pr_legendas_mogrt_aplicar {srt, estilo}` (exige After Effects 2026; avise antes). Sem essas ferramentas: `pr_extendscript` com `importFiles` + `createCaptionTrack(item,0)` — se recusar, `(item,0,3)` e `(item)` —, `.srt` com `f.lineFeed='Unix'`, sem bloco vazio, salvo **na pasta do projeto** (nunca no temp). Nunca prometa conferir o texto da faixa nativa por script: peça para olhar a timeline.
 
 **Export pelo script derrubou o Premiere**
 - Causa: export direto lê a fonte; arquivo em nuvem não materializado trava tudo.

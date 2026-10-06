@@ -7,8 +7,10 @@
 //   node testes/visual/fotografar-cdp.mjs <saida> <nome> <largura> <altura> <query> [espera-ms] [nome largura altura query espera]...
 // O servidor estático (raiz do repo) sobe numa porta livre e é derrubado no fim.
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, statSync, createReadStream, existsSync } from 'node:fs';
 import { createServer } from 'node:net';
+import { createServer as criarHttp } from 'node:http';
+import { basename, extname, normalize, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,8 +33,43 @@ for (let i = 0; i + 4 < resto.length + 1; ) {
 }
 mkdirSync(saida, { recursive: true });
 
+// Servidor estático da banca (era o http.server do Python). Além dos arquivos
+// do repositório, responde /api/arquivo e /api/midia/quadro com a mídia
+// SINTÉTICA de testes/visual/amostras (gerar-amostras.sh), pelo nome do
+// arquivo — e com Range, como o app, para o <video> tocar de verdade.
+const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm',
+  '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.m4a': 'audio/mp4', '.woff2': 'font/woff2', '.ico': 'image/x-icon' };
+function servir(res, req, arq) {
+  if (!arq || !existsSync(arq) || !statSync(arq).isFile()) { res.writeHead(404); res.end(); return; }
+  const tam = statSync(arq).size;
+  const tipo = TIPOS[extname(arq).toLowerCase()] || 'application/octet-stream';
+  const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+  if (m) {
+    const ini = m[1] ? +m[1] : Math.max(0, tam - +m[2]);
+    const fim = m[1] && m[2] ? Math.min(+m[2], tam - 1) : tam - 1;
+    if (ini >= tam || fim < ini) { res.writeHead(416, { 'Content-Range': `bytes */${tam}` }); res.end(); return; }
+    res.writeHead(206, { 'Content-Type': tipo, 'Content-Length': fim - ini + 1, 'Content-Range': `bytes ${ini}-${fim}/${tam}`, 'Accept-Ranges': 'bytes' });
+    createReadStream(arq, { start: ini, end: fim }).pipe(res);
+    return;
+  }
+  res.writeHead(200, { 'Content-Type': tipo, 'Content-Length': tam, 'Accept-Ranges': 'bytes' });
+  createReadStream(arq).pipe(res);
+}
 const portaHttp = await portaLivre();
-const http = spawn('python3', ['-m', 'http.server', String(portaHttp), '--bind', '127.0.0.1'], { cwd: RAIZ, stdio: 'ignore' });
+const http = criarHttp((req, res) => {
+  const u = new URL(req.url, 'http://x');
+  if (u.pathname === '/api/arquivo' || u.pathname === '/api/midia/quadro') {
+    const arq = join(RAIZ, 'testes', 'visual', 'amostras', basename(u.searchParams.get('p') || ''));
+    // quadro de vídeo = a capa jpg que gerar-amostras.sh tirou (o app faz isso com ffmpeg)
+    return servir(res, req, u.pathname === '/api/midia/quadro' && /\.(mp4|mov|webm|m4v)$/i.test(arq) ? arq + '.capa.jpg' : arq);
+  }
+  const alvo = normalize(join(RAIZ, decodeURIComponent(u.pathname)));
+  if (!alvo.startsWith(RAIZ + sep)) { res.writeHead(403); res.end(); return; }
+  servir(res, req, alvo);
+}).listen(portaHttp, '127.0.0.1');
+http.kill = () => http.close();
 const portaCdp = await portaLivre();
 const perfil = mkdtempSync(join(tmpdir(), 'cdp-'));
 const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', '--hide-scrollbars', `--user-data-dir=${perfil}`,

@@ -88,7 +88,7 @@ if "--mcp" in sys.argv:
 
 from nucleo import (adobe, ambiente, atualizacao, cancelar, chaves, claude,  # noqa: E402
                     conta, conversa, conversas,
-                    decupar, etapas, gerar, ia, montagem, pipeline, plugin,
+                    decupar, etapas, gerar, ia, midia, montagem, pipeline, plugin,
                     ponte, preparar, projetos, qc, servicos, skill, skills, voz)
 
 WEB = os.path.join(RAIZ, "web")
@@ -466,7 +466,67 @@ def rota_conversa_ver(cid):
             m["projeto_nome"] = projetos.ler(pid)["plano"].get("job") or pid
         except Exception:
             m["projeto_nome"] = pid
-    return {"conversa": cid, "mensagens": conversas.mensagens(cid), "meta": m}
+    m["destino"] = midia.destino_da_conversa(cid)
+    # prévia das entregas também nas conversas antigas (e reconferida: arquivo
+    # apagado não vira miniatura quebrada)
+    return {"conversa": cid, "mensagens": midia.anotar(conversas.mensagens(cid)), "meta": m}
+
+
+# ------------------------------------------------------------- entregas de mídia
+# A prévia das entregas na Conversa (web/conversa-ui.js). Toda rota aqui passa
+# pela trava de `midia.permitido`: só o que está nas pastas do app, na pasta do
+# job ligada a um projeto ou na pasta de projeto que o usuário escolheu.
+
+def _caminho_da_query(h):
+    from urllib.parse import parse_qs, urlparse
+    return (parse_qs(urlparse(h.path).query).get("p") or [""])[0]
+
+
+def rota_midia_destinos(cid):
+    return {"destino": midia.destino_da_conversa(cid),
+            "projetos": midia.projetos_para_escolher()}
+
+
+def rota_midia_baixar(corpo):
+    """Baixa a entrega remota para a pasta do PROJETO da conversa. Sem projeto
+    NÃO baixa em lugar nenhum: devolve 409 com a lista para a tela perguntar."""
+    cid = corpo.get("conversa")
+    d = midia.destino_da_conversa(cid)
+    if not d:
+        return 409, {"erro": "Em qual projeto salvar?", "precisa_destino": True,
+                     "projetos": midia.projetos_para_escolher()}
+    try:
+        r = midia.baixar(corpo.get("url") or "", d["pasta"], corpo.get("tipo"))
+    except midia.ErroBaixar as e:
+        return 400, {"erro": str(e)}
+    r["destino"] = d
+    return 200, r
+
+
+def rota_destino(cid, corpo):
+    """A conversa sem projeto escolhe onde guardar as entregas: um projeto do
+    app (a conversa passa a ser dele) ou uma pasta de projeto do disco."""
+    if not cid or "/" in cid or ".." in cid or not os.path.isdir(conversas.dir_conversa(cid)):
+        raise ValueError("Conversa inválida.")
+    if corpo.get("projeto"):
+        pid = corpo["projeto"]
+        if "/" in pid or ".." in pid or not os.path.isdir(projetos.dir_projeto(pid)):
+            raise ValueError("Projeto não encontrado.")
+        conversas.gravar_meta(cid, projeto=pid)
+    else:
+        pasta = corpo.get("pasta")
+        if corpo.get("escolher"):
+            pasta = midia.escolher_pasta()
+            if not pasta:
+                return {"ok": False, "cancelado": True, "destino": midia.destino_da_conversa(cid)}
+        motivo = midia.pasta_valida_para_projeto(pasta)
+        if motivo:
+            raise ValueError(motivo)
+        pasta = os.path.realpath(os.path.expanduser(pasta))
+        midia.lembrar_destino(pasta)
+        conversas.gravar_meta(cid, pasta_projeto=pasta)
+    midia.esquecer_raizes()
+    return {"ok": True, "destino": midia.destino_da_conversa(cid)}
 
 
 def rota_aprovacao(cid):
@@ -705,7 +765,13 @@ def _rota_da_conversa(caminho):
         # /api/conversas/{id} e o que a tela da conversa faz dentro dela
         if len(partes) == 3:
             return True
-        return len(partes) == 4 and partes[3] in ("aprovacao", "arquivos", "anexo", "limpar")
+        return len(partes) == 4 and partes[3] in ("aprovacao", "arquivos", "anexo", "limpar",
+                                                   "destino", "renomear")
+    # prévia das entregas (info, picos, quadro, baixar, mostrar). O
+    # /api/arquivo fica FORA de propósito: <img>/<video>/<audio> não precisam
+    # de CORS, e sem ele nenhuma página de origem "null" lê o conteúdo por fetch.
+    if len(partes) == 3 and partes[:2] == ["api", "midia"]:
+        return True
     # acompanhar e cancelar a rodada em andamento
     if len(partes) in (3, 4) and partes[:2] == ["api", "tarefas"]:
         return len(partes) == 3 or partes[3] == "cancelar"
@@ -722,6 +788,40 @@ def _versao_do_app():
             return json.load(f).get("version", "")
     except Exception:
         return ""
+
+
+def _mesmo_token(t):
+    # compare_digest com str não-ASCII levanta TypeError: compara em bytes
+    return secrets.compare_digest(str(t).encode("utf-8"), TOKEN.encode("utf-8"))
+
+
+def _ler_range(cabecalho, tam):
+    """`Range: bytes=a-b` → (a, b). False = cabeçalho de outra unidade (ignora
+    e serve inteiro). None = faixa inválida ou fora do arquivo (416).
+    Uma faixa só: é o que players pedem; várias faixas viram 416."""
+    unidade, _, faixas = cabecalho.partition("=")
+    if unidade.strip().lower() != "bytes":
+        return False
+    faixas = faixas.strip()
+    if not faixas or "," in faixas or "-" not in faixas:
+        return None
+    a, _, b = faixas.partition("-")
+    a, b = a.strip(), b.strip()
+    try:
+        if a == "":                     # bytes=-500: os últimos 500
+            if not b.isdigit() or int(b) == 0 or tam == 0:
+                return None
+            n = int(b)
+            return (max(0, tam - n), tam - 1)
+        if not a.isdigit() or (b and not b.isdigit()):
+            return None
+        ini = int(a)
+        fim = int(b) if b else tam - 1
+    except ValueError:
+        return None
+    if ini >= tam or fim < ini:
+        return None
+    return (ini, min(fim, tam - 1))
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -753,8 +853,19 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", o)
             self.send_header("Vary", "Origin")
 
+    def _token_na_query(self):
+        """`<img>`, `<video>` e `<audio>` não mandam cabeçalho: nas rotas de
+        arquivo e de mídia o token também vale na query (`t=`). Só nelas."""
+        caminho = self.path.split("?")[0]
+        if self.command not in ("GET", "HEAD"):
+            return False
+        if caminho != "/api/arquivo" and not caminho.startswith("/api/midia/"):
+            return False
+        from urllib.parse import parse_qs, urlparse
+        return _mesmo_token((parse_qs(urlparse(self.path).query).get("t") or [""])[0])
+
     def _autorizado(self):
-        ok = self.headers.get("X-Token") == TOKEN
+        ok = _mesmo_token(self.headers.get("X-Token") or "") or self._token_na_query()
         if ok:
             import time as _t
             _ULTIMO_CONTATO[0] = _t.time()     # sinal de vida (modo serviço)
@@ -813,32 +924,106 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(dados)
 
-    def _arquivo_do_projeto(self):
-        """Serve um arquivo gerado pelo app (mosaico do QC, por exemplo).
+    def _arquivo_do_projeto(self, so_cabecalho=False):
+        """Serve um arquivo para a tela: mosaico do QC, anexo, prévia de entrega.
 
-        Duas travas, e as duas são necessárias: o token vai na QUERY porque
-        `<img>` não manda cabeçalho, e o caminho tem que estar DENTRO da pasta
-        de projetos. Sem a segunda, esta rota viraria leitura de disco inteira
-        para qualquer página aberta no navegador da máquina."""
+        Travas, todas necessárias:
+        - token (na query, porque `<img>`/`<video>` não mandam cabeçalho);
+        - o caminho resolvido com realpath tem que estar DENTRO das pastas do
+          app (projetos, conversas) ou — só mídia — da pasta do job ligada a um
+          projeto ou da pasta de projeto escolhida. Sem isto a rota viraria
+          leitura de disco inteira para qualquer página aberta na máquina.
+
+        Aceita Range (206 Partial Content): vídeo e áudio tocam e pulam sem
+        baixar o arquivo inteiro, e o WebKit do app EXIGE isso para tocar mp4."""
+        if not self._autorizado():
+            return self._vazio(403)
+        alvo = _caminho_da_query(self)
+        if not midia.permitido(alvo):
+            return self._vazio(404)
+        alvo = os.path.realpath(os.path.expanduser(alvo))
+        tipo = midia.mime_de(alvo) or mimetypes.guess_type(alvo)[0] or "application/octet-stream"
+        tam = os.path.getsize(alvo)
+        ini, fim, parcial = 0, tam - 1, False
+        faixa = (self.headers.get("Range") or "").strip()
+        if faixa:
+            r = _ler_range(faixa, tam)
+            if r is None:
+                self.send_response(416)
+                self.send_header("Content-Range", "bytes */%d" % tam)
+                self.send_header("Content-Length", "0")
+                self._cors()
+                self.end_headers()
+                return
+            if r is not False:
+                ini, fim = r
+                parcial = True
+        n = max(0, fim - ini + 1)
+        self.send_response(206 if parcial else 200)
+        self.send_header("Content-Type", tipo)
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Content-Length", str(n))
+        if parcial:
+            self.send_header("Content-Range", "bytes %d-%d/%d" % (ini, fim, tam))
+        self.send_header("Cache-Control", "private, max-age=60")
+        self._cors()
+        self.end_headers()
+        if so_cabecalho or not n:
+            return
+        try:
+            with open(alvo, "rb") as f:
+                f.seek(ini)
+                falta = n
+                while falta > 0:
+                    bloco = f.read(min(falta, 256 * 1024))
+                    if not bloco:
+                        break
+                    self.wfile.write(bloco)
+                    falta -= len(bloco)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            pass        # o player pulou para outro ponto e largou este pedido
+
+    def _vazio(self, codigo):
+        self.send_response(codigo)
+        self.send_header("Content-Length", "0")
+        self._cors()
+        self.end_headers()
+
+    def _midia_get(self, caminho):
+        """GET /api/midia/{info,picos,quadro,destinos}."""
         from urllib.parse import parse_qs, urlparse
         q = parse_qs(urlparse(self.path).query)
-        if (q.get("t") or [""])[0] != TOKEN:
-            self.send_response(403), self.end_headers()
-            return
-        alvo = os.path.realpath(os.path.expanduser((q.get("p") or [""])[0]))
-        # projetos do app e anexos das conversas (miniatura do que foi arrastado)
-        raizes = [os.path.realpath(projetos.RAIZ), os.path.realpath(conversas.RAIZ)]
-        if not any(alvo.startswith(r + os.sep) for r in raizes) or not os.path.isfile(alvo):
-            self.send_response(404), self.end_headers()
-            return
-        tipo = mimetypes.guess_type(alvo)[0] or "application/octet-stream"
-        with open(alvo, "rb") as f:
-            dados = f.read()
-        self.send_response(200)
-        self.send_header("Content-Type", tipo)
-        self.send_header("Content-Length", str(len(dados)))
-        self.end_headers()
-        self.wfile.write(dados)
+        if caminho == "/api/midia/destinos":
+            return self._json(rota_midia_destinos((q.get("conversa") or [""])[0]))
+        alvo = (q.get("p") or [""])[0]
+        if not midia.permitido(alvo):
+            return self._json({"erro": "Arquivo fora das pastas do projeto."}, 404)
+        if caminho == "/api/midia/info":
+            return self._json(midia.info(alvo))
+        if caminho == "/api/midia/picos":
+            n = (q.get("n") or ["96"])[0]
+            return self._json(midia.picos(alvo, int(n) if n.isdigit() else 96))
+        if caminho == "/api/midia/quadro":
+            w = (q.get("w") or ["480"])[0]
+            arq = midia.quadro(alvo, int(w) if w.isdigit() else 480)
+            if not arq:
+                return self._arquivo_do_projeto()      # sem ffmpeg: o original
+            with open(arq, "rb") as f:
+                dados = f.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "image/jpeg")
+            self.send_header("Content-Length", str(len(dados)))
+            self.send_header("Cache-Control", "private, max-age=600")
+            self._cors()
+            self.end_headers()
+            self.wfile.write(dados)
+            return None
+        return self._json({"erro": "rota não existe"}, 404)
+
+    def do_HEAD(self):
+        if self.path.split("?")[0] == "/api/arquivo":
+            return self._arquivo_do_projeto(so_cabecalho=True)
+        self._vazio(405)
 
     # -------------------------------------------------------------- GET
     def do_GET(self):
@@ -853,6 +1038,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"erro": "Sessão inválida."}, 403)
 
         try:
+            if caminho.startswith("/api/midia/"):
+                return self._midia_get(caminho)
             if caminho == "/api/saude":
                 # barata de propósito: o painel do Tools PRO chama para provar
                 # que a porta e o token do arquivo de descoberta são DESTE app
@@ -889,7 +1076,20 @@ class Handler(BaseHTTPRequestHandler):
                 e["utilizavel"] = bool(v["leu_timeline"] and e["mcp"]["ok"])
                 return self._json(e)
             if caminho == "/api/conversas":
-                return self._json({"conversas": conversas.listar()})
+                # o Histórico da Conversa: ?q= procura no título e no conteúdo
+                from urllib.parse import parse_qs, urlparse
+                q = (parse_qs(urlparse(self.path).query).get("q") or [""])[0]
+                lista = conversas.buscar(q) if q.strip() else conversas.listar()
+                nomes = {}
+                for c in lista:
+                    pid = c.get("projeto")
+                    if pid and pid not in nomes:
+                        try:
+                            nomes[pid] = projetos.ler(pid)["plano"].get("job") or pid
+                        except Exception:
+                            nomes[pid] = None
+                    c["projeto_nome"] = nomes.get(pid) if pid else None
+                return self._json({"conversas": lista})
             if len(partes) == 3 and partes[1] == "conversas":
                 return self._json(rota_conversa_ver(partes[2]))
             if len(partes) == 4 and partes[1] == "conversas" and partes[3] == "aprovacao":
@@ -902,7 +1102,7 @@ class Handler(BaseHTTPRequestHandler):
                 lista = conversas.listar()
                 cid = lista[0]["id"] if lista else None
                 return self._json({"conversa": cid,
-                                   "mensagens": conversas.mensagens(cid) if cid else []})
+                                   "mensagens": midia.anotar(conversas.mensagens(cid)) if cid else []})
             if caminho == "/api/atualizacao":
                 return self._json(atualizacao.conferir())
             if caminho == "/api/ia":
@@ -1019,6 +1219,21 @@ class Handler(BaseHTTPRequestHandler):
             if caminho == "/api/claude/testar":
                 return self._json(claude.testar_conta())
 
+            if caminho == "/api/midia/baixar":
+                codigo, d = rota_midia_baixar(corpo)
+                return self._json(d, codigo)
+            if caminho == "/api/midia/mostrar":
+                try:
+                    return self._json({"ok": midia.mostrar(corpo.get("p") or "")})
+                except PermissionError as e:
+                    return self._json({"erro": str(e)}, 403)
+            if len(partes) == 4 and partes[1] == "conversas" and partes[3] == "renomear":
+                cid = partes[2]
+                if "/" in cid or ".." in cid:
+                    raise ValueError("Conversa inválida.")
+                return self._json({"ok": True, "meta": conversas.renomear(cid, corpo.get("titulo"))})
+            if len(partes) == 4 and partes[1] == "conversas" and partes[3] == "destino":
+                return self._json(rota_destino(partes[2], corpo))
             if caminho == "/api/conversas/nova":
                 return self._json({"conversa": conversas.criar()})
             if caminho == "/api/conversas/apagar":

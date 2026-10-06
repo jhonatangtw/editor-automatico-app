@@ -150,6 +150,12 @@
     clipe: SVG('<path d="M21 11l-8.5 8.5a5 5 0 0 1-7-7L14 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L15 7"/>'),
     enviar: SVG('<path d="M5 12h14M13 6l6 6-6 6"/>'),
     parar: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>',
+    pasta: SVG('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'),
+    timeline: SVG('<rect x="3" y="5" width="18" height="5" rx="1.5"/><rect x="3" y="14" width="11" height="5" rx="1.5"/><path d="M17 12v9"/>'),
+    copiar: SVG('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/>'),
+    tocar: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>',
+    pausar: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><rect x="6.5" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="13.5" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>',
+    baixar: SVG('<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>'),
   };
 
   // ================================================================ rótulos das ações
@@ -168,6 +174,8 @@
     pr_organizar_analisar: 'Analisou a organização', pr_organizar_desfazer: 'Desfez a organização',
     ae_organizar_aplicar: 'Organizou o projeto do After', pr_smoothify: 'Aplicou Smoothify',
     ae_smoothify: 'Aplicou Smoothify no After', pr_copiar_atributos: 'Copiou atributos', pr_anypaste: 'Colou com AnyPaste',
+    pr_legenda_nativa_criar: 'Criou a faixa de legenda', pr_legendas_mogrt_info: 'Leu os estilos de legenda',
+    pr_legendas_mogrt_aplicar: 'Colocou legendas animadas',
   };
   const EDITOR = {
     adobe_estado: 'Conferiu o Adobe', ver_adobe: 'Conferiu o Adobe', timeline_ler: 'Leu a timeline',
@@ -248,7 +256,7 @@
       case 'WebFetch': { let h = e.url || resumo; try { h = new URL(h).host; } catch (_) { /* fica o texto */ } return { icone: 'globo', texto: 'Abriu ' + h, alvo: '' }; }
       case 'WebSearch': return { icone: 'globo', texto: 'Pesquisou na web', alvo: e.query || resumo };
       case 'Task': case 'Agent': return { icone: 'agente', texto: 'Chamou um agente', alvo: e.description || e.subagent_type || resumo };
-      case 'Skill': return { icone: 'estrela', texto: 'Usou a skill ' + (e.skill || e.command || e.name || resumo), alvo: '' };
+      case 'Skill': return { icone: 'estrela', texto: 'Usou a skill ' + (nomeSkill(tecnicoDaSkill(p)) || 'do Claude'), alvo: '' };
       case 'TodoWrite': return { icone: 'lista', texto: 'Atualizou as tarefas', alvo: '' };
       case 'ToolSearch': return { icone: 'busca', texto: 'Carregou ferramentas', alvo: e.query || '' };
       case 'Bash': case 'terminal': case 'shell': return rotuloComando(e.command || resumo, e.description);
@@ -271,11 +279,77 @@
     return itens;
   }
 
+  // ---- nome da skill: o técnico (para o tooltip) e o amigável (para a tela)
+  // ⚠️ A entrada da Skill às vezes chega como TEXTO JSON (ou truncada, com
+  // "…" no fim) e o rodapé mostrava `{"skill": "editor-autom…` cru. Tudo
+  // que vier passa por aqui antes de virar texto na tela.
+  const SKILLS_NOMES = {
+    'editor-automatico-de-broll': 'Editor automático de b-roll', 'skill-black-belt': 'Black Belt',
+    'hooks-meat-hook': 'Hooks Meat Hook', 'blackbelt-omni': 'Black Belt Omni', 'motion-omni-vsl': 'Motion Omni VSL',
+    'vibe-motion': 'Vibe Motion', 'motion-design': 'Motion design', 'photorealism-prompts': 'Prompts fotorrealistas',
+    'video-prompt-builder': 'Prompts de vídeo', 'avatar-vsl-video-prompts': 'Prompts de avatar para VSL',
+    pixar3d: 'Pixar 3D', 'storyboard-viral-3d': 'Storyboard viral 3D', 'omni-flash-reverse': 'Omni Flash reverso',
+    'video-to-flow': 'Vídeo para o Flow', 'clone-ad-validado': 'Clone de AD validado',
+    'plataforma-ia-higgsfield': 'Plataforma de IA (Higgsfield)', 'boas-praticas-black-belt': 'Boas práticas Black Belt',
+    'editor-de-reels-do-jhon': 'Editor de Reels', 'cortar-aula': 'Cortar aula', 'conferir-ads-por-frame': 'Conferir ADs por quadro',
+    'marcar-vsl': 'Marcar VSL', 'conferir-broll': 'Conferir b-roll', 'broll-narrativo': 'B-roll narrativo',
+  };
+  const PALAVRAS_PT = { automatico: 'automático', broll: 'b-roll', 'b': 'b', video: 'vídeo', videos: 'vídeos', pratica: 'prática',
+    praticas: 'práticas', legenda: 'legenda', audio: 'áudio', analise: 'análise', criacao: 'criação', edicao: 'edição',
+    conferencia: 'conferência', ads: 'ADs', ad: 'AD', vsl: 'VSL', ia: 'IA', ugc: 'UGC', '3d': '3D' };
+
+  function tecnicoDaSkill(p) {
+    if (!p) return null;
+    let e = p.entrada;
+    if (typeof e === 'string') { try { e = JSON.parse(e); } catch (_) { e = { skill: e }; } }
+    let n = e && typeof e === 'object' ? (e.skill || e.command || e.name) : null;
+    const doTexto = (t) => {
+      t = String(t || '').trim();
+      const m = t.match(/"(?:skill|command|name)"\s*:\s*"([^"…]+)/);
+      if (m) return m[1];
+      return /^\/?[\w:.-]+$/.test(t) ? t : null;
+    };
+    if (typeof n === 'string' && /^\s*[{\[]/.test(n)) n = doTexto(n);
+    if (!n) n = doTexto(p.resumo);
+    if (typeof n !== 'string') return null;
+    n = n.trim().replace(/^\//, '');
+    return n || null;
+  }
+
+  function nomeSkill(tecnico) {
+    const t = String(tecnico || '').trim();
+    if (!t) return '';
+    const curto = t.includes(':') ? t.split(':').pop() : t;      // "editor-broll:marcar-vsl"
+    if (SKILLS_NOMES[curto]) return SKILLS_NOMES[curto];
+    // nome cortado no meio ("editor-autom"): completa se só uma skill conhecida começa assim
+    if (curto.length >= 6) {
+      const xs = Object.keys(SKILLS_NOMES).filter((k) => k.startsWith(curto));
+      if (xs.length === 1) return SKILLS_NOMES[xs[0]];
+    }
+    const ps = curto.replace(/[_-]+/g, ' ').trim().split(/\s+/).map((w) => PALAVRAS_PT[w.toLowerCase()] || w.toLowerCase());
+    const f = ps.join(' ');
+    return f.charAt(0).toUpperCase() + f.slice(1);
+  }
+
+  // "hoje 17:40", "ontem 09:12", "seg 10:00", "12/09", "12/09/25"
+  function quandoRelativo(seg, agoraMs) {
+    if (!seg || !isFinite(seg)) return '';
+    const d = new Date(seg * 1000), h = new Date(agoraMs || Date.now());
+    const p2 = (n) => String(n).padStart(2, '0');
+    const hm = `${p2(d.getHours())}:${p2(d.getMinutes())}`;
+    const dia = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+    const dif = Math.round((dia(h) - dia(d)) / 86400000);
+    if (dif <= 0) return 'hoje ' + hm;
+    if (dif === 1) return 'ontem ' + hm;
+    if (dif < 7) return ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'][d.getDay()] + ' ' + hm;
+    return `${p2(d.getDate())}/${p2(d.getMonth() + 1)}` + (d.getFullYear() !== h.getFullYear() ? '/' + String(d.getFullYear()).slice(2) : '');
+  }
+
   function skillEmUso(mensagens, passosVivos) {
     const achar = (ps) => {
       for (let i = (ps || []).length - 1; i >= 0; i--) {
         const p = ps[i];
-        if (p && p.tipo === 'ferramenta' && p.nome === 'Skill') return (p.entrada && (p.entrada.skill || p.entrada.command)) || p.resumo || null;
+        if (p && p.tipo === 'ferramenta' && p.nome === 'Skill') { const n = tecnicoDaSkill(p); if (n) return n; }
       }
       return null;
     };
@@ -405,6 +479,7 @@
       enviarArquivo: (rota, arquivo) => chamar(rota, { method: 'POST', body: arquivo,
         headers: { 'Content-Type': 'application/octet-stream', 'X-Nome': encodeURIComponent(arquivo.name || 'anexo') } }),
       arquivoUrl: (caminho) => `${raizApi}/api/arquivo?p=${encodeURIComponent(caminho)}&t=${encodeURIComponent(cfg.token || '')}`,
+      quadroUrl: (caminho, w) => `${raizApi}/api/midia/quadro?p=${encodeURIComponent(caminho)}&w=${w || 480}&t=${encodeURIComponent(cfg.token || '')}`,
     };
   }
 
@@ -522,7 +597,7 @@
         <span class="cv-acao-txt"><span class="cv-acao-nome">${esc(r.texto)}</span>${r.alvo ? `<span class="cv-acao-alvo">${esc(r.alvo)}</span>` : ''}</span>
         <span class="cv-acao-dur" data-dur-inicio="${est === 'rodando' && p.inicio ? p.inicio : ''}">${esc(dur)}</span>
         <span class="cv-acao-est">${marca}</span>
-      </button>${detalhe}</div>`;
+      </button>${detalhe}</div>${htmlMidias(p.midias, chave + ':m', ui)}`;
   }
 
   function htmlPensou(p, chave, ui) {
@@ -542,7 +617,7 @@
     if (!p) return '';
     if (p.tipo === 'texto' || p.tipo === 'parcial') {
       if (!(p.texto || '').trim()) return '';
-      return `<div class="cv-texto${p.tipo === 'parcial' ? ' escrevendo' : ''}">${md(p.texto)}</div>`;
+      return `<div class="cv-texto${p.tipo === 'parcial' ? ' escrevendo' : ''}">${md(p.texto)}</div>${p.tipo === 'texto' ? htmlMidias(p.midias, chave + ':m', ui) : ''}`;
     }
     if (p.tipo === 'pensando') return htmlPensou(p, chave, ui);
     if (p.tipo === 'aviso') return `<div class="cv-aviso-linha">${ICONE.aviso}<span>${esc(p.texto)}</span></div>`;
@@ -557,7 +632,7 @@
   function sequenciaDa(m) {
     const ps = (m.passos || []).filter(Boolean);
     if (ps.some((p) => p.tipo === 'texto')) return ps;
-    return ps.concat(m.content ? [{ tipo: 'texto', texto: m.content }] : []);
+    return ps.concat(m.content ? [{ tipo: 'texto', texto: m.content, midias: m.midias }] : []);
   }
 
   function htmlGrupo(itens, chaveGrupo, ui) {
@@ -567,6 +642,7 @@
       const erros = itens.slice(0, ocultas).filter(([p]) => p.estado === 'erro').length;
       return `<div class="cv-grupo"><button type="button" class="cv-grupo-mais" data-grupo="${esc(chaveGrupo)}" aria-expanded="false">
           ▸ mais ${ocultas} ações${erros ? ` · <span class="cv-vermelho">${erros} com erro</span>` : ''}</button>
+        ${itens.slice(0, ocultas).map(([p, k]) => htmlMidias(p.midias, k + ':m', ui)).join('')}
         ${itens.slice(ocultas).map(([p, k]) => htmlPasso(p, k, ui)).join('')}</div>`;
     }
     const recolher = itens.length > GRUPO_MAX ? `<button type="button" class="cv-grupo-mais" data-grupo="${esc(chaveGrupo)}" aria-expanded="true">▾ recolher ${itens.length} ações</button>` : '';
@@ -574,6 +650,7 @@
   }
 
   function htmlSequencia(seq, prefixo, ui) {
+    seq = dedupeMidias(seq, ui);
     const out = [];
     let grupo = [], g = 0;
     const fechar = () => { if (grupo.length) { out.push(htmlGrupo(grupo, `${prefixo}g${g++}`, ui)); grupo = []; } };
@@ -593,6 +670,7 @@
   }
 
   function htmlMensagem(m, i, ui, api) {
+    if (ui && api && !ui.api) ui.api = api;
     if (m.role === 'user') {
       const u = partesUsuario(m);
       return `<div class="cv-msg cv-eu" data-msg="${i}">${u.texto ? `<div class="cv-bolha">${esc(u.texto)}</div>` : ''}${htmlAnexos(u.anexos, api)}</div>`;
@@ -602,6 +680,7 @@
       const p = { tipo: 'ferramenta', nome: m.nome, entrada: m.entrada, estado: (s && (s.erro || s.recusado)) ? 'erro' : 'ok',
                   resultado: (() => { try { return JSON.stringify(s, null, 2); } catch (_) { return String(s); } })(),
                   recusado: !!(s && s.recusado), porque: s && s.porque };
+      p.midias = m.midias;
       return `<div class="cv-msg cv-ia" data-msg="${i}"><div class="cv-grupo">${htmlAcao(p, `m${i}:0`, ui)}</div></div>`;
     }
     if (m.role === 'assistant') {
@@ -611,12 +690,179 @@
     return '';
   }
 
+  // ================================================================ entregas de mídia
+  // Prévia do que a IA entregou: imagens em grade (clique abre o lightbox),
+  // vídeo com player e capa, áudio com a forma da onda. O SERVIDOR acha as
+  // mídias (nucleo/midia.py) e manda em `passo.midias`; aqui só se desenha.
+  // Entrega remota (link do Higgsfield/HeyGen) é baixada para a PASTA DO
+  // PROJETO antes de aparecer — o link expira. Nada aqui gasta crédito.
+  const LIMITE_MIDIAS = 12;
+  const LIMITE_MIDIAS_COMPACTO = 6;
+  const NO_WINDOWS = (() => {
+    try { const n = raizGlobal.navigator; return !!n && /win/i.test((n.userAgentData && n.userAgentData.platform) || n.platform || ''); }
+    catch (_) { return false; }
+  })();
+  const TIPO_EXT = (c) => {
+    const e = String(c || '').split('?')[0].split('.').pop().toLowerCase();
+    if (/^(png|jpe?g|webp|gif)$/.test(e)) return 'imagem';
+    if (/^(mp4|mov|webm|m4v)$/.test(e)) return 'video';
+    if (/^(mp3|wav|m4a|aac|ogg)$/.test(e)) return 'audio';
+    return null;
+  };
+
+  function uiMidia(ui) {
+    ui = ui || {};
+    if (!ui.baixas) ui.baixas = new Map();       // url -> {estado, caminho, tipo, erro}
+    if (!ui.infos) ui.infos = new Map();         // caminho -> {largura, altura, duracao}
+    if (!ui.lb) ui.lb = new Map();               // chave do bloco -> [caminhos das imagens]
+    if (!ui.midiasTodas) ui.midiasTodas = new Set();
+    return ui;
+  }
+
+  // a entrega remota que já desceu vira o arquivo local
+  function resolverMidia(m, ui) {
+    if (!m || typeof m !== 'object') return null;
+    if (m.url) {
+      const b = ui.baixas.get(m.url);
+      if (b && b.estado === 'ok' && b.caminho) return { tipo: b.tipo || TIPO_EXT(b.caminho), caminho: b.caminho, nome: base(b.caminho), de: m.url };
+      return m;
+    }
+    if (!m.caminho) return null;
+    return { tipo: m.tipo || TIPO_EXT(m.caminho), caminho: m.caminho, nome: m.nome || base(m.caminho) };
+  }
+
+  const chaveMidia = (m) => (m.caminho ? 'f:' + m.caminho : 'u:' + String(m.url || '').split('?')[0]);
+
+  // a mesma mídia não aparece duas vezes na mesma resposta: fica na PRIMEIRA
+  // ação que a entregou
+  function dedupeMidias(seq, ui) {
+    ui = uiMidia(ui);
+    const vistos = new Set();
+    return (seq || []).map((p) => {
+      if (!p || !Array.isArray(p.midias) || !p.midias.length) return p;
+      const novas = p.midias.filter((m) => {
+        const r = resolverMidia(m, ui);
+        if (!r) return false;
+        const k = chaveMidia(r);
+        if (vistos.has(k)) return false;
+        vistos.add(k); return true;
+      });
+      return Object.assign({}, p, { midias: novas });
+    });
+  }
+
+  function proporcao(w, h) {
+    if (!w || !h) return '';
+    const r = w / h;
+    const xs = [['9:16', 9 / 16], ['16:9', 16 / 9], ['1:1', 1], ['4:5', 4 / 5], ['3:4', 3 / 4], ['4:3', 4 / 3], ['2:3', 2 / 3], ['21:9', 21 / 9]];
+    for (const [n, v] of xs) if (Math.abs(r - v) / v < 0.03) return n;
+    return `${w}×${h}`;
+  }
+
+  function relogioMidia(seg) {
+    if (seg == null || !isFinite(seg)) return '–:––';
+    seg = Math.max(0, Math.round(seg));
+    return `${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, '0')}`;
+  }
+
+  function htmlAcoesMidia(c, soIcone) {
+    const pasta = NO_WINDOWS ? 'Mostrar na pasta' : 'Mostrar no Finder';
+    const b = (acao, rot, ic) => `<button type="button" class="cv-mid-bt" data-mid-acao="${acao}" data-alvo="${esc(c)}" title="${esc(rot)}" aria-label="${esc(rot + ': ' + base(c))}">${ICONE[ic]}${soIcone ? '' : `<span>${esc(rot)}</span>`}</button>`;
+    return `<div class="cv-mid-acoes">${b('mostrar', pasta, 'pasta')}${b('timeline', 'Colocar na timeline', 'timeline')}${b('copiar', 'Copiar caminho', 'copiar')}</div>`;
+  }
+
+  function htmlRemota(m, ui) {
+    const b = ui.baixas.get(m.url) || { estado: 'baixando' };
+    let host = '';
+    try { host = new URL(m.url).host; } catch (_) { host = ''; }
+    const tipo = m.tipo === 'video' ? 'o vídeo' : m.tipo === 'audio' ? 'o áudio' : m.tipo === 'imagem' ? 'a imagem' : 'a entrega';
+    let corpo;
+    if (b.estado === 'destino') {
+      const ps = ui.destinoProjetos || [];
+      corpo = `<div class="cv-mid-rem-topo">${ICONE.pasta}<b>Em qual projeto salvar?</b></div>
+        <p>Antes de mostrar, o app baixa ${tipo} para a pasta do projeto — o link expira, e mídia fora da pasta do projeto fica offline no Premiere.</p>
+        <div class="cv-mid-destinos">${ps.map((p) => `<button type="button" class="cv-bt mini" data-destino-projeto="${esc(p.id)}">${esc(p.nome)}</button>`).join('')}
+          <button type="button" class="cv-bt mini" data-destino-escolher>Escolher pasta…</button></div>`;
+    } else if (b.estado === 'erro') {
+      corpo = `<div class="cv-mid-rem-topo">${ICONE.aviso}<b>Não consegui baixar ${tipo}</b></div><p>${esc(b.erro || '')}</p>
+        <div class="cv-mid-destinos"><button type="button" class="cv-bt mini" data-mid-tentar="${esc(m.url)}">Tentar de novo</button></div>`;
+    } else {
+      corpo = `<div class="cv-mid-rem-topo"><span class="cv-giro"></span><b>baixando…</b><span class="cv-mid-host">${esc(host)}</span></div>
+        <p>Salvando ${tipo} na pasta do projeto antes de mostrar.</p>`;
+    }
+    return `<div class="cv-mid-remota est-${esc(b.estado)}" data-mid-url="${esc(m.url)}" data-tipo="${esc(m.tipo || '')}" role="status">${corpo}</div>`;
+  }
+
+  function htmlMidias(lista, chave, ui) {
+    if (!Array.isArray(lista) || !lista.length) return '';
+    ui = uiMidia(ui);
+    const api = ui.api;
+    if (!api) return '';
+    const res = lista.map((m) => resolverMidia(m, ui)).filter(Boolean);
+    if (!res.length) return '';
+    const imagensTodas = res.filter((m) => m.caminho && m.tipo === 'imagem').map((m) => m.caminho);
+    ui.lb.set(chave, imagensTodas);
+    const lim = ui.compacto ? LIMITE_MIDIAS_COMPACTO : LIMITE_MIDIAS;
+    const todas = ui.midiasTodas.has(chave);
+    const vis = todas ? res : res.slice(0, lim);
+    const imgs = vis.filter((m) => m.caminho && m.tipo === 'imagem');
+    const vids = vis.filter((m) => m.caminho && m.tipo === 'video');
+    const auds = vis.filter((m) => m.caminho && m.tipo === 'audio');
+    const rems = vis.filter((m) => m.url);
+    const out = [];
+    if (imgs.length) {
+      out.push(`<div class="cv-mid-grade${imgs.length === 1 ? ' cv-mid-uma' : ''}">${imgs.map((m) => {
+        const k = imagensTodas.indexOf(m.caminho);
+        return `<figure class="cv-mid-img">
+          <button type="button" class="cv-mid-abrir" data-lb="${esc(chave)}" data-lb-i="${k}" aria-label="${esc('Abrir ' + m.nome + ' em tamanho grande')}">
+            <img src="${esc(api.quadroUrl(m.caminho, 480))}" alt="${esc(m.nome)}" loading="lazy" decoding="async" data-mid-img data-original="${esc(api.arquivoUrl(m.caminho))}"></button>
+          <figcaption class="cv-mid-legenda"><span class="cv-mid-nome" title="${esc(m.caminho)}">${esc(m.nome)}</span>${htmlAcoesMidia(m.caminho, true)}</figcaption></figure>`;
+      }).join('')}</div>`);
+    }
+    if (vids.length) {
+      out.push(`<div class="cv-mid-videos${vids.length > 1 ? ' cv-mid-faixa' : ''}">${vids.map((m) => {
+        const inf = ui.infos.get(m.caminho);
+        const ar = inf && inf.largura && inf.altura ? ` style="aspect-ratio: ${inf.largura} / ${inf.altura}"` : '';
+        const meta = inf ? [inf.duracao != null ? relogioMidia(inf.duracao) : '', proporcao(inf.largura, inf.altura)].filter(Boolean).join(' · ') : '';
+        return `<figure class="cv-mid-video" data-mid="${esc(m.caminho)}">
+          <div class="cv-mid-tela"${ar}><video controls preload="metadata" playsinline poster="${esc(api.quadroUrl(m.caminho, 640))}" data-src="${esc(api.arquivoUrl(m.caminho))}" aria-label="${esc('Vídeo ' + m.nome)}"></video></div>
+          <figcaption class="cv-mid-legenda"><span class="cv-mid-nome" title="${esc(m.caminho)}">${esc(m.nome)}</span><span class="cv-mid-meta">${esc(meta)}</span></figcaption>
+          ${htmlAcoesMidia(m.caminho, !!ui.compacto || vids.length > 1)}</figure>`;
+      }).join('')}</div>`);
+    }
+    if (auds.length) {
+      out.push(`<div class="cv-mid-audios">${auds.map((m) => {
+        const inf = ui.infos.get(m.caminho);
+        return `<figure class="cv-mid-audio" data-mid="${esc(m.caminho)}">
+          <div class="cv-mid-player">
+            <button type="button" class="cv-mid-play" data-audio-play aria-label="${esc('Tocar ' + m.nome)}">${ICONE.tocar}</button>
+            <div class="cv-mid-onda-box" data-audio-onda title="Clique para pular"><canvas class="cv-mid-onda" aria-hidden="true"></canvas></div>
+            <span class="cv-mid-tempo">0:00 / ${esc(relogioMidia(inf && inf.duracao))}</span>
+            <audio preload="none" data-src="${esc(api.arquivoUrl(m.caminho))}"></audio>
+          </div>
+          <figcaption class="cv-mid-legenda"><span class="cv-mid-nome" title="${esc(m.caminho)}">${esc(m.nome)}</span></figcaption>
+          ${htmlAcoesMidia(m.caminho, !!ui.compacto)}</figure>`;
+      }).join('')}</div>`);
+    }
+    rems.forEach((m) => out.push(htmlRemota(m, ui)));
+    if (res.length > lim) {
+      out.push(`<button type="button" class="cv-mid-mais" data-mid-todas="${esc(chave)}" aria-expanded="${todas}">${todas ? 'ver menos' : `ver todas (${res.length})`}</button>`);
+    }
+    return `<div class="cv-midias" data-midias="${esc(chave)}">${out.join('')}</div>`;
+  }
+
+  function mensagemTimeline(c) {
+    return `Importe este arquivo no projeto aberto do Premiere e coloque na timeline ativa, na posição do playhead, pelo Tools PRO:\n"${c}"\nSe ele não estiver dentro da pasta do projeto, copie para lá antes de importar.`;
+  }
+
   // ================================================================ o componente
   function montarConversa(el, op) {
     op = op || {};
     const cfg = { api: op.api || '', token: op.token || '' };
     const api = cliente(cfg);
-    const ui = { abertos: new Set(), mais: new Set(), grupos: new Set(), vivoTudo: false };
+    const ui = uiMidia({ abertos: new Set(), mais: new Set(), grupos: new Set(), vivoTudo: false });
+    ui.api = api;
+    ui.compacto = !!op.compacto;
     const st = {
       cid: op.conversa || null, mensagens: [], meta: {}, ia: null, skills: null,
       visiveis: VISIVEIS_INICIO, notas: [], anexos: [], menu: null, enviados: [], volta: -1,
@@ -629,6 +875,12 @@
     el.classList.add('cv');
     el.classList.toggle('compacto', !!op.compacto);
     el.innerHTML = `
+      <div class="cv-barra">
+        <input class="cv-titulo" type="text" maxlength="120" aria-label="Título da conversa (clique para renomear)" value="Nova conversa">
+        <button type="button" class="cv-bt mini cv-bt-hist" data-historico aria-expanded="false" title="Conversas anteriores">${ICONE.lista}<span>Histórico</span></button>
+        <button type="button" class="cv-bt mini cv-bt-nova" data-nova title="Começar uma conversa do zero">+ Nova</button>
+      </div>
+      <div class="cv-hist" role="dialog" aria-label="Histórico de conversas" hidden></div>
       <div class="cv-tarefas" hidden></div>
       <div class="cv-lista" role="log" aria-live="off" aria-label="Conversa" tabindex="0"><div class="cv-msgs"></div><div class="cv-vivo" hidden></div><div class="cv-notas"></div></div>
       <div class="cv-anuncio" aria-live="polite" aria-atomic="true"></div>
@@ -648,7 +900,17 @@
         <div class="cv-rodape"></div>
         ${(op.atalhos || []).length ? `<div class="cv-atalhos">${op.atalhos.map((a) => `<button type="button" class="cv-atalho" data-diz="${esc(a)}">${esc(a)}</button>`).join('')}</div>` : ''}
       </div>
-      <div class="cv-soltar" hidden><div>${ICONE.clipe}<b>Solte para anexar</b><span>arquivos e imagens vão junto da mensagem</span></div></div>`;
+      <div class="cv-soltar" hidden><div>${ICONE.clipe}<b>Solte para anexar</b><span>arquivos e imagens vão junto da mensagem</span></div></div>
+      <div class="cv-lb" role="dialog" aria-modal="true" aria-label="Imagem em tamanho grande" hidden>
+        <div class="cv-lb-topo"><span class="cv-lb-conta" aria-live="polite"></span><span class="cv-lb-nome"></span>
+          <button type="button" class="cv-lb-x" data-lb-fechar aria-label="Fechar (Esc)" title="Fechar (Esc)">✕</button></div>
+        <div class="cv-lb-palco" data-lb-fundo>
+          <button type="button" class="cv-lb-seta cv-lb-ant" data-lb-ir="-1" aria-label="Imagem anterior (←)" title="Anterior (←)">‹</button>
+          <img class="cv-lb-img" alt="">
+          <button type="button" class="cv-lb-seta cv-lb-prox" data-lb-ir="1" aria-label="Próxima imagem (→)" title="Próxima (→)">›</button>
+        </div>
+        <div class="cv-lb-acoes"></div>
+      </div>`;
 
     const $ = (s) => el.querySelector(s);
     const lista = $('.cv-lista'), msgsEl = $('.cv-msgs'), vivoEl = $('.cv-vivo'), notasEl = $('.cv-notas');
@@ -661,6 +923,442 @@
     st.colado = true;
     lista.addEventListener('scroll', () => { st.colado = pertoDoFim(); }, { passive: true });
 
+    // ---------------------------------------------------------- barra do topo + histórico
+    // Título editável, "+ Nova" e "Histórico" DENTRO do componente: no painel
+    // do Premiere não existe outra tela para trocar de conversa, e abrir sempre
+    // na última prendia a pessoa num assunto velho.
+    const JANELA = op.janela || (op.compacto ? 'painel' : 'app');
+    const CHAVE_ULTIMA = 'editor-automatico:conversa:' + JANELA;
+    const lembrar = (cid) => { try { if (cid) localStorage.setItem(CHAVE_ULTIMA, cid); else localStorage.removeItem(CHAVE_ULTIMA); } catch (_) { /* sem armazenamento */ } };
+    const lembrada = () => { try { return localStorage.getItem(CHAVE_ULTIMA); } catch (_) { return null; } };
+    const tituloEl = el.querySelector('.cv-titulo');
+    const histEl = el.querySelector('.cv-hist');
+    st.hist = { aberto: false, q: '', itens: null, carregando: false, confirma: null, erro: '', busca: 0 };
+
+    function pintarBarra() {
+      const t = (st.meta && st.meta.titulo) || 'Nova conversa';
+      if (document.activeElement !== tituloEl) tituloEl.value = t === st.cid ? 'Nova conversa' : t;
+      tituloEl.title = 'Clique para renomear a conversa';
+      const b = el.querySelector('[data-historico]');
+      b.setAttribute('aria-expanded', String(st.hist.aberto));
+      b.classList.toggle('ativo', st.hist.aberto);
+      if (st.cid) lembrar(st.cid);
+    }
+
+    async function renomear() {
+      const novo = tituloEl.value.trim();
+      const antes = (st.meta && st.meta.titulo) || 'Nova conversa';
+      if (!novo) { tituloEl.value = antes; return; }
+      if (novo === antes) return;
+      try {
+        await garantirConversa();
+        const r = await api.post(`/api/conversas/${encodeURIComponent(st.cid)}/renomear`, { titulo: novo });
+        st.meta = Object.assign({}, st.meta, r.meta || { titulo: novo });
+        $('.cv-anuncio').textContent = 'Conversa renomeada.';
+        op.aoTerminar && op.aoTerminar({ conversa: st.cid, meta: st.meta });
+      } catch (e) { tituloEl.value = antes; nota('Não consegui renomear: ' + e.message, true); }
+      pintarBarra();
+    }
+    tituloEl.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') { ev.preventDefault(); tituloEl.blur(); }
+      else if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); tituloEl.value = (st.meta && st.meta.titulo) || 'Nova conversa'; tituloEl.blur(); }
+    });
+    tituloEl.addEventListener('blur', () => { renomear(); });
+
+    function abrirHist() {
+      st.hist.aberto = true; st.hist.confirma = null;
+      pintarBarra(); pintarHist(); buscarHist();
+      const b = histEl.querySelector('.cv-hist-busca'); b && b.focus();
+    }
+    function fecharHist(focoNoBotao) {
+      if (!st.hist.aberto) return;
+      st.hist.aberto = false; st.hist.confirma = null;
+      pintarBarra(); pintarHist();
+      if (focoNoBotao) { const b = el.querySelector('[data-historico]'); b && b.focus(); }
+    }
+    async function buscarHist() {
+      const minha = ++st.hist.busca;
+      st.hist.carregando = true; st.hist.erro = ''; pintarHistLista();
+      try {
+        const q = st.hist.q.trim();
+        const r = await api.get('/api/conversas' + (q ? '?q=' + encodeURIComponent(q) : ''));
+        if (minha !== st.hist.busca) return;
+        st.hist.itens = r.conversas || [];
+      } catch (e) { if (minha === st.hist.busca) st.hist.erro = e.message; }
+      if (minha !== st.hist.busca) return;
+      st.hist.carregando = false;
+      if (st.montado) pintarHistLista();
+    }
+    function pintarHist() {
+      if (!st.hist.aberto) { histEl.hidden = true; histEl.innerHTML = ''; return; }
+      histEl.hidden = false;
+      histEl.innerHTML = `<div class="cv-hist-topo"><b>Histórico</b>
+          <button type="button" class="cv-bt mini principal" data-nova>+ Nova conversa</button>
+          <button type="button" class="cv-x cv-hist-x" data-hist-fechar aria-label="Fechar o histórico (Esc)" title="Fechar (Esc)">✕</button></div>
+        <input class="cv-hist-busca" type="search" placeholder="Buscar pelo título ou pelo que foi conversado…" aria-label="Buscar conversas" value="${esc(st.hist.q)}">
+        <ul class="cv-hist-lista" role="list"></ul>`;
+      pintarHistLista();
+    }
+    function pintarHistLista() {
+      const ul = histEl.querySelector('.cv-hist-lista');
+      if (!ul) return;
+      const h = st.hist;
+      if (h.erro) { ul.innerHTML = `<li class="cv-hist-vazio">${esc('Não consegui listar: ' + h.erro)}</li>`; return; }
+      if (!h.itens) { ul.innerHTML = '<li class="cv-hist-vazio">carregando…</li>'; return; }
+      if (!h.itens.length) { ul.innerHTML = `<li class="cv-hist-vazio">${h.q.trim() ? 'Nenhuma conversa com isso.' : 'Nenhuma conversa ainda.'}</li>`; return; }
+      ul.innerHTML = h.itens.map((c) => {
+        const atual = c.id === st.cid;
+        if (h.confirma === c.id) {
+          return `<li class="cv-hist-item confirma" role="alertdialog" aria-label="Confirmar exclusão">
+            <span>Apagar <b>${esc(c.titulo)}</b>? As mensagens somem; o projeto e os arquivos ficam.</span>
+            <span class="cv-hist-conf"><button type="button" class="cv-bt mini" data-hist-confirma="nao">Cancelar</button>
+            <button type="button" class="cv-bt mini perigo" data-hist-confirma="${esc(c.id)}">Apagar</button></span></li>`;
+        }
+        const meta = [quandoRelativo(c.quando), c.projeto_nome || (c.projeto ? c.projeto : ''),
+          `${c.mensagens} ${c.mensagens === 1 ? 'mensagem' : 'mensagens'}`].filter(Boolean).join(' · ');
+        return `<li class="cv-hist-item${atual ? ' atual' : ''}">
+          <button type="button" class="cv-hist-abrir" data-hist-abrir="${esc(c.id)}" ${atual ? 'aria-current="true"' : ''}>
+            <span class="cv-hist-titulo">${esc(c.titulo)}${atual ? ' <em>aberta</em>' : ''}</span>
+            <span class="cv-hist-meta">${esc(meta)}</span>
+            ${c.trecho ? `<span class="cv-hist-trecho">${esc(c.trecho)}</span>` : ''}</button>
+          <button type="button" class="cv-x cv-hist-apagar" data-hist-apagar="${esc(c.id)}" aria-label="${esc('Apagar a conversa ' + c.titulo)}" title="Apagar">✕</button></li>`;
+      }).join('');
+    }
+    histEl.addEventListener('input', (ev) => {
+      if (!ev.target.classList.contains('cv-hist-busca')) return;
+      st.hist.q = ev.target.value;
+      clearTimeout(st.hist.t); st.hist.t = setTimeout(buscarHist, 220);
+    });
+    histEl.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); if (st.hist.confirma) { st.hist.confirma = null; pintarHistLista(); } else fecharHist(true); }
+    });
+
+    function zerarTela() {
+      st.notas = []; st.falha = null; st.cartao = null; st.cartaoErro = '';
+      ui.abertos.clear(); ui.mais.clear(); ui.grupos.clear(); st.visiveis = VISIVEIS_INICIO;
+    }
+    async function abrirConversa(cid) {
+      if (cid === st.cid) { fecharHist(); return; }
+      if (S && S.viva) { nota('Espere a resposta atual acabar (ou aperte Esc) antes de trocar de conversa.'); return; }
+      try {
+        const r = await api.get('/api/conversas/' + encodeURIComponent(cid));
+        zerarTela();
+        st.cid = cid; st.mensagens = r.mensagens || []; st.meta = r.meta || {};
+        st.enviados = st.mensagens.filter((m) => m.role === 'user').map((m) => partesUsuario(m).texto).filter(Boolean);
+        ligarSessao(cid);
+        fecharHist();
+        pintarTudo(); rolarFim(true); buscarCartao();
+        op.aoTrocarConversa && op.aoTrocarConversa(cid);
+        entrada.focus();
+      } catch (e) { nota('Não consegui abrir a conversa: ' + e.message, true); }
+    }
+    async function apagarConversa(cid) {
+      if (cid === st.cid && S && S.viva) { nota('Esta conversa está respondendo agora — pare a resposta antes de apagar.', true); return; }
+      try {
+        await api.post('/api/conversas/apagar', { conversa: cid });
+        st.hist.confirma = null;
+        st.hist.itens = (st.hist.itens || []).filter((c) => c.id !== cid);
+        if (cid === st.cid) {
+          zerarTela();
+          st.cid = null; st.mensagens = []; st.meta = {};
+          lembrar(null);
+          ligarSessao(null);
+          pintarTudo();
+          op.aoTrocarConversa && op.aoTrocarConversa(null);
+        }
+        pintarHistLista();
+        $('.cv-anuncio').textContent = 'Conversa apagada.';
+      } catch (e) { st.hist.confirma = null; st.hist.erro = e.message; pintarHistLista(); }
+    }
+
+    // ---------------------------------------------------------- entregas de mídia
+    // Vídeo só ganha `src` quando aparece na tela (IntersectionObserver); áudio
+    // só quando a pessoa aperta play. Dados (dimensão, duração, onda) vêm do
+    // servidor uma vez por arquivo e ficam em memória.
+    const infosP = new Map(), picosP = new Map();
+    const filaBaixar = [];
+    let baixandoN = 0;
+    const visivel = typeof IntersectionObserver !== 'undefined'
+      ? new IntersectionObserver((ents) => ents.forEach((e) => { if (e.isIntersecting) { visivel.unobserve(e.target); ativarMidia(e.target); } }),
+        { root: lista, rootMargin: '240px 0px' })
+      : null;
+
+    function hidratar(raiz) {
+      if (!raiz || !raiz.querySelectorAll) return;
+      raiz.querySelectorAll('[data-mid]:not([data-hid])').forEach((fig) => {
+        fig.dataset.hid = '1';
+        if (visivel) visivel.observe(fig); else ativarMidia(fig);
+      });
+      raiz.querySelectorAll('[data-mid-url]').forEach((card) => {
+        const u = card.dataset.midUrl;
+        if (!ui.baixas.has(u)) baixarEntrega(u, card.dataset.tipo || null);
+      });
+    }
+
+    function ativarMidia(fig) {
+      const c = fig.dataset.mid;
+      const v = fig.querySelector('video[data-src]');
+      if (v && !v.getAttribute('src')) v.setAttribute('src', v.dataset.src);
+      carregarInfo(c).then((inf) => { if (inf) aplicarInfo(fig, inf); });
+      if (fig.querySelector('[data-audio-onda]')) carregarPicos(c).then((pk) => { if (pk) { fig._picos = pk; desenharOnda(fig); } });
+    }
+
+    function carregarInfo(c) {
+      if (!infosP.has(c)) {
+        infosP.set(c, api.get('/api/midia/info?p=' + encodeURIComponent(c))
+          .then((d) => { ui.infos.set(c, d); return d; }).catch(() => null));
+      }
+      return infosP.get(c);
+    }
+
+    function carregarPicos(c) {
+      if (!picosP.has(c)) {
+        picosP.set(c, api.get(`/api/midia/picos?p=${encodeURIComponent(c)}&n=${op.compacto ? 64 : 110}`).catch(() => null));
+      }
+      return picosP.get(c);
+    }
+
+    function aplicarInfo(fig, inf) {
+      const tela = fig.querySelector('.cv-mid-tela');
+      if (tela && inf.largura && inf.altura) tela.style.aspectRatio = `${inf.largura} / ${inf.altura}`;
+      const meta = fig.querySelector('.cv-mid-meta');
+      if (meta) meta.textContent = [inf.duracao != null ? relogioMidia(inf.duracao) : '', proporcao(inf.largura, inf.altura)].filter(Boolean).join(' · ');
+      const tempo = fig.querySelector('.cv-mid-tempo');
+      const a = fig.querySelector('audio');
+      if (tempo && a) tempo.textContent = `${relogioMidia(a.currentTime || 0)} / ${relogioMidia(inf.duracao)}`;
+    }
+
+    function desenharOnda(fig) {
+      const cv = fig.querySelector('canvas.cv-mid-onda');
+      const pk = fig._picos;
+      if (!cv || !pk || !Array.isArray(pk.picos) || !cv.getContext) return;
+      const ctx = cv.getContext('2d');
+      if (!ctx) return;
+      const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+      const w = Math.max(60, cv.clientWidth || 240), h = Math.max(20, cv.clientHeight || 36);
+      if (cv.width !== Math.round(w * dpr)) cv.width = Math.round(w * dpr);
+      if (cv.height !== Math.round(h * dpr)) cv.height = Math.round(h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      const a = fig.querySelector('audio');
+      const dur = (a && isFinite(a.duration) && a.duration) || pk.duracao || 0;
+      const prog = dur && a ? Math.min(1, (a.currentTime || 0) / dur) : 0;
+      const n = pk.picos.length, passo = w / n, larg = Math.max(1, passo * 0.62);
+      const css = getComputedStyle(fig);
+      const ouro = (css.getPropertyValue('--cv-ouro') || '').trim() || '#f2b33d';
+      const apagado = 'rgba(255,255,255,.28)';
+      for (let i = 0; i < n; i++) {
+        const v = Math.max(0.06, +pk.picos[i] || 0);
+        const bh = v * (h - 4);
+        ctx.fillStyle = (i + 0.5) / n <= prog ? ouro : apagado;
+        ctx.fillRect(i * passo + (passo - larg) / 2, (h - bh) / 2, larg, bh);
+      }
+    }
+
+    function tocarAudio(fig, pular) {
+      const a = fig.querySelector('audio');
+      if (!a) return;
+      if (!a.getAttribute('src')) a.setAttribute('src', a.dataset.src);
+      if (pular != null) {
+        const dur = (isFinite(a.duration) && a.duration) || (fig._picos && fig._picos.duracao) || 0;
+        if (dur) { try { a.currentTime = pular * dur; } catch (_) { /* ainda sem metadados */ } }
+        desenharOnda(fig);
+        if (!a.paused) return;
+      }
+      if (a.paused) { try { const pr = a.play(); if (pr && pr.catch) pr.catch(() => {}); } catch (_) { /* sem player (teste) */ } }
+      else { try { a.pause(); } catch (_) { /* idem */ } }
+    }
+
+    // ---- download das entregas remotas: no máximo 2 ao mesmo tempo
+    function baixarEntrega(url, tipo) {
+      ui.baixas.set(url, { estado: 'baixando', tipo });
+      filaBaixar.push({ url, tipo });
+      puxarFila();
+    }
+
+    function puxarFila() {
+      while (baixandoN < 2 && filaBaixar.length) {
+        const { url, tipo } = filaBaixar.shift();
+        baixandoN += 1;
+        (async () => {
+          try {
+            const r = await api.post('/api/midia/baixar', { conversa: st.cid, url, tipo });
+            ui.baixas.set(url, { estado: 'ok', caminho: r.caminho, tipo: r.tipo || tipo });
+            if (r.destino) st.meta.destino = r.destino;
+          } catch (e) {
+            if (e.status === 409 && e.dados && e.dados.precisa_destino) {
+              ui.destinoProjetos = e.dados.projetos || [];
+              ui.baixas.set(url, { estado: 'destino', tipo });
+            } else ui.baixas.set(url, { estado: 'erro', erro: e.message, tipo });
+          }
+          baixandoN -= 1;
+          if (st.montado) repintarDonos(url);
+          puxarFila();
+        })();
+      }
+    }
+
+    // redesenha as mensagens (ou passos ao vivo) que mostram esta entrega
+    function repintarDonos(url) {
+      const sel = '[data-mid-url]';
+      const msgs = new Set();
+      let vivo = false;
+      el.querySelectorAll(sel).forEach((card) => {
+        if (url && card.dataset.midUrl !== url) return;
+        const m = card.closest('[data-msg]');
+        if (m) msgs.add(+m.dataset.msg);
+        else if (vivoEl.contains(card)) vivo = true;
+      });
+      msgs.forEach((i) => {
+        const velho = msgsEl.querySelector(`[data-msg="${i}"]`);
+        if (!velho || !st.mensagens[i]) return;
+        const t = document.createElement('div'); t.innerHTML = htmlMensagem(st.mensagens[i], i, ui, api);
+        const novo = t.firstElementChild; velho.replaceWith(novo); hidratar(novo);
+      });
+      if (vivo) { vivoNos.forEach((n) => { n.dataset.ass = ''; }); pintarVivo(); }
+    }
+
+    async function escolherDestino(corpo, botao) {
+      if (!st.cid) return;
+      if (botao) botao.disabled = true;
+      if (corpo.escolher) nota('Escolha a pasta do projeto na janela que abriu.');
+      try {
+        const r = await api.post(`/api/conversas/${encodeURIComponent(st.cid)}/destino`, corpo);
+        if (!r.ok) { nota(r.cancelado ? 'Nenhuma pasta escolhida — as entregas continuam esperando.' : (r.erro || 'Não deu.'), !r.cancelado); return; }
+        st.meta.destino = r.destino;
+        nota(`As entregas desta conversa vão para ${r.destino ? r.destino.nome : 'o projeto'}.`);
+        [...ui.baixas.entries()].forEach(([u, b]) => { if (b.estado === 'destino') ui.baixas.delete(u); });
+        await recarregar();
+        hidratar(vivoEl);
+      } catch (e) { nota(e.message, true); }
+      finally { if (botao && botao.isConnected) botao.disabled = false; }
+    }
+
+    // ---- lightbox
+    const lbEl = el.querySelector('.cv-lb');
+    const lb = { lista: [], i: 0, volta: null };
+    const lbAberto = () => !lbEl.hidden;
+    function abrirLb(chave, i, origem) {
+      lb.lista = ui.lb.get(chave) || [];
+      if (!lb.lista.length) return;
+      lb.i = Math.max(0, Math.min(lb.lista.length - 1, +i || 0));
+      lb.volta = origem || null;
+      lbEl.hidden = false;
+      el.classList.add('cv-com-lb');
+      pintarLb();
+      document.addEventListener('keydown', teclaLb);
+      const x = lbEl.querySelector('[data-lb-fechar]'); x && x.focus({ preventScroll: true });
+    }
+    function pintarLb() {
+      const c = lb.lista[lb.i];
+      const img = lbEl.querySelector('.cv-lb-img');
+      img.src = api.arquivoUrl(c);
+      img.alt = base(c);
+      lbEl.querySelector('.cv-lb-conta').textContent = `${lb.i + 1} de ${lb.lista.length}`;
+      lbEl.querySelector('.cv-lb-nome').textContent = base(c);
+      lbEl.querySelector('.cv-lb-nome').title = c;
+      lbEl.querySelectorAll('[data-lb-ir]').forEach((b) => { b.hidden = lb.lista.length < 2; });
+      lbEl.querySelector('.cv-lb-acoes').innerHTML = htmlAcoesMidia(c, false);
+    }
+    function irLb(d) {
+      if (lb.lista.length < 2) return;
+      lb.i = (lb.i + d + lb.lista.length) % lb.lista.length;
+      pintarLb();
+    }
+    function fecharLb() {
+      if (!lbAberto()) return;
+      lbEl.hidden = true;
+      el.classList.remove('cv-com-lb');
+      lbEl.querySelector('.cv-lb-img').removeAttribute('src');
+      document.removeEventListener('keydown', teclaLb);
+      if (lb.volta && lb.volta.isConnected) lb.volta.focus({ preventScroll: true });
+    }
+    function teclaLb(ev) {
+      if (!lbAberto()) return;
+      if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); fecharLb(); }
+      else if (ev.key === 'ArrowRight') { ev.preventDefault(); ev.stopPropagation(); irLb(1); }
+      else if (ev.key === 'ArrowLeft') { ev.preventDefault(); ev.stopPropagation(); irLb(-1); }
+      else if (ev.key === 'Tab') {           // o foco não sai do lightbox
+        const f = [...lbEl.querySelectorAll('button:not([hidden])')];
+        if (!f.length) return;
+        const i = f.indexOf(document.activeElement);
+        if (ev.shiftKey && i <= 0) { ev.preventDefault(); f[f.length - 1].focus(); }
+        else if (!ev.shiftKey && i === f.length - 1) { ev.preventDefault(); f[0].focus(); }
+      }
+    }
+    // dentro da Conversa, o lightbox atende ANTES do Esc que para a resposta
+    el.addEventListener('keydown', (ev) => { if (lbAberto()) teclaLb(ev); }, true);
+
+    async function copiarTexto(t) {
+      try { await navigator.clipboard.writeText(t); return true; }
+      catch (_) {
+        const ta = document.createElement('textarea'); ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        let ok = false; try { ok = document.execCommand('copy'); } catch (__) { ok = false; }
+        ta.remove(); return ok;
+      }
+    }
+
+    async function acaoMidia(acao, c, botao) {
+      if (acao === 'copiar') {
+        const ok = await copiarTexto(c);
+        const rot = botao.querySelector('span');
+        const antes = rot ? rot.textContent : '';
+        botao.classList.add('cv-mid-feito'); botao.title = ok ? 'Copiado' : 'Não consegui copiar';
+        if (rot) rot.textContent = ok ? 'Copiado' : 'Não copiou';
+        $('.cv-anuncio').textContent = ok ? 'Caminho copiado.' : 'Não consegui copiar o caminho.';
+        setTimeout(() => { botao.classList.remove('cv-mid-feito'); botao.title = 'Copiar caminho'; if (rot) rot.textContent = antes; }, 1400);
+      } else if (acao === 'mostrar') {
+        try { await api.post('/api/midia/mostrar', { p: c }); }
+        catch (e) { nota(e.message, true); }
+      } else if (acao === 'timeline') {
+        // só PREENCHE: quem envia é a pessoa, no botão Enviar
+        if (lbAberto()) fecharLb();
+        entrada.value = mensagemTimeline(c);
+        crescer(); fecharMenu();
+        entrada.focus();
+        entrada.setSelectionRange(entrada.value.length, entrada.value.length);
+        $('.cv-anuncio').textContent = 'Pedido pronto no campo de mensagem. Confira e clique em Enviar.';
+      }
+    }
+
+    // mídia: só uma tocando por vez; o botão e a onda acompanham o áudio
+    el.addEventListener('play', (ev) => {
+      el.querySelectorAll('video, audio').forEach((x) => { if (x !== ev.target && !x.paused) { try { x.pause(); } catch (_) { /* idem */ } } });
+      const fig = ev.target.closest && ev.target.closest('.cv-mid-audio');
+      const b = fig && fig.querySelector('[data-audio-play]');
+      if (b) { b.innerHTML = ICONE.pausar; b.setAttribute('aria-label', b.getAttribute('aria-label').replace(/^Tocar/, 'Pausar')); }
+    }, true);
+    const aoParar = (ev) => {
+      const fig = ev.target.closest && ev.target.closest('.cv-mid-audio');
+      const b = fig && fig.querySelector('[data-audio-play]');
+      if (b) { b.innerHTML = ICONE.tocar; b.setAttribute('aria-label', b.getAttribute('aria-label').replace(/^Pausar/, 'Tocar')); }
+    };
+    el.addEventListener('pause', aoParar, true);
+    el.addEventListener('ended', aoParar, true);
+    el.addEventListener('timeupdate', (ev) => {
+      const fig = ev.target.closest && ev.target.closest('.cv-mid-audio');
+      if (!fig) return;
+      desenharOnda(fig);
+      const t = fig.querySelector('.cv-mid-tempo');
+      const dur = isFinite(ev.target.duration) ? ev.target.duration : (ui.infos.get(fig.dataset.mid) || {}).duracao;
+      if (t) t.textContent = `${relogioMidia(ev.target.currentTime)} / ${relogioMidia(dur)}`;
+    }, true);
+    // miniatura: imagem muito larga (folha de contato, original × clone) ocupa a linha inteira
+    el.addEventListener('load', (ev) => {
+      const img = ev.target;
+      if (img && img.tagName === 'IMG' && img.hasAttribute('data-mid-img') && img.naturalHeight && img.naturalWidth / img.naturalHeight > 1.9) {
+        const f = img.closest('.cv-mid-img'); f && f.classList.add('cv-mid-larga');
+      }
+    }, true);
+    // sem ffmpeg não sai miniatura: a grade cai no arquivo original
+    el.addEventListener('error', (ev) => {
+      const img = ev.target;
+      if (img && img.tagName === 'IMG' && img.hasAttribute('data-mid-img') && img.dataset.original && img.src !== img.dataset.original) {
+        img.src = img.dataset.original;
+      }
+    }, true);
+
     // ---------------------------------------------------------- desenho
     function pintarMensagens() {
       const ms = st.mensagens;
@@ -669,6 +1367,7 @@
       if (!ms.length && !(S && S.viva)) html += op.boasVindas ? `<div class="cv-msg cv-ia cv-boas">${op.boasVindas}</div>` : '';
       for (let i = de; i < ms.length; i++) html += htmlMensagem(ms[i], i, ui, api);
       msgsEl.innerHTML = html;
+      hidratar(msgsEl);
     }
 
     // a resposta viva: um nó por passo, redesenhado só quando o passo muda
@@ -694,8 +1393,9 @@
         cab.textContent = `▸ mais ${ini} ações anteriores`;
       } else if (cab) cab.remove();
       for (const [i, no] of vivoNos) if (i < ini || i >= ps.length) { no.remove(); vivoNos.delete(i); }
+      const psD = dedupeMidias(ps, ui);
       for (let i = ini; i < ps.length; i++) {
-        const p = ps[i];
+        const p = psD[i];
         const ass = JSON.stringify(p) + '|' + ui.abertos.has('v' + i) + [...ui.mais].filter((k) => k.startsWith('v' + i + ':')).join();
         let no = vivoNos.get(i);
         if (!no) {
@@ -704,7 +1404,7 @@
           if (depois != null) cx.insertBefore(no, vivoNos.get(depois)); else cx.appendChild(no);
           vivoNos.set(i, no);
         }
-        if (no.dataset.ass !== ass) { no.dataset.ass = ass; no.innerHTML = htmlPasso(p, 'v' + i, ui); }
+        if (no.dataset.ass !== ass) { no.dataset.ass = ass; no.innerHTML = htmlPasso(p, 'v' + i, ui); hidratar(no); }
       }
       // em que ponto está: a ação rodando agora vence a etapa do servidor
       let etapa = v.etapa || '', titulo = 'Pensando…';
@@ -775,7 +1475,7 @@
           data-ia="${esc(p.id)}" aria-pressed="${p.id === ia.escolhido}" title="${esc(p.pronto ? (p.ferramentas || p.origem || '') : (p.msg || 'Não conectado'))}"><i></i>${esc(p.nome)}</button>`).join('') : '';
       box.innerHTML = `<div class="cv-ia-sel" role="group" aria-label="IA">${prov}</div>
         <span class="cv-rod-item" title="Projeto">${ICONE.filme}<span>${esc(st.meta.projeto_nome || (st.meta.projeto ? st.meta.projeto : 'sem projeto'))}</span></span>
-        ${skill ? `<span class="cv-rod-item" title="Skill em uso">${ICONE.estrela}<span>${esc(skill)}</span></span>` : ''}
+        ${skill ? `<span class="cv-rod-item cv-rod-skill" title="${esc('Skill em uso: ' + skill)}">${ICONE.estrela}<span>${esc(nomeSkill(skill))}</span></span>` : ''}
         <span class="cv-rod-dica">Enter envia · Shift+Enter quebra linha · ↑ última mensagem</span>`;
     }
 
@@ -813,7 +1513,7 @@
     }
 
     function pintarTudo() {
-      pintarMensagens(); pintarVivo(); pintarNotas(); pintarTarefas(); pintarFila(); pintarAnexos(); pintarRodape(); pintarCartao();
+      pintarBarra(); pintarMensagens(); pintarVivo(); pintarNotas(); pintarTarefas(); pintarFila(); pintarAnexos(); pintarRodape(); pintarCartao();
       ocupado();
     }
 
@@ -901,7 +1601,7 @@
         st.meta = r.meta || {};
       } catch (e) { /* mantém o que já tem na tela */ }
       if (!st.montado) return;
-      pintarMensagens(); pintarTarefas(); pintarRodape();
+      pintarBarra(); pintarMensagens(); pintarTarefas(); pintarRodape();
       rolarFim();
     }
 
@@ -913,6 +1613,24 @@
         } else if (st.cid) {
           const r = await api.get('/api/conversas/' + encodeURIComponent(st.cid));
           st.mensagens = r.mensagens || []; st.meta = r.meta || {};
+        } else if ((op.aoAbrir || 'ultima') === 'nova') {
+          // começa do zero; a pasta da conversa só nasce na 1ª mensagem
+          st.cid = null; st.mensagens = []; st.meta = {};
+        } else if (lembrada()) {
+          // a última que ESTA janela tinha aberta (app e painel lembram cada um a sua)
+          const cid = lembrada();
+          let r = null;
+          try { r = await api.get('/api/conversas/' + encodeURIComponent(cid)); } catch (_) { r = null; }
+          if (r && r.meta && r.meta.criada) {
+            st.cid = cid; st.mensagens = r.mensagens || []; st.meta = r.meta || {};
+            op.aoTrocarConversa && op.aoTrocarConversa(cid);
+          } else {
+            lembrar(null);
+            const r2 = await api.get('/api/conversa');
+            st.cid = r2.conversa || null; st.mensagens = r2.mensagens || [];
+            if (st.cid) { try { st.meta = (await api.get('/api/conversas/' + encodeURIComponent(st.cid))).meta || {}; } catch (_) { /* sem meta */ } }
+            if (st.cid) op.aoTrocarConversa && op.aoTrocarConversa(st.cid);
+          }
         } else {
           const r = await api.get('/api/conversa');
           st.cid = r.conversa || null; st.mensagens = r.mensagens || [];
@@ -991,6 +1709,8 @@
           st.notas = []; st.falha = null; st.cartao = null;
           st.mensagens = []; st.meta = {};
           st.cid = r.conversa; ligarSessao(st.cid);
+          st.hist.aberto = false; st.hist.confirma = null; pintarHist();
+          ui.abertos.clear(); st.visiveis = VISIVEIS_INICIO;
           pintarTudo();
           op.aoTrocarConversa && op.aoTrocarConversa(st.cid);
           entrada.focus();
@@ -1141,6 +1861,43 @@
 
     el.addEventListener('click', async (ev) => {
       let b;
+      // ---- barra do topo e histórico
+      if (sobre(ev, '[data-historico]')) { st.hist.aberto ? fecharHist(true) : abrirHist(); return; }
+      if (sobre(ev, '[data-nova]')) { comando('nova'); return; }
+      if (sobre(ev, '[data-hist-fechar]')) { fecharHist(true); return; }
+      if ((b = sobre(ev, '[data-hist-abrir]'))) { abrirConversa(b.dataset.histAbrir); return; }
+      if ((b = sobre(ev, '[data-hist-apagar]'))) {
+        st.hist.confirma = b.dataset.histApagar; pintarHistLista();
+        const c = histEl.querySelector('[data-hist-confirma="nao"]'); c && c.focus(); return;
+      }
+      if ((b = sobre(ev, '[data-hist-confirma]'))) {
+        if (b.dataset.histConfirma === 'nao') { const id = st.hist.confirma; st.hist.confirma = null; pintarHistLista(); const x = histEl.querySelector(`[data-hist-apagar="${typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(id || '') : id}"]`); x && x.focus(); }
+        else apagarConversa(b.dataset.histConfirma);
+        return;
+      }
+      // ---- entregas de mídia e lightbox
+      if ((b = sobre(ev, '[data-lb-fechar]'))) { fecharLb(); return; }
+      if ((b = sobre(ev, '[data-lb-ir]'))) { irLb(+b.dataset.lbIr); return; }
+      if ((b = sobre(ev, '[data-mid-acao]'))) { acaoMidia(b.dataset.midAcao, b.dataset.alvo, b); return; }
+      if (lbAberto() && ev.target && ev.target.hasAttribute && ev.target.hasAttribute('data-lb-fundo')) { fecharLb(); return; }
+      if ((b = sobre(ev, '[data-lb]'))) { abrirLb(b.dataset.lb, b.dataset.lbI, b); return; }
+      if ((b = sobre(ev, '[data-mid-todas]'))) {
+        const k = b.dataset.midTodas;
+        ui.midiasTodas.has(k) ? ui.midiasTodas.delete(k) : ui.midiasTodas.add(k);
+        redesenharDono(k); return;
+      }
+      if ((b = sobre(ev, '[data-audio-play]'))) { tocarAudio(b.closest('.cv-mid-audio')); return; }
+      if ((b = sobre(ev, '[data-audio-onda]'))) {
+        const r = b.getBoundingClientRect();
+        const x = r.width ? Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)) : 0;
+        tocarAudio(b.closest('.cv-mid-audio'), x); return;
+      }
+      if ((b = sobre(ev, '[data-destino-projeto]'))) { escolherDestino({ projeto: b.dataset.destinoProjeto }, b); return; }
+      if ((b = sobre(ev, '[data-destino-escolher]'))) { escolherDestino({ escolher: true }, b); return; }
+      if ((b = sobre(ev, '[data-mid-tentar]'))) {
+        const u = b.dataset.midTentar; const ant = ui.baixas.get(u) || {};
+        ui.baixas.delete(u); baixarEntrega(u, ant.tipo || null); repintarDonos(u); return;
+      }
       if ((b = sobre(ev, '[data-copiar]'))) {
         const pre = b.closest('.cv-codigo').querySelector('pre');
         const t = pre ? pre.textContent : '';
@@ -1258,7 +2015,9 @@
         const velho = msgsEl.querySelector(`[data-msg="${i}"]`);
         if (velho && st.mensagens[i]) {
           const t = document.createElement('div'); t.innerHTML = htmlMensagem(st.mensagens[i], i, ui, api);
-          velho.replaceWith(t.firstElementChild);
+          const novo = t.firstElementChild;
+          velho.replaceWith(novo);
+          hidratar(novo);
         } else pintarMensagens();
       }
       const b = el.querySelector(`[data-abrir="${typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(chave) : chave}"]`);
@@ -1301,7 +2060,7 @@
     });
     // Esc também fora do campo, em qualquer lugar da conversa
     el.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Escape' && ev.target !== entrada && S && S.viva) { ev.preventDefault(); parar(); }
+      if (ev.key === 'Escape' && ev.target !== entrada && ev.target !== tituloEl && !histEl.contains(ev.target) && S && S.viva && !lbAberto()) { ev.preventDefault(); parar(); }
     });
 
     // arrastar e soltar
@@ -1320,6 +2079,8 @@
 
     function desmontar() {
       st.montado = false;
+      document.removeEventListener('keydown', teclaLb);
+      if (visivel) visivel.disconnect();
       if (st.desligar) st.desligar();
       clearInterval(st.relogio);
     }
@@ -1333,6 +2094,8 @@
       enviar: (t) => enviar(t),
       comando,
       foco: () => entrada.focus(),
+      abrirConversa: (cid) => abrirConversa(cid),
+      historico: () => abrirHist(),
       get conversa() { return st.cid; },
       get meta() { return st.meta; },
       recarregar,
@@ -1344,7 +2107,9 @@
     // peças puras, para os testes (testes/js/conversa-ui.test.js)
     _interno: { esc, md, inline, rotuloAcao, rotuloComando, lerGatilho, filtrarComandos, filtrarSkills, aplicarArquivo,
                 Fila, tarefasAtuais, skillEmUso, resumoCusto, partesUsuario, sequenciaDa, duracao, COMANDOS,
-                htmlMensagem, htmlPasso, SESSOES, enviarNaSessao, sessao },
+                htmlMensagem, htmlPasso, SESSOES, enviarNaSessao, sessao,
+                htmlMidias, dedupeMidias, proporcao, mensagemTimeline, uiMidia,
+                tecnicoDaSkill, nomeSkill, quandoRelativo },
   };
   raizGlobal.montarConversa = montarConversa;
   raizGlobal.ConversaUI = exportado;

@@ -2261,9 +2261,7 @@ async function telaChatLivre() {
       <div class="chat-col">
         <div class="chat-topo">
           <div><h1>Conversa <span class="selo-beta">beta</span></h1>
-            <p class="sub" id="chat-sub">${cv.meta && cv.meta.titulo && cv.meta.titulo !== 'Nova conversa'
-              ? esc(cv.meta.titulo) : 'Fale o que quer fazer. Eu confiro o Adobe e conduzo daqui.'}</p></div>
-          <button class="bt discreto" id="nova-conversa">+ Nova conversa</button>
+            <p class="sub" id="chat-sub">Fale o que quer fazer. Eu confiro o Adobe e conduzo daqui.</p></div>
         </div>
         ${cv.mensagens.length ? '' : `<div class="nota-beta" id="nota-chat">
           <span class="nota-icone">▸</span>
@@ -2281,9 +2279,6 @@ async function telaChatLivre() {
     </div>`);
 
   document.getElementById('palco').classList.add('modo-chat');
-  const nc = document.getElementById('nova-conversa');
-  if (nc) nc.onclick = () => CONVERSA && CONVERSA.comando('nova');
-  const sub = document.getElementById('chat-sub');
   montarChat(document.getElementById('chat-montagem'), {
     boasVindas: `<p>Pronto. Antes de mexer em qualquer coisa eu confiro o que está aberto
       no Premiere ou no After Effects e te mostro aqui para confirmar.</p>
@@ -2292,12 +2287,10 @@ async function telaChatLivre() {
       os comandos e <b>@</b> para citar um arquivo.</p>`,
     atalhos: ['O que está aberto no Premiere?', 'Analise esta timeline', 'Quero editar um criativo novo'],
     aoTerminar: ({ meta }) => {
-      if (sub && meta && meta.titulo && meta.titulo !== 'Nova conversa') sub.textContent = meta.titulo;
       const nb = document.getElementById('nota-chat'); if (nb) nb.remove();
     },
     aoTrocarConversa: (cid) => {
       conversaAtual = cid;
-      if (sub) sub.textContent = 'Fale o que quer fazer. Eu confiro o Adobe e conduzo daqui.';
     },
   });
   pintarAdobe();

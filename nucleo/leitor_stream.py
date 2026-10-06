@@ -125,8 +125,14 @@ def _recusa(texto):
 class LeitorClaude:
     """Uma rodada do `claude -p`. Alimente com `linha()`; no fim, `finalizar()`."""
 
-    def __init__(self, ao_vivo=None, relogio=time.time):
+    def __init__(self, ao_vivo=None, relogio=time.time, midias=None):
         self.ao_vivo = ao_vivo
+        # `midias(texto) -> [..]`: acha as entregas (imagem, vídeo, áudio) no
+        # resultado INTEIRO da ferramenta — o `resultado` guardado é truncado
+        # e uma lista de jobs do Higgsfield passa fácil dos 4 mil caracteres.
+        # Injetado (nucleo.midia.detectar_permitidas) para o leitor seguir sem
+        # saber de disco: os testes passam um detector falso.
+        self.midias = midias
         self.agora = relogio
         self.passos = []
         self.erro = None
@@ -284,6 +290,13 @@ class LeitorClaude:
                       "saida": resumo_saida(texto),
                       "resultado": _curto(texto, LIMITE_RESULTADO),
                       "dur": round(self.agora() - (p.get("inicio") or self.agora()), 1)}
+            if self.midias:
+                try:
+                    achadas = self.midias(texto)
+                except Exception:
+                    achadas = []
+                if achadas:
+                    campos["midias"] = achadas
             porque = _recusa(texto)
             if porque is not None:
                 campos["recusado"] = True
@@ -319,6 +332,15 @@ class LeitorClaude:
                 p["estado"] = "interrompido"
         self.passos = [p for p in self.passos
                        if not (p.get("tipo") == "texto" and not (p.get("texto") or "").strip())]
+        if self.midias:
+            for p in self.passos:
+                if p.get("tipo") == "texto" and "midias" not in p:
+                    try:
+                        achadas = self.midias(p.get("texto") or "")
+                    except Exception:
+                        achadas = []
+                    if achadas:
+                        p["midias"] = achadas
         return self.passos
 
     def fala(self):
