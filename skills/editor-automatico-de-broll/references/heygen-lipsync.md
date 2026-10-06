@@ -80,3 +80,23 @@ POST https://api.elevenlabs.io/v1/text-to-speech/<voice_id>
 O HeyGen anima exatamente o que está no quadro e **não reenquadra**. A foto precisa ter o enquadramento final desejado, rosto único e nítido, sem óculos escuros, vertical.
 
 E conferir se a imagem contradiz a copy: num caso real o hook dizia *"I'm here in my pajamas"* e a avatar estava de camisa social — a fala desmentia a imagem no primeiro segundo.
+
+---
+
+## Atualização — o que mudou depois deste guia
+
+- **Persona gerada por IA: Avatar IV com foto + áudio.** O CLI oficial (`heygen`) faz direto, sem treinar avatar:
+  ```
+  heygen asset create --file persona.jpg        # imagem: o retorno traz "id"
+  heygen asset create --file fala.wav           # áudio: o retorno traz "asset_id"
+  heygen video create -d '{"type":"image","image":{"type":"asset_id","asset_id":"<ID_IMG>"},
+    "audio_asset_id":"<ID_AUD>","aspect_ratio":"9:16","resolution":"1080p","fit":"cover",
+    "expressiveness":"medium","motion_prompt":"<arco da fala>","output_format":"mp4"}'
+  heygen video get <VIDEO_ID>   ->   heygen video download <VIDEO_ID> --output-path avatar.mp4
+  ```
+  No Avatar V a persona sintética fica sem `expressiveness` e sem `motion_prompt` (exigem filmagem real do mesmo grupo); o IV dá microexpressão e piscada mais naturais.
+- **Dois bolsos de crédito**: a chave de API tem uma carteira; o login do CLI (OAuth) usa os créditos da assinatura. Confira o saldo com `heygen auth status` antes de concluir que "não dá pra gerar". Referência: ~4 créditos premium por segundo de vídeo de foto.
+- **Copy inteira numa geração** (até ~5 min), com um `motion_prompt` que descreve o arco (ordem das intenções, ênfases, trocas de expressão). Segmentar só para refazer um trecho.
+- **25 fps.** A HeyGen entrega 25; sequência em 23,976 derruba quadro justo na boca. Case a sequência com a fonte (`t.ticks="10160640000"` como texto já calculado, ou `t.seconds = 1/25`).
+- **Rótulo do produto** degrada no IV e no V: recolar o frasco do still aprovado por cima (rastreio por `cv2.matchTemplate`) resolve sem gastar crédito. Regerar só por rosto, boca ou pose.
+- **Arquivo até 32 MB** no upload: áudio longo em mp3.

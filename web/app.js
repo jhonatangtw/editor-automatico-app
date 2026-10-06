@@ -1061,7 +1061,7 @@ function telaNovoProjeto() {
     <div class="campo"><label>Caminho do vídeo</label>
       <input id="n-video" placeholder="~/Documents/.../BODY.mp4"></div>
     <div class="campo"><label>Nome do job <span style="color:var(--texto-3)">(opcional)</span></label>
-      <input id="n-nome" placeholder="LEAFTIDE_AD01"></div>
+      <input id="n-nome" placeholder="PRODUTO_AD01"></div>
     <div class="acoes"><button class="bt discreto" data-fechar>Cancelar</button>
       <button class="bt principal" id="n-ok">Criar</button></div>`, (v) => {
     v.querySelector('[data-fechar]').onclick = () => v.remove();
@@ -1091,12 +1091,9 @@ const PILL = { pendente: '', em_geracao: 'aviso', aguardando_aprovacao: 'aviso',
 
 let etapaAberta = null;
 
-let conversando = false;
-
 async function telaProjeto() {
   const p  = await api('/api/projetos/' + projetoAberto);
   const pp = await api(`/api/projetos/${projetoAberto}/pipeline`);
-  const cv = await api(`/api/projetos/${projetoAberto}/conversa`);
   const pl = p.plano, dur = pl.fonte.duracao || 1;
   const pct = Math.round((pp.concluidas / pp.total) * 100);
 
@@ -1118,24 +1115,7 @@ async function telaProjeto() {
             pelo Claude Code no VS Code</b> — o app segue guardando projeto,
             aprovações e credenciais.</div>
         </div>
-        <div class="conversa" id="conversa">
-          ${cv.mensagens.length ? cv.mensagens.map(bolha).join('') : boasVindas(pp)}
-          <div id="fim-conversa"></div>
-        </div>
-
-        <div class="compositor">
-          <div id="anexos" class="anexos"></div>
-          <div class="compositor-linha">
-            <button class="bt discreto" id="anexar" title="Anexar arquivo">＋</button>
-            <textarea id="entrada" rows="1"
-              placeholder="Fale o que quer fazer… (Enter envia, Shift+Enter quebra linha)"></textarea>
-            <button class="bt principal" id="enviar">Enviar</button>
-          </div>
-          ${seletorIA()}
-          <div class="atalhos">
-            ${atalhos(pp).map((a) => `<button class="atalho" data-diz="${esc(a)}">${esc(a)}</button>`).join('')}
-          </div>
-        </div>
+        <div class="chat-montagem" id="chat-montagem"></div>
       </div>
 
       <aside class="pipe-lateral">
@@ -1156,48 +1136,23 @@ async function telaProjeto() {
 
   document.getElementById('palco').classList.add('modo-chat');
   document.getElementById('voltar').onclick = () => { projetoAberto = null; desenhar(); };
-  ligarChat(p, pp);
-  rolarFim();
+  montarChat(document.getElementById('chat-montagem'), {
+    boasVindas: boasVindas(pp), atalhos: atalhos(pp),
+    // a lateral do pipeline acompanha o que a conversa (ou o cartão) mudou
+    aoTerminar: () => desenhar(), aoMudarPipeline: () => desenhar(),
+  });
+  // clicar numa etapa da lateral pergunta sobre ela na conversa
+  document.querySelectorAll('.pipe-lateral [data-diz]').forEach((b) => {
+    b.onclick = () => CONVERSA && CONVERSA.enviar(b.dataset.diz);
+  });
 }
 
 function boasVindas(pp) {
-  return `<div class="msg resposta"><div class="bolha">
-    <p>Pronto pra começar. Eu conduzo as <b>12 etapas</b> e paro em cada uma
+  return `<p>Pronto pra começar. Eu conduzo as <b>12 etapas</b> e paro em cada uma
     esperando sua aprovação — <b>nada gasta crédito sem você autorizar</b>.</p>
-    <p style="margin-top:8px">Pode falar normalmente: <i>"analisa esse material"</i>,
+    <p>Pode falar normalmente: <i>"analisa esse material"</i>,
     <i>"compara com a copy"</i>, <i>"quanto custa gerar os b-rolls?"</i>,
-    <i>"usa o motor mais barato"</i>.</p>
-  </div></div>`;
-}
-
-// O seletor fica na barra do compositor, colado no campo — é ali que a pessoa
-// decide "quem vai responder isto", no momento em que escreve. Fora dali vira
-// configuração, e configuração ninguém troca no meio do trabalho.
-function seletorIA() {
-  if (!IA) return '';
-  return `<div class="ia-seletor" id="ia-seletor">
-    ${IA.provedores.map((p) => `
-      <button class="ia-op ${p.id === IA.escolhido ? 'ativa' : ''} ${p.pronto ? '' : 'sem'}"
-              data-ia="${p.id}" title="${esc(p.pronto ? p.ferramentas : p.msg)}">
-        <i class="ia-ponto"></i>${esc(p.nome)}</button>`).join('')}
-  </div>`;
-}
-
-function ligarSeletorIA() {
-  document.querySelectorAll('[data-ia]').forEach((b) => {
-    b.onclick = async () => {
-      const id = b.dataset.ia;
-      const p = (IA?.provedores || []).find((x) => x.id === id);
-      if (p && !p.pronto) return pedirChaveIA(p);
-      try {
-        const r = await post('/api/ia/escolher', { provedor: id });
-        IA = r.estado;
-        document.querySelectorAll('[data-ia]').forEach((o) =>
-          o.classList.toggle('ativa', o.dataset.ia === id));
-        toast('Falando com ' + (p ? p.nome : id) + '.');
-      } catch (e) { toast(e.message, true); }
-    };
-  });
+    <i>"usa o motor mais barato"</i>. Digite <b>/</b> para os comandos.</p>`;
 }
 
 // A chave vai direto para o .env do app (permissão de dono) e NUNCA fica no
@@ -1274,283 +1229,27 @@ function atalhos(pp) {
   return ['Onde estamos?', 'O que falta para destravar?'];
 }
 
-function bolha(m) {
-  if (m.role === 'user') {
-    return `<div class="msg eu"><div class="bolha">${esc(m.content)}</div></div>`;
-  }
-  if (m.role === 'ferramenta') {
-    const s = m.saida || {};
-    const ruim = s.recusado || s.erro;
-    return `<div class="msg ferramenta">
-      <div class="ferr ${ruim ? 'ruim' : ''}">
-        <span class="ferr-nome">${esc(m.nome)}</span>
-        ${s.recusado ? `<span class="ferr-txt">⛔ ${esc(s.porque)}</span>`
-          : s.erro ? `<span class="ferr-txt">${esc(s.erro)}</span>`
-          : `<span class="ferr-txt">${esc(resumoFerr(m.nome, s))}</span>`}
-      </div></div>`;
-  }
-  const passos = (m.passos || []).filter((p) => p.tipo === 'ferramenta');
-  const quem = m.provedor === 'chatgpt' ? 'ChatGPT' : m.provedor === 'claude' ? 'Claude' : '';
-  return `<div class="msg resposta">
-    ${passos.length ? `<div class="passos">${passos.map(passoHtml).join('')}</div>` : ''}
-    <div class="bolha">${quem ? `<span class="quem-ia">${esc(quem)}</span>` : ''}${marcar(m.content || '')}</div></div>`;
-}
+// ---------------------------------------------------------------- conversa
+/* A tela da Conversa é o componente web/conversa-ui.js (+ .css) — o MESMO que
+   o painel do Tools PRO monta dentro do Premiere. Aqui o app só diz onde ela
+   fica e liga os ganchos dele (contas, Tools PRO, pipeline). */
+let CONVERSA = null;          // a montagem atual (uma por vez)
 
-function passoHtml(p) {
-  // streaming: a resposta aparece enquanto é escrita, em vez de surgir pronta
-  if (p.tipo === 'parcial') {
-    return p.texto ? `<div class="bolha vivo">${marcar(p.texto)}</div>` : '';
-  }
-  if (p.tipo === 'pensando') return `<div class="passo pensando"><span class="passo-bola"></span>pensando…</div>`;
-  if (p.tipo === 'aviso')    return `<div class="passo"><span class="passo-bola"></span>${esc(p.texto)}</div>`;
-  if (p.tipo !== 'ferramenta') return '';
-  const est = p.estado || 'rodando';
-  return `<div class="passo ${est}">
-    <span class="passo-bola"></span>
-    <div style="flex:1;min-width:0">
-      <div class="passo-nome">${esc(nomeFerr(p.nome))}${p.resumo ? `<span class="passo-arg">${esc(p.resumo)}</span>` : ''}</div>
-      ${p.saida ? `<div class="passo-saida">${esc(p.saida)}</div>` : ''}
-    </div>
-    <span class="passo-est">${est === 'rodando' ? '' : est === 'ok' ? '✓' : '✕'}</span>
-  </div>`;
-}
-
-// nomes de MCP vêm como mcp__servidor__ferramenta — mostrar só o que importa
-function nomeFerr(n) {
-  const m = String(n || '').match(/^mcp__([^_]+(?:_[^_]+)*)__(.+)$/);
-  return m ? `${m[2]} · ${m[1]}` : String(n || '');
-}
-
-function resumoFerr(nome, s) {
-  if (s.aprovada) return `${s.aprovada} aprovada → liberou ${s.proxima || 'o fim'}`;
-  if (s.rodando) return 'gerando…';
-  if (s.pronto) return 'pronto — aguardando sua aprovação';
-  if (s.concluidas) return `${s.concluidas} etapas`;
-  if (s.opcoes) return `${s.opcoes.length} motores · saldo ${Math.round(s.saldo_creditos || 0)} cr`;
-  if (s.saldo) return JSON.stringify(s.saldo);
-  return 'ok';
-}
-
-// negrito, itálico e código — o suficiente para o texto do modelo ficar legível
-function marcar(t) {
-  return esc(t)
-    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
-    .replace(/(^|\s)\*([^*\n]+)\*/g, '$1<i>$2</i>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\n/g, '<br>');
-}
-
-// Erro técnico não vai para a tela. O usuário vê o que aconteceu e o que fazer.
-// ⚠️ Esta tela mostrava SEMPRE a mesma frase e jogava fora o erro que o
-// servidor tinha mandado. O usuário via "não está disponível" para seis causas
-// diferentes — sessão ocupada, limite de uso, CLI faltando — e nenhuma delas
-// dizia o que fazer. O motivo agora vem junto.
-function mostrarFalha(ultimoTexto, motivo) {
-  const c = document.getElementById('conversa');
-  if (!c) return;
-  const quem = IA?.escolhido === 'chatgpt' ? 'o ChatGPT' : 'o Claude';
-  c.insertAdjacentHTML('beforeend', `
-    <div class="msg resposta"><div class="bolha">
-      <p>${motivo ? esc(motivo) : `A conexão com ${quem} não está disponível agora.`}</p>
-      <div class="falha-acoes">
-        <button class="bt" id="f-toolspro">Reconectar ao Tools PRO</button>
-        ${IA?.escolhido === 'chatgpt' ? '' : `
-          <button class="bt" id="f-reconectar">Reconectar</button>
-          <button class="bt" id="f-trocar">Trocar conta</button>`}
-        <button class="bt principal" id="f-tentar">Tentar novamente</button>
-      </div>
-    </div></div>`);
-  rolarFim();
-  const fr = document.getElementById('f-reconectar');
-  if (fr) fr.onclick = async () => {
-    const r = await post('/api/claude/testar');
-    toast(r.msg, !r.ok);
-    if (r.ok) desenhar();
-  };
-  const ft = document.getElementById('f-toolspro');
-  if (ft) ft.onclick = () => reconectarToolsPro();
-  const ftr = document.getElementById('f-trocar');
-  if (ftr) ftr.onclick = () => trocarMetodo();
-  document.getElementById('f-tentar').onclick = () => {
-    const e = document.getElementById('entrada');
-    if (e) { e.value = ultimoTexto || ''; document.getElementById('enviar').click(); }
-  };
-}
-
-// ---------------------------------------------- "Pensando…" enquanto a IA não fala
-/* A primeira mensagem chegou a levar 2 minutos sem NADA na tela: o macOS estava
-   pedindo acesso a uma pasta, com a janela do sistema escondida, e o app
-   parecia travado. Agora a tela mostra na hora que está trabalhando, há
-   quanto tempo, em que ponto (quando o servidor diz), e depois de um tempo
-   sem novidade explica o caso do pedido de permissão. */
-const VIVO_AJUDA_MS = 10000;
-
-function vivoEstadoHtml() {
-  return `<div class="vivo-estado" id="vivo-estado" role="status" aria-live="polite">
-      <span class="vivo-giro" aria-hidden="true"></span>
-      <b>Pensando…</b>
-      <span class="vivo-tempo" id="vivo-tempo">0 s</span>
-      <span class="vivo-etapa" id="vivo-etapa"></span>
-      <button class="bt discreto vivo-cancelar" id="vivo-cancelar" hidden>Cancelar</button>
-    </div>
-    <div class="vivo-ajuda" id="vivo-ajuda" hidden>Se o macOS pedir acesso a uma pasta, clique em
-      <b>Permitir</b> — a resposta continua depois disso.</div>`;
-}
-
-function tempoCurto(ms) {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`;
-}
-
-// em que ponto está: a ferramenta rodando agora vence a etapa do servidor
-function etapaAtual(s) {
-  const ps = (s && s.passos) || [];
-  for (let i = ps.length - 1; i >= 0; i--) {
-    if (ps[i].tipo === 'ferramenta' && (ps[i].estado || 'rodando') === 'rodando') return 'usando ' + nomeFerr(ps[i].nome);
-  }
-  return (s && s.etapa) || '';
-}
-
-function acompanharVivo() {
-  const inicio = Date.now();
-  let marca = inicio;          // última novidade: passo novo, etapa nova
-  let assinatura = '';
-  const ctl = { tarefa: null };
-  const pintar = () => {
-    const t = document.getElementById('vivo-tempo');
-    if (!t) return;
-    t.textContent = tempoCurto(Date.now() - inicio);
-    const aj = document.getElementById('vivo-ajuda');
-    if (aj) aj.hidden = Date.now() - marca < VIVO_AJUDA_MS;
-  };
-  const relogio = setInterval(pintar, 1000);
-  ctl.atualizar = (s) => {
-    const ps = (s && s.passos) || [];
-    const ass = ps.length + '|' + ps.map((p) => p.estado || '').join(',') + '|' + ((s && s.etapa) || '');
-    if (ass !== assinatura) { assinatura = ass; marca = Date.now(); }
-    const et = document.getElementById('vivo-etapa');
-    const txt = etapaAtual(s);
-    if (et) et.textContent = txt ? '· ' + txt : '';
-    // só existe Cancelar quando o servidor diz que há um processo para encerrar
-    const b = document.getElementById('vivo-cancelar');
-    if (b) b.hidden = !(s && s.cancelavel) || b.dataset.pedido === '1';
-    pintar();
-  };
-  ctl.parar = () => clearInterval(relogio);
-  const b = document.getElementById('vivo-cancelar');
-  if (b) b.onclick = async () => {
-    if (!ctl.tarefa) return;
-    b.dataset.pedido = '1'; b.hidden = true;
-    const et = document.getElementById('vivo-etapa');
-    if (et) et.textContent = '· cancelando…';
-    try {
-      const r = await post('/api/tarefas/' + ctl.tarefa + '/cancelar');
-      if (!r.ok) { toast(r.msg || 'Não deu para cancelar.', true); b.dataset.pedido = ''; }
-    } catch (e) { toast(e.message, true); b.dataset.pedido = ''; }
-  };
-  pintar();
-  return ctl;
-}
-
-const rolarFim = () => {
-  const c = document.getElementById('conversa');
-  if (c) c.scrollTop = c.scrollHeight;
-};
-
-function ligarChat(p, pp) {
-  const entrada = document.getElementById('entrada');
-  const anexos = [];
-
-  const crescer = () => {
-    entrada.style.height = 'auto';
-    entrada.style.height = Math.min(entrada.scrollHeight, 160) + 'px';
-  };
-  entrada.oninput = crescer;
-
-  const enviar = async () => {
-    const texto = entrada.value.trim();
-    if ((!texto && !anexos.length) || conversando) return;
-    conversando = true;
-    entrada.value = ''; crescer();
-
-    const c = document.getElementById('conversa');
-    c.insertAdjacentHTML('beforeend',
-      `<div class="msg eu"><div class="bolha">${esc(texto)}</div></div>
-       <div class="msg resposta" id="vivo"><div class="passos" id="passos-vivos"></div>${vivoEstadoHtml()}</div>`);
-    rolarFim();
-    // "Pensando…" na HORA do Enter, antes de qualquer resposta do servidor
-    const vivo = acompanharVivo();
-
-    try {
-      const r = await post('/api/conversa',
-        { texto, anexos, conversa: conversaAtual, provedor: IA?.escolhido });
-      vivo.tarefa = r.tarefa;
-      let desenhados = 0;
-      const t = setInterval(async () => {
-        let s;
-        try { s = await api('/api/tarefas/' + r.tarefa); } catch (_) { return; }
-        vivo.atualizar(s);
-        const cx = document.getElementById('passos-vivos');
-        if (cx) {
-          // redesenha só o que mudou: o passo em curso vira ✓ quando termina
-          const html = (s.passos || []).map(passoHtml).join('');
-          if (html !== cx.dataset.ultimo) {
-            cx.innerHTML = html; cx.dataset.ultimo = html;
-            if ((s.passos || []).length !== desenhados) { desenhados = s.passos.length; rolarFim(); }
-          }
-        }
-        if (s.estado === 'pronto') { clearInterval(t); vivo.parar(); conversando = false; desenhar(); }
-        else if (s.estado === 'cancelado') {
-          clearInterval(t); vivo.parar(); conversando = false;
-          const v = document.getElementById('vivo');
-          if (v) v.outerHTML = `<div class="msg resposta"><div class="passo cancelado"><span class="passo-bola"></span>
-            Cancelado. Esta mensagem não foi guardada no histórico — o texto voltou para a caixa.</div></div>`;
-          const e = document.getElementById('entrada');
-          if (e && !e.value) { e.value = texto; crescer(); }
-        }
-        else if (s.estado === 'erro') {
-          clearInterval(t); vivo.parar(); conversando = false;
-          const v = document.getElementById('vivo');
-          if (v) v.remove();
-          mostrarFalha(texto, s.erro);
-        }
-      }, 900);
-    } catch (e) {
-      vivo.parar(); conversando = false; toast(e.message, true); desenhar();
-    }
-  };
-
-  document.getElementById('enviar').onclick = enviar;
-  entrada.onkeydown = (ev) => {
-    if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); enviar(); }
-  };
-
-  document.querySelectorAll('[data-diz]').forEach((b) => {
-    b.onclick = () => { entrada.value = b.dataset.diz; enviar(); };
-  });
-
-  document.getElementById('anexar').onclick = () => {
-    modal(`<h2>Anexar arquivo</h2>
-      <p class="sub" style="margin-bottom:12px">Cole o caminho do arquivo — copy, b-roll,
-        referência. Ele fica no seu disco; nada sobe.</p>
-      <div class="campo"><input id="ax" placeholder="~/Documents/.../copy.txt"></div>
-      <div class="acoes"><button class="bt discreto" data-fechar>Cancelar</button>
-        <button class="bt principal" id="ax-ok">Anexar</button></div>`, (v) => {
-      v.querySelector('[data-fechar]').onclick = () => v.remove();
-      v.querySelector('#ax-ok').onclick = () => {
-        const a = v.querySelector('#ax').value.trim();
-        if (a) {
-          anexos.push(a);
-          document.getElementById('anexos').innerHTML = anexos.map((x) =>
-            `<span class="anexo">${esc(x.split('/').pop())}</span>`).join('');
-        }
-        v.remove(); entrada.focus();
-      };
-    });
-  };
-
-  ligarSeletorIA();
-  entrada.focus();
+function montarChat(alvo, extra) {
+  if (CONVERSA) { try { CONVERSA.desmontar(); } catch (_) { /* já saiu da tela */ } }
+  CONVERSA = montarConversa(alvo, Object.assign({
+    api: '', token: TOKEN, compacto: false, conversa: conversaAtual,
+    aoTrocarConversa: (cid) => { conversaAtual = cid; },
+    aoPedirConta: (p) => pedirChaveIA(p),
+    acoesFalha: [
+      { rotulo: 'Reconectar ao Tools PRO', acao: () => reconectarToolsPro() },
+      { rotulo: 'Reconectar o Claude', acao: async () => {
+        try { const r = await post('/api/claude/testar'); toast(r.msg, !r.ok); } catch (e) { toast(e.message, true); }
+      } },
+      { rotulo: 'Trocar conta', acao: () => trocarMetodo() },
+    ],
+  }, extra || {}));
+  return CONVERSA;
 }
 
 const nomeEtapa = (pp, id) => (pp.etapas.find((e) => e.id === id) || {}).nome || id;
@@ -2562,43 +2261,18 @@ async function telaChatLivre() {
       <div class="chat-col">
         <div class="chat-topo">
           <div><h1>Conversa <span class="selo-beta">beta</span></h1>
-            <p class="sub">${cv.meta && cv.meta.titulo && cv.meta.titulo !== 'Nova conversa'
+            <p class="sub" id="chat-sub">${cv.meta && cv.meta.titulo && cv.meta.titulo !== 'Nova conversa'
               ? esc(cv.meta.titulo) : 'Fale o que quer fazer. Eu confiro o Adobe e conduzo daqui.'}</p></div>
           <button class="bt discreto" id="nova-conversa">+ Nova conversa</button>
         </div>
-        <div class="nota-beta">
+        ${cv.mensagens.length ? '' : `<div class="nota-beta" id="nota-chat">
           <span class="nota-icone">▸</span>
           <div>Esta conversa ainda está em teste. Com tudo já conectado aqui,
             <b>as tarefas longas rendem mais pelo Claude Code no VS Code</b> —
             lá o contexto é maior e dá para acompanhar cada passo.
             O app continua sendo quem guarda o projeto, as aprovações e as credenciais.</div>
-        </div>
-        <div class="conversa" id="conversa">
-          ${cv.mensagens.length ? cv.mensagens.map(bolha).join('') : `
-            <div class="msg resposta"><div class="bolha">
-              <p>Pronto. Antes de mexer em qualquer coisa eu confiro o que está aberto
-              no Premiere ou no After Effects e te mostro aqui para confirmar.</p>
-              <p style="margin-top:8px">Pode falar normalmente:
-                <i>"analise esta timeline"</i>, <i>"verifique a copy"</i>,
-                <i>"marque os pontos de b-roll"</i>, <i>"gere as imagens"</i>.</p>
-            </div></div>`}
-          <div id="fim-conversa"></div>
-        </div>
-        <div class="compositor">
-          <div id="anexos" class="anexos"></div>
-          <div class="compositor-linha">
-            <button class="bt discreto" id="anexar" title="Anexar arquivo">＋</button>
-            <textarea id="entrada" rows="1"
-              placeholder="Fale o que quer fazer… (Enter envia, Shift+Enter quebra linha)"></textarea>
-            <button class="bt principal" id="enviar">Enviar</button>
-          </div>
-          ${seletorIA()}
-          <div class="atalhos">
-            ${['O que está aberto no Premiere?', 'Analise esta timeline',
-               'Quero editar um criativo novo'].map((a) =>
-              `<button class="atalho" data-diz="${esc(a)}">${esc(a)}</button>`).join('')}
-          </div>
-        </div>
+        </div>`}
+        <div class="chat-montagem" id="chat-montagem"></div>
       </div>
       <aside class="pipe-lateral" id="lado-adobe">
         <div class="rotulo" style="margin-bottom:10px">Adobe</div>
@@ -2608,11 +2282,24 @@ async function telaChatLivre() {
 
   document.getElementById('palco').classList.add('modo-chat');
   const nc = document.getElementById('nova-conversa');
-  if (nc) nc.onclick = async () => {
-    const r = await post('/api/conversas/nova'); conversaAtual = r.conversa; desenhar();
-  };
-  ligarChat({ id: null }, null);
-  rolarFim();
+  if (nc) nc.onclick = () => CONVERSA && CONVERSA.comando('nova');
+  const sub = document.getElementById('chat-sub');
+  montarChat(document.getElementById('chat-montagem'), {
+    boasVindas: `<p>Pronto. Antes de mexer em qualquer coisa eu confiro o que está aberto
+      no Premiere ou no After Effects e te mostro aqui para confirmar.</p>
+      <p>Pode falar normalmente: <i>"analise esta timeline"</i>, <i>"verifique a copy"</i>,
+      <i>"marque os pontos de b-roll"</i>, <i>"gere as imagens"</i>. Digite <b>/</b> para
+      os comandos e <b>@</b> para citar um arquivo.</p>`,
+    atalhos: ['O que está aberto no Premiere?', 'Analise esta timeline', 'Quero editar um criativo novo'],
+    aoTerminar: ({ meta }) => {
+      if (sub && meta && meta.titulo && meta.titulo !== 'Nova conversa') sub.textContent = meta.titulo;
+      const nb = document.getElementById('nota-chat'); if (nb) nb.remove();
+    },
+    aoTrocarConversa: (cid) => {
+      conversaAtual = cid;
+      if (sub) sub.textContent = 'Fale o que quer fazer. Eu confiro o Adobe e conduzo daqui.';
+    },
+  });
   pintarAdobe();
 }
 

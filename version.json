@@ -1,6 +1,6 @@
 {
- "version": "0.21.3",
- "notes": "A aba Ambiente agora instala o HyperFrames (vídeo em código, para os Reels premium) com o Node certo, sem mexer no seu, e só dá ✓ depois de renderizar um vídeo de teste.",
+ "version": "0.22.0",
+ "notes": "Conversa nova, no jeito do Claude Code: a resposta aparece enquanto a IA escreve, cada ação vira uma linha que abre e fecha, lista de tarefas ao vivo, comandos com / e arquivos com @, anexos arrastando, fila de mensagens e aprovação de crédito dentro do chat.\n\nSkills novas: Clone de AD validado (trocar o personagem de um anúncio que já vende), Plataforma de IA com o Higgsfield e Boas práticas Black Belt. O Guia de comandos ganhou os pedidos prontos delas.\n\nA mesma Conversa agora funciona dentro do painel do Tools PRO, no Premiere: o app liga a IA sem abrir janela.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",

@@ -513,24 +513,15 @@ def _casa(cid):
 
 
 def _resumo_entrada(nome, entrada):
-    """O que a tela mostra ao lado do nome da ferramenta. Enxuto: JSON inteiro
-    na conversa vira ruído e esconde o que importa."""
-    if not isinstance(entrada, dict) or not entrada:
-        return ""
-    for chave in ("query", "etapa", "codigo", "prompt", "texto", "video",
-                  "descricao", "file_path", "command", "pattern", "path"):
-        if entrada.get(chave):
-            v = str(entrada[chave]).replace("\n", " ")
-            return v[:88] + ("…" if len(v) > 88 else "")
-    return json.dumps(entrada, ensure_ascii=False)[:88]
+    """O que a tela mostra ao lado do nome da ferramenta."""
+    from .leitor_stream import resumo_entrada
+    return resumo_entrada(entrada)
 
 
 def _resumo_saida(bruto):
     """Uma linha do que a ferramenta devolveu."""
-    t = bruto if isinstance(bruto, str) else json.dumps(bruto, ensure_ascii=False,
-                                                        default=str)
-    t = " ".join(t.split())
-    return t[:110] + ("…" if len(t) > 110 else "")
+    from .leitor_stream import resumo_saida
+    return resumo_saida(bruto)
 
 
 def _esquema_ruim(bruto):
@@ -554,24 +545,41 @@ def _etapa(ao_vivo, texto):
         ao_vivo({"tipo": "etapa", "texto": texto})
 
 
+# O CLI aceita `--include-partial-messages` (texto letra a letra)? Começa
+# acreditando que sim; se o `claude` instalado for velho e recusar a flag, a
+# rodada é refeita sem ela e a resposta fica guardada até o app fechar.
+PARCIAIS = {"aceita": True}
+
+
+def _recusou_parciais(bruto):
+    b = (bruto or "").lower()
+    return "include-partial-messages" in b and ("unknown" in b or "error" in b)
+
+
 def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False, _so_nossas=False,
                    controle=None):
     """Uma mensagem para a sessão do Claude Code.
 
     Cada passo sai por `ao_vivo` NA HORA em que acontece — pensamento, chamada de
-    ferramenta, resultado, texto. Antes eu juntava tudo e só entregava no fim: o
-    usuário ficava olhando "pensando…" por minutos sem saber se travou."""
+    ferramenta, resultado e o texto enquanto é escrito. Quem traduz o stream-json
+    em passo é o `leitor_stream` (testado com uma gravação real do CLI).
+
+    Devolve (fala, passos, uso)."""
+    from .leitor_stream import LeitorClaude
     sid, retomar = _sessao_id(cid)
     _etapa(ao_vivo, "conferindo o Adobe")
     contexto = _contexto_ambiente(pid)
     if controle:
         controle.conferir()
+    parciais = PARCIAIS["aceita"]
     cmd = ["claude", "-p", texto,
-           "--output-format", "stream-json", "--verbose",
-           "--mcp-config", _mcp_config(),
-           "--append-system-prompt", contexto,
-           "--permission-mode", "bypassPermissions",
-           "--add-dir", RAIZ_APP]
+           "--output-format", "stream-json", "--verbose"]
+    if parciais:
+        cmd.append("--include-partial-messages")
+    cmd += ["--mcp-config", _mcp_config(),
+            "--append-system-prompt", contexto,
+            "--permission-mode", "bypassPermissions",
+            "--add-dir", RAIZ_APP]
     if pid:
         cmd += ["--add-dir", projetos.dir_projeto(pid)]
     cmd += (["--resume", sid] if retomar else ["--session-id", sid])
@@ -590,58 +598,28 @@ def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False, _so_nossas=F
         controle.vincular(proc)
     _etapa(ao_vivo, "esperando o Claude responder")
 
-    passos, erro = [], None
-    pendentes = {}                       # tool_use_id -> índice do passo
-
-    def emitir(ev):
-        passos.append(ev)
-        ao_vivo and ao_vivo(ev)
-        return len(passos) - 1
-
+    leitor = LeitorClaude(ao_vivo)
     for linha in proc.stdout:
-        linha = linha.strip()
-        if not linha:
-            continue
-        try:
-            ev = json.loads(linha)
-        except Exception:
-            continue
-        tipo = ev.get("type")
-        if tipo == "system" and ev.get("subtype") == "init":
+        if leitor.linha(linha) == "init":
             _etapa(ao_vivo, "Claude conectado, pensando")
-
-        if tipo == "assistant":
-            for b in (ev.get("message") or {}).get("content") or []:
-                k = b.get("type")
-                if k == "text" and b.get("text", "").strip():
-                    emitir({"tipo": "texto", "texto": b["text"]})
-                elif k == "thinking":
-                    emitir({"tipo": "pensando"})
-                elif k == "tool_use":
-                    i = emitir({"tipo": "ferramenta", "nome": b.get("name"),
-                                "resumo": _resumo_entrada(b.get("name"), b.get("input")),
-                                "estado": "rodando"})
-                    pendentes[b.get("id")] = i
-
-        elif tipo == "user":
-            for b in (ev.get("message") or {}).get("content") or []:
-                if b.get("type") != "tool_result":
-                    continue
-                i = pendentes.pop(b.get("tool_use_id"), None)
-                saida = _resumo_saida(b.get("content"))
-                if i is None:
-                    continue
-                passos[i]["estado"] = "erro" if b.get("is_error") else "ok"
-                passos[i]["saida"] = saida
-                ao_vivo and ao_vivo(dict(passos[i], indice=i, atualiza=True))
-
-        elif tipo == "result" and ev.get("is_error"):
-            erro = str(ev.get("result") or "")
 
     proc.wait()
     if controle:
         controle.encerrou(proc)      # encerrado por Cancelar: não é erro
+    passos = leitor.finalizar()
+    erro = leitor.erro
     bruto_erro = (erro or "") + " " + ((proc.stderr.read() if proc.stderr else "") or "")
+    for cano in (proc.stdout, proc.stderr):
+        try:
+            cano and cano.close()
+        except Exception:
+            pass
+
+    # CLI antigo, sem a flag do texto ao vivo: refaz do jeito de antes
+    if parciais and not passos and proc.returncode != 0 and _recusou_parciais(bruto_erro):
+        PARCIAIS["aceita"] = False
+        return _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=_tentou_de_novo,
+                              _so_nossas=_so_nossas, controle=controle)
 
     if "no conversation found" in bruto_erro.lower() and not _tentou_de_novo:
         try:
@@ -667,8 +645,18 @@ def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False, _so_nossas=F
     if proc.returncode != 0 and not passos:
         raise SemAcesso(conta_claude._humano(bruto_erro or "falha ao falar com o Claude"))
 
-    fala = "\n\n".join(p["texto"] for p in passos if p["tipo"] == "texto").strip()
-    return fala, passos
+    return leitor.fala(), passos, leitor.uso
+
+
+def _passos_guardados(passos):
+    """Os passos que vão para o histórico — AGORA COM o texto, na ordem.
+
+    Antes o texto era tirado daqui e a tela desenhava "todas as ferramentas,
+    depois a resposta". A tela nova intercala como aconteceu (texto, ação,
+    texto). `content` continua com a fala inteira: é o que volta para a IA e o
+    que as conversas antigas têm."""
+    return [p for p in passos if p.get("tipo") != "parcial"
+            and not (p.get("tipo") == "texto" and not (p.get("texto") or "").strip())]
 
 
 def falar(cid, texto, anexos=None, quem="usuário", ao_vivo=None, provedor=None,
@@ -700,8 +688,14 @@ def falar(cid, texto, anexos=None, quem="usuário", ao_vivo=None, provedor=None,
     conteudo = texto or ""
     if anexos:
         conteudo += "\n\nArquivos anexados:\n" + "\n".join("- " + a for a in anexos)
-    msgs.append({"role": "user", "content": conteudo, "provedor": provedor,
-                 "quando": time.time()})
+    msg_usuario = {"role": "user", "content": conteudo, "provedor": provedor,
+                   "quando": time.time()}
+    if anexos:
+        # a tela desenha miniatura/chip a partir daqui; o `content` continua com
+        # a lista em texto, que é o que a IA lê
+        msg_usuario["texto"] = texto or ""
+        msg_usuario["anexos"] = list(anexos)
+    msgs.append(msg_usuario)
 
     if provedor == "chatgpt":
         # assinatura primeiro: quem já paga o ChatGPT não devia pagar de novo
@@ -717,7 +711,7 @@ def falar(cid, texto, anexos=None, quem="usuário", ao_vivo=None, provedor=None,
             resposta, passos, pid, modelo = openai_chat.conversar(
                 cid, pid, msgs, quem, ao_vivo)
         msgs.append({"role": "assistant", "content": resposta or "(sem resposta)",
-                     "passos": [p for p in passos if p["tipo"] != "texto"],
+                     "passos": _passos_guardados(passos),
                      "provedor": "chatgpt", "modelo": modelo, "quando": time.time()})
         if not pid:
             recentes = projetos.listar()
@@ -733,11 +727,14 @@ def falar(cid, texto, anexos=None, quem="usuário", ao_vivo=None, provedor=None,
         raise SemAcesso("Escolha como entrar no Claude, na aba Contas.")
 
     if metodo == "sessao":
-        resposta, passos = _sessao_claude(cid, pid, conteudo, ao_vivo,
-                                          controle=controle)
-        msgs.append({"role": "assistant", "content": resposta or "(sem resposta)",
-                     "passos": [p for p in passos if p["tipo"] != "texto"],
-                     "provedor": "claude", "quando": time.time()})
+        resposta, passos, uso = _sessao_claude(cid, pid, conteudo, ao_vivo,
+                                               controle=controle)
+        m = {"role": "assistant", "content": resposta or "(sem resposta)",
+             "passos": _passos_guardados(passos),
+             "provedor": "claude", "quando": time.time()}
+        if uso:
+            m["uso"] = uso
+        msgs.append(m)
         # o projeto pode ter nascido durante a conversa: amarra os dois
         if not pid:
             recentes = projetos.listar()

@@ -120,3 +120,23 @@ If the user doesn't specify a duration, default to 15-20 seconds (a sweet spot f
 1. Read `references/effects-breakdown-reference.txt` to calibrate detail level
 2. Generate the full four-section output: shot-by-shot timeline (8-12 shots), master effects inventory, density map, and energy arc
 3. Present in plain text in chat
+
+---
+
+## Quando o vídeo vai para o Kling (Higgsfield) e não para o Seedance
+
+Para **b-roll de UGC a partir de uma imagem aprovada** (image-to-video), o prompt de efeitos acima é demais. Use o formato curto:
+
+- **Um movimento sutil e único** + o que a pessoa faz + câmera quase parada. Feche com "no scene change, no text on screen".
+- A imagem de partida é aprovada ANTES (folha de contato). Animar imagem errada é crédito jogado fora.
+- `kling3_0_turbo`: 9:16, 720p ou 1080p, 5 s (mínimo 3), **sem 4:5** (gere 9:16 e recorte o centro); sai 1076×1928 a 24 fps.
+- **Sem descrição de corpo** ("soft belly", "overweight"): dá 403 de moderação mesmo com crédito.
+- Personagem que fala no clipe: `kling3_0 --sound on` com a fala entre aspas no prompt e o sotaque ("American English accent"). Confira cada clipe com Whisper (o Kling troca ou inventa palavra) e unifique a voz depois (speech-to-speech no ElevenLabs).
+
+## Durações mínimas que derrubam a geração
+
+Seedance: mínimo 4 s (cena menor gera em 4 e apara na timeline). Kling 2.6: só 5 ou 10. Kling 3.0 Turbo: mínimo 3. Confira com `higgsfield model get <motor>` antes de aprovar o lote.
+
+## Vídeo que vai virar GIF
+
+Escreva a trava de câmera: "THE CAMERA NEVER MOVES: no push-in, no zoom, no dolly, no drift, no rotation, no reframing — the framing is identical in the first and the last frame". O peso do GIF vem dos pixels que mudam; com a câmera parada ele fica ~3x menor.

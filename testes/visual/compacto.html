@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conversa compacta — banca visual</title>
+<!-- Só o componente, SEM o estilo.css do app: é assim que o painel do Tools PRO o monta. -->
+<link rel="stylesheet" href="../../web/conversa-ui.css">
+<style>html, body { margin: 0; height: 100%; background: #08090b; } #c { height: 100vh; padding: 10px; box-sizing: border-box; }</style>
+</head>
+<body>
+  <div id="c"></div>
+  <script src="mock.js"></script>
+  <script src="../../web/conversa-ui.js"></script>
+  <script>
+    const q = new URLSearchParams(location.search);
+    const cv = montarConversa(document.getElementById('c'), { api: '', token: 'tk', compacto: true });
+    const campo = () => document.querySelector('.cv-entrada');
+    if (q.get('enviar')) setTimeout(() => { campo().value = q.get('enviar'); document.querySelector('.cv-enviar').click(); }, 500);
+    if (q.get('digitar')) setTimeout(() => { const e = campo(); e.focus(); e.value = q.get('digitar'); e.setSelectionRange(e.value.length, e.value.length); e.dispatchEvent(new Event('input', { bubbles: true })); }, 900);
+  </script>
+</body>
+</html>

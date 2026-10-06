@@ -204,7 +204,7 @@ class RetratoDoPacote(unittest.TestCase):
     def test_skill_mestra_e_as_pedidas_estao_no_pacote(self):
         for nome in ("skill-black-belt", "blackbelt-omni", "editor-automatico-de-broll", "hooks-meat-hook",
                      "motion-omni-vsl", "vibe-motion", "photorealism-prompts", "video-prompt-builder",
-                     "motion-design"):
+                     "motion-design", "clone-ad-validado", "plataforma-ia-higgsfield", "boas-praticas-black-belt"):
             self.assertTrue(os.path.isfile(os.path.join(RETRATO, nome, "SKILL.md")), nome)
 
     def test_cada_skill_tem_skill_md_com_o_nome_da_pasta(self):
@@ -221,6 +221,42 @@ class RetratoDoPacote(unittest.TestCase):
         self.assertEqual(sorted(fonte["skills"]), pastas)
         for n in pastas:
             self.assertEqual(fonte["skills"][n], skills.hash_pasta(os.path.join(RETRATO, n)), n)
+
+
+class SkillsNovas(unittest.TestCase):
+    """As três que levam o que se aprendeu nas sessões: cada uma com a regra que a justifica."""
+
+    def ler_skill(self, nome):
+        return ler(os.path.join(RETRATO, nome, "SKILL.md"))
+
+    def test_plataforma_nunca_pede_a_chave(self):
+        t = self.ler_skill("plataforma-ia-higgsfield")
+        self.assertIn("SUA_CHAVE_AQUI", t)
+        self.assertIn("variável de ambiente", t)
+        prompt = ler(os.path.join(RETRATO, "plataforma-ia-higgsfield", "references", "prompt-de-design.md"))
+        self.assertIn("Nunca coloque a minha chave de API dentro do código", prompt)
+
+    def test_clone_pede_aprovacao_e_prova_lip_sync_sem_correlacao(self):
+        t = self.ler_skill("clone-ad-validado")
+        for trecho in ("Aprovação antes de cada gasto", "Avatar IV", "F0", "Nunca sobra imagem da pessoa antiga",
+                       "silêncio", "Nunca reprove por correlação"):
+            self.assertIn(trecho, t)
+        for s in ("f0_voz.py", "tts_elevenlabs.py", "encaixar_voz.py", "offset_audio.py", "qc_lipsync.py",
+                  "folha_original_x_clone.py"):
+            self.assertTrue(os.path.isfile(os.path.join(RETRATO, "clone-ad-validado", "scripts", s)), s)
+            self.assertIn(s, t)
+
+    def test_tts_le_a_chave_so_do_ambiente(self):
+        t = ler(os.path.join(RETRATO, "clone-ad-validado", "scripts", "tts_elevenlabs.py"))
+        self.assertIn('os.environ.get("ELEVENLABS_API_KEY"', t)
+        self.assertNotIn(".env", t.replace("os.environ", ""))
+
+    def test_boas_praticas_tem_as_sete_ferramentas(self):
+        t = self.ler_skill("boas-praticas-black-belt")
+        for secao in ("## Higgsfield", "## HeyGen", "## ElevenLabs", "## HyperFrames", "## Premiere / Tools PRO",
+                      "## ffmpeg / Whisper", "## QC", "## Conferir um job"):
+            self.assertIn(secao, t)
+        self.assertGreater(t.count("- Sintoma:"), 30)
 
 
 class AuditoriaDaSkillDoReels(unittest.TestCase):

@@ -101,6 +101,24 @@ Atenção: render direto numa pasta do Drive com acento ou "&" no caminho falha 
 - **Funciona com:** Claude
 - **Por baixo:** `pr_sequencias_listar`, `pr_extendscript`
 
+### Conferir o job contra as boas práticas
+
+*Nível: rápido*
+
+```text
+Use a skill boas-praticas-black-belt no modo auditoria: confira meu job em [PASTA DO JOB] (copy em [ARQUIVO DA COPY], se houver).
+Só leia e meça — não conserte, não regere e não reexporte nada.
+Confira em cada entregável: resolução, proporção e fps (25 × 23,976 misturados?), cor (HDR que devia ser SDR?), duração do vídeo igual à do áudio, quadro preto ou congelado, texto queimado de IA, rosto ou rótulo do produto mudando, legenda contra a copy palavra por palavra, lip sync pelo quadro do silêncio × pico, e −14 LUFS.
+Veja também se tem mídia em pasta temporária ou na nuvem sem baixar.
+Me devolva ✓ o que passou e ✗ o que está fora, com o arquivo, o tempo e o conserto sugerido.
+```
+
+- **O que faz:** Uma auditoria do job contra as armadilhas que já custaram retrabalho em jobs reais.
+- **Quando usar:** Antes de entregar ou de avisar que o job acabou.
+- **Precisa:** A pasta do job com os entregáveis
+- **Funciona com:** Claude e ChatGPT
+- **Por baixo:** `boas-praticas-black-belt`, `FFmpeg`, `Whisper`
+
 
 ## Webinário
 
@@ -455,6 +473,86 @@ Atenção: o .srt é saída crua de transcrição automática — erra exatament
 - **Precisa:** Whisper instalado; A copy aprovada
 - **Funciona com:** Claude e ChatGPT
 - **Por baixo:** `Whisper`, `FFmpeg`
+
+
+## Clone de AD validado
+
+Mesmo anúncio que já vende, com outro rosto (e, se quiser, outra copy): mesma estrutura, mesmos tempos, aprovação antes de cada gasto.
+
+### Clonar um AD validado trocando a personagem (pedido único)
+
+*Nível: completo* · *Tempo: cerca de 1 h com as aprovações, para um trecho de 30 s*
+
+```text
+Use a skill clone-ad-validado: clone este AD validado trocando a personagem: [ARQUIVO DO AD]. Pasta do job: [PASTA DO JOB].
+Personagem nova: [IDADE, ETNIA, CABELO], no mesmo estilo do original (ex.: selfie UGC). Copy: [IGUAL PALAVRA POR PALAVRA / NOVA PARA O PRODUTO X].
+Faça nesta ordem e PARE para eu aprovar antes de cada etapa que gasta crédito, já com a estimativa:
+1. Decupagem com Whisper (roteiro por frase, mapa de cenas com tempos, o que é refeito e o que é reaproveitado).
+2. Retrato-âncora no GPT Image 2.5 sem cara de IA e o mesmo rosto em cada cenário onde ela fala.
+3. 2 ou 3 vozes candidatas no ElevenLabs, medidas pelo F0 contra a original — eu escolho de ouvido; depois encaixe cada frase no mesmo segundo do original.
+4. Lip sync no HeyGen Avatar IV (foto + áudio), 9:16, um vídeo por cenário.
+5. Refaça no Kling 3.0 Turbo só os b-rolls que mostravam a pessoa antiga; reaproveite o resto sem a legenda antiga.
+6. Monte no HyperFrames com a mesma estrutura, as mesmas transições e a legenda na mesma altura.
+7. Confira: lip sync pelo quadro do silêncio × quadro do pico, folha original × clone, nenhuma imagem da pessoa antiga, legenda contra a copy e −14 LUFS.
+```
+
+- **O que faz:** O clone inteiro, do AD original ao MP4 novo, com as regras que funcionaram num clone real.
+- **Quando usar:** O AD ainda vende, mas o público já cansou do rosto.
+- **Precisa:** O AD validado (arquivo); Higgsfield e HeyGen conectados (créditos); Chave do ElevenLabs configurada; HyperFrames instalado (aba Ambiente)
+- **Funciona com:** Claude e ChatGPT
+- **Por baixo:** `clone-ad-validado`, `Whisper`, `Higgsfield`, `ElevenLabs`, `HeyGen`, `HyperFrames`
+
+### Decupar o AD e decidir o que refazer
+
+*Nível: rápido*
+
+```text
+Use a skill clone-ad-validado só no passo de decupagem: [ARQUIVO DO AD], pasta [PASTA DO JOB].
+Transcreva palavra por palavra com o Whisper e corrija pelo que está na legenda queimada (na dúvida, vale a tela).
+Monte o decupagem.md: roteiro por frase com tempos, mapa de cenas (o que aparece em cada trecho, transições no quadro exato, estilo e altura da legenda) e a coluna "no clone": personagem nova, REFEITO (mostra qualquer pedaço da pessoa antiga) ou reaproveitado.
+Não gere nada — só me mostre o mapa para eu aprovar.
+```
+
+- **O que faz:** O mapa que define o custo do clone, sem gastar crédito.
+- **Quando usar:** Antes de orçar ou aprovar um clone.
+- **Precisa:** O AD validado (arquivo)
+- **Funciona com:** Claude e ChatGPT
+- **Por baixo:** `clone-ad-validado`, `Whisper`, `FFmpeg`
+
+### Personagem nova: retrato, voz e lip sync
+
+*Nível: completo*
+
+```text
+Use a skill clone-ad-validado, passos 3 e 4, em cima do decupagem.md de [PASTA DO JOB].
+Retrato-âncora: [IDADE, ETNIA, CABELO, ROUPA], GPT Image 2.5 em 9:16, specs de câmera de celular, bloco anti-cara-de-IA, boca fechada e olhar na lente. Depois o mesmo rosto em [CENÁRIOS], com o retrato como referência.
+Voz: 2 ou 3 candidatas no ElevenLabs em [IDIOMA E SOTAQUE DO PÚBLICO], tabela de F0 e palavras por minuto contra a voz original; eu escolho de ouvido. Encaixe a escolhida nos tempos do original.
+Lip sync: HeyGen Avatar IV com foto + áudio, 9:16, um vídeo por cenário; meça o deslocamento do vídeo contra o áudio.
+Me mostre a estimativa e espere meu ok antes de cada geração.
+```
+
+- **O que faz:** Rosto, voz e avatar falando, cada um aprovado antes de virar a base do seguinte.
+- **Quando usar:** Depois do mapa aprovado.
+- **Precisa:** decupagem.md aprovado; Higgsfield e HeyGen conectados; Chave do ElevenLabs configurada
+- **Funciona com:** Claude e ChatGPT
+- **Por baixo:** `clone-ad-validado`, `Higgsfield`, `ElevenLabs`, `HeyGen`
+
+### Conferir o clone antes de entregar
+
+*Nível: rápido*
+
+```text
+Use a skill clone-ad-validado, passo 7: confira [ARQUIVO DO CLONE] contra [ARQUIVO DO ORIGINAL].
+Monte e me mostre: folha original × clone no mesmo segundo, varredura do clone a 4 quadros por segundo e a folha de lip sync (quadro do silêncio × quadros de pico, recortados na boca, por cenário). Não use correlação automática para reprovar sincronia.
+Confira também: nenhuma imagem da pessoa antiga (rosto, cabelo, mãos, legenda antiga), o rosto novo igual em todas as cenas, legenda contra a copy palavra por palavra e −14 LUFS.
+Me dê a lista do que está fora com o tempo de cada item. Não conserte nada sem eu pedir.
+```
+
+- **O que faz:** As provas de que o clone está pronto, em três imagens e uma lista.
+- **Quando usar:** Antes de subir o clone no gerenciador de anúncios.
+- **Precisa:** O clone renderizado e o AD original
+- **Funciona com:** Claude e ChatGPT
+- **Por baixo:** `clone-ad-validado`, `FFmpeg`, `Whisper`
 
 
 ## Aulas e cortes
@@ -818,3 +916,43 @@ Só me mostre o prompt completo e os ajustes — não gere ainda.
 - **Precisa:** O vídeo de referência
 - **Funciona com:** Claude e ChatGPT
 - **Por baixo:** `motion-design`, `omni-flash-reverse`
+
+
+## Plataforma de IA própria
+
+Sua plataforma de gerar imagem e vídeo com a sua marca, na API do Higgsfield — sem assinatura e sem expor a chave.
+
+### Montar o prompt de design da sua plataforma
+
+*Nível: rápido*
+
+```text
+Use a skill plataforma-ia-higgsfield: preencha o prompt de design da minha plataforma de IA.
+Nome: [NOME DA MARCA]. Cor de destaque: [COR EM HEX]. Tom: [PREMIUM / MINIMALISTA / CRIATIVO]. Modelos no seletor: [IMAGEM E VÍDEO QUE EU QUERO].
+Me entregue o texto pronto para colar no ChatGPT ou no Claude logo depois do setup prompt do Higgsfield, com SUA_CHAVE_AQUI no lugar de qualquer chave.
+Não me peça a chave em momento nenhum.
+```
+
+- **O que faz:** O prompt completo (visual estilo Apple, modo claro e escuro, seletor de modelos, histórico e a regra de segurança da chave), preenchido com a sua marca.
+- **Quando usar:** Você vai montar a plataforma num chat.
+- **Precisa:** Conta no Higgsfield com chave de API criada (a chave fica com você)
+- **Funciona com:** Claude e ChatGPT
+- **Por baixo:** `plataforma-ia-higgsfield`
+
+### Criar a plataforma na sua pasta (sem expor a chave)
+
+*Nível: completo*
+
+```text
+Use a skill plataforma-ia-higgsfield, caminho B: crie a minha plataforma de IA em [PASTA].
+Vou colar abaixo o setup prompt do Higgsfield — sem a chave. Marca: [NOME], cor [HEX], tom [TOM].
+Regras: a chave nunca no código nem no chat; a plataforma pede a chave numa tela de configuração e guarda só no navegador, mostrando só os 4 últimos caracteres. Se a API recusar chamada pelo navegador (CORS), crie o servidor intermediário que lê a chave de variável de ambiente.
+Me mostre a estrutura antes de escrever e, no fim, confira que nenhuma chave ficou escrita nos arquivos. Não gere nada na minha conta para testar sem me perguntar.
+[SETUP PROMPT DO HIGGSFIELD]
+```
+
+- **O que faz:** Os arquivos da plataforma prontos para abrir no navegador, com a chave fora do código.
+- **Quando usar:** Você quer a plataforma montada direto no seu computador.
+- **Precisa:** Setup prompt do Higgsfield (a janela "Save your API key"); Uma pasta para os arquivos
+- **Funciona com:** Claude e ChatGPT
+- **Por baixo:** `plataforma-ia-higgsfield`, `Higgsfield`, `pastas do computador`

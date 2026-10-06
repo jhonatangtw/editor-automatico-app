@@ -215,3 +215,15 @@ Vídeo 720×1280 em sequência 1080×1920 → `150`. Imagem 1536×2752 → `70.3
 
 **Limite de 100 clipes** por `pr_timeline_colocar`. **Importar 151 arquivos de uma vez** trava o
 Premiere ~15 min conformando — importe em lotes de 50.
+
+## Higgsfield CLI — as quatro que custam crédito em silêncio
+
+**`--json` devolve ARRAY de ids**, não objeto. Parser de `{...}` acusa "falhou" com o job já criado e cobrado. Não reenvie: `higgsfield generate list --image --json` (ou `--video`) e case pelo prompt.
+
+**Baixe pelo `result_url`.** O JSON também traz `min_result_url` (miniatura ~600 px, às vezes webp com extensão .jpg). Confira largura/altura com `ffprobe` antes de usar.
+
+**`--wait` sob concorrência volta sem resultado** e o job termina normal no servidor. Use `--wait --wait-timeout 50m --wait-interval 20s`, ou submeta sem `--wait` e acompanhe com `generate list`/`get`.
+
+**403 no `generate create` com saldo = moderação.** Descrição de corpo ("soft belly", "overweight") derruba; descreva roupa, pose e enquadramento. Em `wan3_0` o mesmo bloqueio volta como status `nsfw`.
+
+Mais armadilhas por ferramenta: skill `boas-praticas-black-belt`.

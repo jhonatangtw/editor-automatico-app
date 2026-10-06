@@ -201,3 +201,4 @@ MP4, duração, LUFS/TP, e uma capa (quadro do hit) se o aluno pedir.
 - `references/armadilhas.md` — o que já quebrou em job real e como evitar.
 - `references/prompts-do-aluno.md` — o que o aluno pode pedir em cada fase.
 - `references/sem-premiere.md` — caminho só com ffmpeg (sem Premiere/Tools PRO).
+- Skill `boas-praticas-black-belt` — armadilhas de Whisper, ffmpeg, Premiere, HyperFrames e QC por sintoma, causa e conserto (inclui a auditoria de um job pronto).

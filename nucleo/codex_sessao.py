@@ -39,9 +39,11 @@ input from stdin..." e espera — o app ficaria pendurado para sempre.
 """
 
 import json
+import time
 import os
 import subprocess
 
+from .leitor_stream import LIMITE_RESULTADO, entrada_enxuta
 from . import so
 
 # ⚠️ **A conta é do USUÁRIO, não do app.** Cheguei a isolar o app numa
@@ -226,19 +228,27 @@ def conversar(cid, pid, texto, ao_vivo, _tentou_de_novo=False, controle=None):
         if tipo == "item.started" and it == "mcp_tool_call":
             pendentes[item.get("id")] = emitir({
                 "tipo": "ferramenta", "nome": item.get("tool") or "?",
+                "servidor": item.get("server") or "",
                 "resumo": conversa._resumo_entrada(item.get("tool") or "",
                                                    item.get("arguments") or {}),
-                "estado": "rodando"})
+                "entrada": entrada_enxuta(item.get("arguments") or {}),
+                "estado": "rodando", "inicio": time.time()})
         elif tipo == "item.completed" and it == "mcp_tool_call":
             i = pendentes.pop(item.get("id"), None)
             ruim = bool(item.get("error")) or item.get("status") == "failed"
             saida = ((item.get("error") or {}).get("message") if ruim
                      else _texto_do_resultado(item.get("result")))
             ev2 = {"tipo": "ferramenta", "nome": item.get("tool") or "?",
+                   "servidor": item.get("server") or "",
                    "resumo": conversa._resumo_entrada(item.get("tool") or "",
                                                       item.get("arguments") or {}),
+                   "entrada": entrada_enxuta(item.get("arguments") or {}),
                    "estado": "erro" if ruim else "ok",
-                   "saida": (saida or "")[:160]}
+                   "saida": (saida or "")[:160],
+                   "resultado": str(saida or "")[:LIMITE_RESULTADO]}
+            if i is not None and passos[i].get("inicio"):
+                ev2["inicio"] = passos[i]["inicio"]
+                ev2["dur"] = round(time.time() - passos[i]["inicio"], 1)
             if i is None:
                 emitir(ev2)
             else:
@@ -249,6 +259,8 @@ def conversar(cid, pid, texto, ao_vivo, _tentou_de_novo=False, controle=None):
         elif tipo == "item.completed" and it == "command_execution":
             emitir({"tipo": "ferramenta", "nome": "terminal",
                     "resumo": (item.get("command") or "")[:70],
+                    "entrada": {"command": (item.get("command") or "")[:2000]},
+                    "resultado": str(item.get("aggregated_output") or "")[:LIMITE_RESULTADO],
                     "estado": "erro" if item.get("exit_code") else "ok"})
         elif tipo == "item.completed" and it == "error":
             # o Codex usa "error" também para recado de contexto; não derruba

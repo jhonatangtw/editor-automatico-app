@@ -84,6 +84,21 @@ class Guia(unittest.TestCase):
             for sub in re.findall(r"`hyperframes (\w+)", c["comando"]):
                 self.assertIn(sub, {"check", "render", "lint", "preview", "snapshot"}, c["titulo"])
 
+    def test_pedidos_das_skills_novas(self):
+        g = {gr["id"]: gr for gr in guia()["grupos"]}
+        clone = g["clone"]["comandos"]
+        self.assertTrue(3 <= len(clone) <= 4)
+        for c in clone:
+            self.assertIn("clone-ad-validado", c["usa"])
+        plat = g["plataforma-ia"]["comandos"]
+        self.assertEqual(len(plat), 2)
+        for c in plat:
+            self.assertIn("plataforma-ia-higgsfield", c["usa"])
+            self.assertIn("SUA_CHAVE_AQUI" if c["nivel"] == "rápido" else "nunca no código", c["comando"])
+        boas = [c for gr in guia()["grupos"] for c in gr["comandos"] if "boas-praticas-black-belt" in c["usa"]]
+        self.assertEqual(len(boas), 1)
+        self.assertIn("não conserte", boas[0]["comando"])
+
     @unittest.skipUnless(os.path.isfile(REGISTRO), "código do Tools PRO não está nesta máquina")
     def test_lista_do_tools_pro_bate_com_o_registro(self):
         with open(REGISTRO, encoding="utf-8") as f:

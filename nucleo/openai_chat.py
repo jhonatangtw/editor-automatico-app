@@ -21,6 +21,7 @@ import time
 import urllib.error
 import urllib.request
 
+from .leitor_stream import LIMITE_RESULTADO, entrada_enxuta
 from . import ia, rede
 
 def _api():
@@ -267,9 +268,11 @@ def conversar(cid, pid, msgs, quem, ao_vivo):
                 entrada = json.loads(c["args"] or "{}")
             except Exception:
                 entrada = {}
+            t0 = time.time()
             i = emitir({"tipo": "ferramenta", "nome": c["nome"],
                         "resumo": conversa._resumo_entrada(c["nome"], entrada),
-                        "estado": "rodando"})
+                        "entrada": entrada_enxuta(entrada),
+                        "estado": "rodando", "inicio": t0})
             try:
                 saida = conversa._executar(pid, c["nome"], entrada, quem)
                 erro = bool(isinstance(saida, dict) and saida.get("erro"))
@@ -277,10 +280,17 @@ def conversar(cid, pid, msgs, quem, ao_vivo):
                     pid = saida["criado"]
             except Exception as e:
                 saida, erro = {"erro": str(e)}, True
-            atualizar(i, {"tipo": "ferramenta", "nome": c["nome"],
-                          "resumo": conversa._resumo_entrada(c["nome"], entrada),
-                          "estado": "erro" if erro else "ok",
-                          "saida": conversa._resumo_saida(saida)})
+            ev = {"tipo": "ferramenta", "nome": c["nome"],
+                  "resumo": conversa._resumo_entrada(c["nome"], entrada),
+                  "entrada": entrada_enxuta(entrada),
+                  "estado": "erro" if erro else "ok", "inicio": t0,
+                  "dur": round(time.time() - t0, 1),
+                  "saida": conversa._resumo_saida(saida),
+                  "resultado": json.dumps(saida, ensure_ascii=False,
+                                          default=str)[:LIMITE_RESULTADO]}
+            if isinstance(saida, dict) and saida.get("recusado"):
+                ev["recusado"], ev["porque"] = True, str(saida.get("porque") or "")
+            atualizar(i, ev)
             msgs.append({"role": "ferramenta", "nome": c["nome"], "entrada": entrada,
                          "saida": saida, "provedor": "chatgpt", "quando": time.time()})
             api.append({"role": "tool", "tool_call_id": c["id"],

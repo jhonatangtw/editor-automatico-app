@@ -113,3 +113,37 @@ Wide angle shot of an abandoned industrial warehouse interior, Detroit, winter m
 3. **Gere 1 a 3 prompts** — variando composição, luz ou mood se gerar mais de um.
 4. **Verifique** — há pessoas/pele? Adicione a frase obrigatória ao final de cada prompt relevante.
 5. **Não explique** o que fez — entregue os prompts diretamente.
+
+---
+
+## Quando ainda parece IA ("cara de banco de imagem")
+
+As specs de câmera dizem "isto é uma foto", mas não impedem pele lisa, dente branco, luz perfeita e cenário arrumado. Para pessoas em anúncio (depoimento, UGC, persona), some um **bloco anti-stock**:
+
+- "Not a stock image, not a commercial shoot, not an AI render."
+- Cômodo vivido com bagunça pequena (objeto torto, poeira, roupa amassada).
+- **Luz errada de propósito**: uma janela realmente estourada, sombra real, duas temperaturas de cor no rosto.
+- **Rosto assimétrico item a item**: um olho menor, sobrancelha desigual com fio solto, manchas, dente marfim (não branco), lábio seco.
+- **Mãos**: veia, tendão, pele frouxa no nó do dedo.
+- **Emulsão**: grão 35 mm fino, vinheta leve, aberração cromática na borda, filme nomeado (Kodak Portra 400) em vez de "cinematic".
+- **Negar o acabamento**: "no beauty filter, no HDR glow, no digital sharpening halo, no glossy plastic sheen, no teal-and-orange grade".
+
+**Ordem que funciona:** cena → specs de câmera → bloco anti-stock → trava de produto (se houver) → frase final obrigatória. O bloco anti-stock é longo e **afoga a trava de produto se vier depois dela**.
+
+Efeitos colaterais: "film grain" às vezes desenha uma moldura preta de filme (recorte com folga); expressão espontânea faz a pessoa olhar para fora e baixar o produto — exija "looking straight into the lens".
+
+## Pessoa segurando produto (GPT Image 2.5 no Higgsfield)
+
+`gpt_image_2_5 --quality high --resolution 2k`, com a foto do produto e um close do rótulo como `--image-references`. Acerta a grafia do rótulo e os dedos de primeira; erra a **escala**. Trava de produto por último, aberta pela escala:
+
+```
+PRODUCT — THIS OVERRIDES EVERYTHING ABOVE. SCALE IS CRITICAL: TINY [VOLUME] bottle, its full height is only the length of the index finger, about HALF the hand, held delicately by the base with the fingertips — like holding an egg — so the whole front label stays exposed and facing the camera; the hand is clearly BIGGER than the bottle. Bottle held upright at chest height, fully inside the frame.
+```
+
+Fundo com calendário, lista, livro ou embalagem sai legível se a cena citar: "Any calendar, list, book, sign or packaging in the background is out of focus and unreadable".
+
+## A mesma pessoa em várias imagens
+
+Passe o **id do job** da primeira imagem aprovada como referência (aceita id de job, não só de upload) e abra o prompt com: "IDENTITY: the SAME [woman/man] as in the reference image — same face, same skin, same hair, same clothes. Same day, a different room." Isso segura rosto, cabelo e roupa entre cenários (base para lip sync e b-roll da mesma persona).
+
+Mais armadilhas de geração: skill `boas-praticas-black-belt`.

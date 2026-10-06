@@ -107,7 +107,8 @@ def tarefa_nova(rotulo):
     tid = secrets.token_hex(6)
     with _trava:
         TAREFAS[tid] = {"id": tid, "rotulo": rotulo, "estado": "rodando",
-                        "log": [], "passos": [], "resultado": None, "erro": None}
+                        "log": [], "passos": [], "resultado": None, "erro": None,
+                        "seq": 0, "versoes": []}
     return tid
 
 
@@ -127,13 +128,21 @@ def tarefa_log(tid, linha):
             if linha.get("tipo") == "etapa":
                 t["etapa"] = linha.get("texto") or ""
                 return
+            # cada passo guarda a "versão" em que mudou pela última vez: a tela
+            # pede só o que mudou desde a versão que já tem (`?v=`). Com o texto
+            # chegando letra a letra e centenas de ações numa rodada longa,
+            # mandar a lista inteira a cada pesquisa travava a janela.
+            t["seq"] = t.get("seq", 0) + 1
+            versoes = t.setdefault("versoes", [])
             if linha.get("atualiza"):
                 i = linha.get("indice")
                 if i is not None and 0 <= i < len(t["passos"]):
                     t["passos"][i] = {k: v for k, v in linha.items()
                                       if k not in ("indice", "atualiza")}
+                    versoes[i] = t["seq"]
             else:
                 t["passos"].append(linha)
+                versoes.append(t["seq"])
         else:
             t["log"] = (t["log"] + [str(linha)])[-40:]
 
@@ -147,16 +156,28 @@ def tarefa_fim(tid, resultado=None, erro=None, estado=None):
         CONTROLES.pop(tid, None)
 
 
-def tarefa_ver(tid):
+def tarefa_ver(tid, desde=None):
     """O retrato da tarefa para a tela — com `cancelavel` calculado na hora:
-    só é verdade enquanto existe um processo de pé para encerrar."""
+    só é verdade enquanto existe um processo de pé para encerrar.
+
+    Com `desde` (a versão que a tela já tem), em vez da lista inteira vão só
+    os passos que mudaram depois dela, em `novos` = [[índice, passo], …], e o
+    `total` para a tela saber o tamanho da lista."""
     with _trava:
         t = TAREFAS.get(tid)
         if not t:
             return None
+        versoes = list(t.get("versoes") or [])
         t = dict(t)
+        t["passos"] = list(t["passos"])
         c = CONTROLES.get(tid)
+    t.pop("versoes", None)
     t["cancelavel"] = bool(c and t["estado"] == "rodando" and c.cancelavel)
+    if desde is not None:
+        t["novos"] = [[i, p] for i, p in enumerate(t["passos"])
+                      if i < len(versoes) and versoes[i] > desde]
+        t["total"] = len(t["passos"])
+        del t["passos"]
     return t
 
 
@@ -432,6 +453,190 @@ def rota_motores(pid, tipo, quantos):
             "saldo": gerar.saldo()}
 
 
+# ------------------------------------------------------------- conversa nova
+# A tela da Conversa (web/conversa-ui.js) usa estas rotas. Ela também é montada
+# no painel do Tools PRO, dentro do Premiere — por isso nada aqui assume que a
+# página foi servida por este app: tudo é JSON e o token vai no cabeçalho.
+
+def rota_conversa_ver(cid):
+    m = conversas.meta(cid)
+    pid = m.get("projeto")
+    if pid:
+        try:
+            m["projeto_nome"] = projetos.ler(pid)["plano"].get("job") or pid
+        except Exception:
+            m["projeto_nome"] = pid
+    return {"conversa": cid, "mensagens": conversas.mensagens(cid), "meta": m}
+
+
+def rota_aprovacao(cid):
+    """O cartão de aprovação que aparece DENTRO da conversa.
+
+    Só aparece quando aprovar a etapa que está esperando LIBERA uma etapa que
+    gasta crédito. O cartão não aprova nada sozinho: os botões chamam a mesma
+    rota do botão Aprovar do pipeline (`/api/projetos/{pid}/etapa/{eid}/aprovar`),
+    que grava quem aprovou e quando. Nenhuma trava muda — é só outra porta
+    para a MESMA decisão explícita."""
+    pid = conversas.meta(cid).get("projeto") if cid else None
+    if not pid:
+        return {"cartao": None}
+    try:
+        est = projetos.estado_pipeline(pid)
+    except Exception:
+        return {"cartao": None}
+    pnl = pipeline.painel(est)
+    etapas = pnl["etapas"]
+    for i, e in enumerate(etapas):
+        if e["status"] != pipeline.AGUARDANDO or i + 1 >= len(etapas):
+            continue
+        prox = etapas[i + 1]
+        if not prox["gasta"]:
+            continue
+        cartao = {"projeto": pid, "etapa": e["id"], "n": e["n"], "nome": e["nome"],
+                  "libera": prox["id"], "libera_nome": prox["nome"],
+                  "libera_resumo": prox["resumo"], "saldo_itens": e.get("saldo"),
+                  "custo": None}
+        if prox["id"] in ("imagens", "animacao"):
+            try:
+                o = gerar.orcamento(pid)
+                unit = o["custo_imagem"] if prox["id"] == "imagens" else o["custo_video"]
+                motor = o["motor_imagem"] if prox["id"] == "imagens" else o["motor_video"]
+                qtd = o["inserts"]
+                if prox["id"] == "animacao" and e.get("saldo"):
+                    qtd = e["saldo"].get("aprovados") or qtd
+                cartao["custo"] = {"itens": qtd, "unitario": unit, "motor": motor,
+                                   "total": round(qtd * (unit or 0), 1),
+                                   "saldo": o.get("saldo")}
+            except Exception as ex:
+                cartao["custo_erro"] = str(ex)[:160]
+        return {"cartao": cartao}
+    return {"cartao": None}
+
+
+_PULAR = {".git", "node_modules", "__pycache__", ".venv", "venv", ".cache",
+          "Adobe Premiere Pro Auto-Save", "Adobe Premiere Pro Video Previews",
+          "Adobe Premiere Pro Audio Previews"}
+_adobe_pasta = {"q": (0, None)}
+
+
+def _sem_acento(t):
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFD", t or "")
+                   if unicodedata.category(c) != "Mn").lower()
+
+
+def _raizes_da_conversa(cid):
+    """Onde o "@" procura: a pasta do projeto do app, a pasta do vídeo bruto
+    e, sem projeto, a pasta do projeto aberto no Premiere."""
+    raizes = []
+    pid = conversas.meta(cid).get("projeto") if cid else None
+    if pid:
+        raizes.append(projetos.dir_projeto(pid))
+        try:
+            corpo = projetos.ler(pid)["plano"]["fonte"].get("body")
+            if corpo:
+                raizes.append(os.path.dirname(corpo))
+        except Exception:
+            pass
+    else:
+        import time as _t
+        quando, pasta = _adobe_pasta["q"]
+        if _t.time() - quando > 60:
+            try:
+                cam = adobe.estado().get("caminho")
+                pasta = os.path.dirname(cam) if cam else None
+            except Exception:
+                pasta = None
+            _adobe_pasta["q"] = (_t.time(), pasta)
+        if pasta:
+            raizes.append(pasta)
+    if cid:
+        raizes.append(os.path.join(conversas.dir_conversa(cid), "anexos"))
+    vistas, saida = set(), []
+    for r in raizes:
+        r = os.path.realpath(os.path.expanduser(r))
+        if r not in vistas and os.path.isdir(r):
+            vistas.add(r)
+            saida.append(r)
+    return saida
+
+
+def rota_arquivos(cid, q, limite=30, teto=6000):
+    """Busca de arquivos para o "@" do campo de mensagem."""
+    q = _sem_acento(q or "").strip()
+    achados, vistos = [], 0
+    raizes = _raizes_da_conversa(cid)
+    for raiz in raizes:
+        for pasta, dirs, arqs in os.walk(raiz):
+            dirs[:] = [d for d in dirs if not d.startswith(".") and d not in _PULAR]
+            for a in arqs:
+                if a.startswith("."):
+                    continue
+                vistos += 1
+                cam = os.path.join(pasta, a)
+                rel = os.path.relpath(cam, raiz)
+                alvo = _sem_acento(rel)
+                if not q or q in alvo:
+                    nome = _sem_acento(a)
+                    nota = (0 if nome.startswith(q) else 1 if q in nome else 2, len(rel))
+                    achados.append((nota, {"caminho": cam, "rel": rel,
+                                           "raiz": os.path.basename(raiz)}))
+                if vistos >= teto:
+                    break
+            if vistos >= teto:
+                break
+    achados.sort(key=lambda x: x[0])
+    return {"raizes": raizes, "arquivos": [a for _, a in achados[:limite]]}
+
+
+def rota_anexo(handler, cid):
+    """Arquivo arrastado para a conversa: grava em <conversa>/anexos/ e devolve
+    o caminho. O navegador (WebKit do pywebview, Chromium do painel) não expõe
+    o caminho do arquivo arrastado — então o arquivo vem, e o caminho volta."""
+    from urllib.parse import unquote
+    if not cid or "/" in cid or ".." in cid:
+        raise ValueError("Conversa inválida.")
+    n = int(handler.headers.get("Content-Length") or 0)
+    if n <= 0:
+        raise ValueError("Arquivo vazio.")
+    if n > 4 * 1024 ** 3:
+        raise ValueError("Arquivo grande demais para anexar (máximo 4 GB).")
+    nome = os.path.basename(unquote(handler.headers.get("X-Nome") or "")) or "anexo"
+    nome = "".join(c for c in nome if c not in '\\:*?"<>|').strip() or "anexo"
+    pasta = os.path.join(conversas.dir_conversa(cid), "anexos")
+    os.makedirs(pasta, exist_ok=True)
+    base, ext = os.path.splitext(nome)
+    alvo, k = os.path.join(pasta, nome), 2
+    while os.path.exists(alvo):
+        alvo = os.path.join(pasta, "%s (%d)%s" % (base, k, ext))
+        k += 1
+    falta = n
+    with open(alvo, "wb") as f:
+        while falta > 0:
+            bloco = handler.rfile.read(min(falta, 1024 * 1024))
+            if not bloco:
+                break
+            f.write(bloco)
+            falta -= len(bloco)
+    if falta:
+        os.remove(alvo)
+        raise ValueError("O envio do arquivo foi interrompido.")
+    return {"caminho": alvo, "nome": os.path.basename(alvo), "tamanho": n}
+
+
+def rota_limpar(cid):
+    """/limpar: apaga as mensagens desta conversa e começa sessão nova da IA
+    (sem a memória do que foi dito). O projeto continua amarrado."""
+    conversas.gravar_mensagens(cid, [])
+    for arq in ("sessao.txt", "codex.txt"):
+        try:
+            os.remove(conversas.caminho(cid, arq))
+        except Exception:
+            pass
+    conversas.gravar_meta(cid, titulo="Nova conversa")
+    return {"ok": True, "conversa": cid}
+
+
 def abrir_aulas():
     """"Minhas aulas": pede o passe de 60 s e abre no navegador padrão.
 
@@ -470,6 +675,55 @@ ROTAS_GET = {
 }
 
 
+# ------------------------------------------------------------------ painel do Tools PRO
+#
+# O painel do Tools PRO (CEP, dentro do Premiere e do After) mostra a Conversa
+# do app. A página dele é um arquivo local, então o navegador do CEP manda
+# `Origin: null` (ou `file://`). Liberar CORS para isso SÓ nas rotas da
+# conversa e SÓ com o token certo: qualquer arquivo .html aberto do disco
+# também tem origem "null", e sem o token ele não pode nem saber que o app
+# existe. Nada de `*`, e o servidor continua só em 127.0.0.1.
+ORIGENS_PAINEL = ("null", "file://")
+
+# Modo serviço: o app sobe SEM janela, só o servidor, porque o painel do Tools
+# PRO pediu o cérebro e o editor não pode sair do Premiere para conversar.
+# Morre sozinho quando ninguém fala com ele por OCIOSO_SERVICO segundos (o
+# painel manda sinal de vida a cada 20 s; fechar o painel ou o Premiere para
+# o sinal) — mas nunca no meio de uma tarefa rodando.
+MODO_SERVICO = "--servico" in sys.argv
+OCIOSO_SERVICO = int(os.environ.get("EDITOR_AUTOMATICO_OCIOSO") or 120)   # a banca encurta
+_ULTIMO_CONTATO = [0.0]
+
+
+def _rota_da_conversa(caminho):
+    if caminho in ("/api/saude", "/api/servico/desligar", "/api/conversa", "/api/conversas",
+                   "/api/conversas/nova", "/api/ia", "/api/ia/escolher",
+                   "/api/skills"):        # o menu "/" de skills do campo de mensagem
+        return True
+    partes = caminho.strip("/").split("/")
+    if partes[:2] == ["api", "conversas"]:
+        # /api/conversas/{id} e o que a tela da conversa faz dentro dela
+        if len(partes) == 3:
+            return True
+        return len(partes) == 4 and partes[3] in ("aprovacao", "arquivos", "anexo", "limpar")
+    # acompanhar e cancelar a rodada em andamento
+    if len(partes) in (3, 4) and partes[:2] == ["api", "tarefas"]:
+        return len(partes) == 3 or partes[3] == "cancelar"
+    # o cartão de aprovação DENTRO da conversa usa a mesma rota do botão do
+    # pipeline. Só aprovar/rejeitar — iniciar etapa fica na janela do app.
+    if len(partes) == 6 and partes[:2] == ["api", "projetos"] and partes[3] == "etapa":
+        return partes[5] in ("aprovar", "rejeitar")
+    return False
+
+
+def _versao_do_app():
+    try:
+        with open(os.path.join(RAIZ, "version.json"), encoding="utf-8") as f:
+            return json.load(f).get("version", "")
+    except Exception:
+        return ""
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -482,11 +736,61 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(codigo)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(corpo)))
+        self._cors()
         self.end_headers()
         self.wfile.write(corpo)
 
+    def _origem_do_painel(self):
+        o = self.headers.get("Origin")
+        return o if o in ORIGENS_PAINEL else None
+
+    def _cors(self):
+        """Cabeçalhos CORS na resposta de verdade: origem do painel + rota da
+        conversa + token válido. Faltou qualquer um, a resposta sai sem eles e
+        o navegador do painel não entrega nada à página."""
+        o = self._origem_do_painel()
+        if o and _rota_da_conversa(self.path.split("?")[0]) and self._autorizado():
+            self.send_header("Access-Control-Allow-Origin", o)
+            self.send_header("Vary", "Origin")
+
     def _autorizado(self):
-        return self.headers.get("X-Token") == TOKEN
+        ok = self.headers.get("X-Token") == TOKEN
+        if ok:
+            import time as _t
+            _ULTIMO_CONTATO[0] = _t.time()     # sinal de vida (modo serviço)
+        return ok
+
+    def _desligar_servico(self):
+        """"Desligar a IA" do painel. Só vale no modo serviço: o app que a
+        pessoa abriu com janela não é do painel para fechar."""
+        if not MODO_SERVICO:
+            return self._json({"ok": False, "erro": "O Editor Automático está aberto com janela — feche pela janela."}, 409)
+        self._json({"ok": True})
+        threading.Thread(target=_encerrar_servico, args=(0.3,), daemon=True).start()
+
+    def do_OPTIONS(self):
+        """Pré-voo do CORS. Ele nunca traz o token (o navegador não manda
+        cabeçalho próprio no pré-voo), então aqui só se libera o FORMATO do
+        pedido; quem decide é o pedido de verdade, que exige o token."""
+        caminho = self.path.split("?")[0]
+        o = self._origem_do_painel()
+        if not (o and _rota_da_conversa(caminho)):
+            self.send_response(403)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", o)
+        self.send_header("Access-Control-Allow-Methods", "GET, POST")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Token, X-Nome")
+        self.send_header("Access-Control-Max-Age", "600")
+        self.send_header("Vary", "Origin")
+        # Chromium mais novo pede licença extra para página local falar com
+        # 127.0.0.1 (Private Network Access); sem isto o pré-voo é recusado
+        if self.headers.get("Access-Control-Request-Private-Network") == "true":
+            self.send_header("Access-Control-Allow-Private-Network", "true")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def _corpo(self):
         n = int(self.headers.get("Content-Length") or 0)
@@ -522,8 +826,9 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(403), self.end_headers()
             return
         alvo = os.path.realpath(os.path.expanduser((q.get("p") or [""])[0]))
-        raiz = os.path.realpath(projetos.RAIZ)
-        if not alvo.startswith(raiz + os.sep) or not os.path.isfile(alvo):
+        # projetos do app e anexos das conversas (miniatura do que foi arrastado)
+        raizes = [os.path.realpath(projetos.RAIZ), os.path.realpath(conversas.RAIZ)]
+        if not any(alvo.startswith(r + os.sep) for r in raizes) or not os.path.isfile(alvo):
             self.send_response(404), self.end_headers()
             return
         tipo = mimetypes.guess_type(alvo)[0] or "application/octet-stream"
@@ -548,6 +853,18 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"erro": "Sessão inválida."}, 403)
 
         try:
+            if caminho == "/api/saude":
+                # barata de propósito: o painel do Tools PRO chama para provar
+                # que a porta e o token do arquivo de descoberta são DESTE app
+                # `conversa_ui` diz se a tela reutilizável da Conversa existe
+                # nesta versão — o painel decide por isso entre montar o
+                # componente ou cair no modo de reserva, sem pedir um arquivo
+                # que daria 404 (e o 404 estático aqui não fecha a conexão)
+                return self._json({
+                    "ok": True, "app": "editor-automatico",
+                    "versao": _versao_do_app(), "pid": os.getpid(),
+                    "modo": "servico" if MODO_SERVICO else "janela",
+                    "conversa_ui": os.path.isfile(os.path.join(WEB, "conversa-ui.js"))})
             if caminho in ROTAS_GET:
                 return self._json(ROTAS_GET[caminho](self))
             partes = caminho.strip("/").split("/")
@@ -574,10 +891,13 @@ class Handler(BaseHTTPRequestHandler):
             if caminho == "/api/conversas":
                 return self._json({"conversas": conversas.listar()})
             if len(partes) == 3 and partes[1] == "conversas":
-                cid = partes[2]
-                m = conversas.meta(cid)
-                return self._json({"mensagens": conversas.mensagens(cid),
-                                   "meta": m})
+                return self._json(rota_conversa_ver(partes[2]))
+            if len(partes) == 4 and partes[1] == "conversas" and partes[3] == "aprovacao":
+                return self._json(rota_aprovacao(partes[2]))
+            if len(partes) == 4 and partes[1] == "conversas" and partes[3] == "arquivos":
+                from urllib.parse import parse_qs, urlparse
+                q = (parse_qs(urlparse(self.path).query).get("q") or [""])[0]
+                return self._json(rota_arquivos(partes[2], q))
             if caminho == "/api/conversa":
                 lista = conversas.listar()
                 cid = lista[0]["id"] if lista else None
@@ -621,7 +941,10 @@ class Handler(BaseHTTPRequestHandler):
             if len(partes) == 4 and partes[1] == "projetos" and partes[3] == "transcricao":
                 return self._json(decupar.ler(partes[2]) or {"palavras": []})
             if len(partes) == 3 and partes[1] == "tarefas":
-                return self._json(tarefa_ver(partes[2]) or {"erro": "sem tarefa"})
+                from urllib.parse import parse_qs, urlparse
+                v = (parse_qs(urlparse(self.path).query).get("v") or [None])[0]
+                desde = int(v) if v not in (None, "") and v.lstrip("-").isdigit() else None
+                return self._json(tarefa_ver(partes[2], desde) or {"erro": "sem tarefa"})
             if caminho == "/api/pasta":
                 # chamado logo ao abrir: no Mac é aqui que o sistema pergunta
                 # sobre a pasta Documentos — com a tela explicando o porquê —
@@ -637,9 +960,14 @@ class Handler(BaseHTTPRequestHandler):
         caminho = self.path.split("?")[0]
         if not self._autorizado():
             return self._json({"erro": "Sessão inválida."}, 403)
+        if caminho == "/api/servico/desligar":
+            return self._desligar_servico()
         try:
-            corpo = self._corpo()
             partes = caminho.strip("/").split("/")
+            # arquivo arrastado para a conversa: o corpo é o arquivo, não JSON
+            if len(partes) == 4 and partes[1] == "conversas" and partes[3] == "anexo":
+                return self._json(rota_anexo(self, partes[2]))
+            corpo = self._corpo()
 
             if caminho == "/api/conta/entrar":
                 return self._json(conta.entrar(corpo.get("email", ""), corpo.get("senha", "")))
@@ -695,6 +1023,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"conversa": conversas.criar()})
             if caminho == "/api/conversas/apagar":
                 return self._json({"ok": conversas.apagar(corpo["conversa"])})
+            if len(partes) == 4 and partes[1] == "conversas" and partes[3] == "limpar":
+                return self._json(rota_limpar(partes[2]))
 
             if caminho == "/api/ia/escolher":
                 return self._json({"escolhido": ia.escolher(corpo["provedor"]),
@@ -809,6 +1139,38 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"erro": str(e) or e.__class__.__name__}, 400)
 
 
+def _tarefa_rodando():
+    with _trava:
+        return any(t.get("estado") == "rodando" for t in TAREFAS.values())
+
+
+def _encerrar_servico(espera=0.0):
+    """Sai de vez: cancela o que dá para cancelar, apaga a descoberta e mata o
+    processo. os._exit porque o servidor e as tarefas são threads daemon e um
+    sys.exit numa thread não derruba nada."""
+    import time as _t
+    if espera:
+        _t.sleep(espera)
+    with _trava:
+        tids = [tid for tid, t in TAREFAS.items() if t.get("estado") == "rodando"]
+    for tid in tids:
+        try:
+            tarefa_cancelar(tid)
+        except Exception:
+            pass
+    from nucleo import descoberta
+    descoberta.apagar()
+    os._exit(0)
+
+
+def _vigiar_ociosidade():
+    import time as _t
+    while True:
+        _t.sleep(min(10, max(1, OCIOSO_SERVICO / 2)))
+        if _t.time() - _ULTIMO_CONTATO[0] > OCIOSO_SERVICO and not _tarefa_rodando():
+            _encerrar_servico()
+
+
 def porta_livre():
     s = socket.socket()
     s.bind(("127.0.0.1", 0))
@@ -818,6 +1180,13 @@ def porta_livre():
 
 
 def main():
+    if MODO_SERVICO:
+        # já existe o app COM janela aberto: ele é o cérebro, o serviço não sobe
+        # (sobrescrever a descoberta deixaria a janela inalcançável pelo painel)
+        from nucleo import descoberta as _d
+        viva = _d.ler()
+        if viva and viva.get("modo") != "servico":
+            return
     porta = porta_livre()
     servidor = ThreadingHTTPServer(("127.0.0.1", porta), Handler)
     threading.Thread(target=servidor.serve_forever, daemon=True).start()
@@ -829,20 +1198,70 @@ def main():
     _cod.deu_certo()
     url = "http://127.0.0.1:%d/?t=%s" % (porta, TOKEN)
 
+    # Arquivo de descoberta: é por ele que o painel do Tools PRO acha este app
+    # (porta e token mudam a cada abertura). Some ao fechar; se o app morrer
+    # sem passar por aqui, o painel vê o pid morto e ignora o arquivo.
+    from nucleo import descoberta
+    if not MODO_SERVICO:
+        # abriu com janela e o painel tinha ligado um serviço: ele sai, fica a janela
+        try:
+            descoberta.desligar_servico_vivo()
+        except Exception:
+            traceback.print_exc()
+    try:
+        descoberta.gravar(porta, TOKEN, _versao_do_app(),
+                          modo="servico" if MODO_SERVICO else "janela")
+    except Exception:
+        traceback.print_exc()          # sem o arquivo o app segue; só o painel não acha
+    import atexit
+    atexit.register(descoberta.apagar)
+    if os.name != "nt":
+        import signal
+
+        def _sair(*_):
+            descoberta.apagar()
+            os._exit(0)
+        for sinal in (signal.SIGTERM, signal.SIGHUP):
+            try:
+                signal.signal(sinal, _sair)
+            except (ValueError, OSError):
+                pass
+
+    if MODO_SERVICO:
+        # sem janela, sem pywebview (é ele que acorda o AppKit e põe o ícone
+        # no Dock): só o servidor, até o painel desligar ou parar de falar
+        import time as _t
+        _ULTIMO_CONTATO[0] = _t.time()
+        threading.Thread(target=_vigiar_ociosidade, daemon=True).start()
+        try:
+            threading.Event().wait()
+        except KeyboardInterrupt:
+            pass
+        descoberta.apagar()
+        return
+
     try:
         import webview
     except ImportError:
         # Sem pywebview ainda dá pra trabalhar — o app não trava por causa da moldura
         print("Janela nativa indisponível; abrindo no navegador.\n" + url)
         webbrowser.open(url)
-        threading.Event().wait()
+        try:
+            threading.Event().wait()
+        except KeyboardInterrupt:
+            pass
+        descoberta.apagar()
         return
 
     janela = webview.create_window(
         "Editor Automático", url,
         width=1240, height=820, min_size=(1020, 680),
         background_color="#0B0C0E")
-    webview.start(gui="cocoa" if sys.platform == "darwin" else None)
+    try:
+        webview.start(gui="cocoa" if sys.platform == "darwin" else None)
+    finally:
+        # janela fechada = app fechado para o painel, já, sem esperar o atexit
+        descoberta.apagar()
 
 
 if __name__ == "__main__":

@@ -61,6 +61,60 @@
     ] : [],
   };
   if (vivo) { DADOS['/api/tarefas/t1'] = TAREFA; }
+
+  // Conversa nova (0.22): ?conversa=cheia — histórico com texto e ações
+  // intercalados, lista de tarefas em andamento; ?cartao=1 — cartão de
+  // aprovação; ?vivo=stream — resposta chegando, com TodoWrite e texto ao vivo.
+  const agora = Date.now() / 1000;
+  const TAREFAS_TODO = [
+    { texto: 'Conferir o Premiere e a timeline', ativo: 'Conferindo o Premiere', estado: 'feito' },
+    { texto: 'Marcar os pontos de b-roll', ativo: 'Marcando os pontos de b-roll', estado: 'feito' },
+    { texto: 'Orçar as imagens no Higgsfield', ativo: 'Orçando as imagens', estado: 'andamento' },
+    { texto: 'Gerar as 9 imagens (depois da sua aprovação)', ativo: 'Gerando as imagens', estado: 'pendente' },
+  ];
+  const MSGS = [
+    { role: 'user', content: 'Analise a timeline do AD07 e prepare os b-rolls', provedor: 'claude' },
+    { role: 'assistant', provedor: 'claude', content: '…', passos: [
+      { tipo: 'pensando', estado: 'ok', dur: 4.2, texto: 'Primeiro preciso ver o que está aberto no Premiere e ler a decupagem.' },
+      { tipo: 'texto', texto: 'Vou conferir o Premiere, ler a decupagem e marcar os pontos de b-roll.' },
+      { tipo: 'ferramenta', nome: 'TodoWrite', estado: 'ok', dur: 0.1, entrada: { todos: [] }, tarefas: TAREFAS_TODO },
+      { tipo: 'ferramenta', nome: 'mcp__editor__adobe_estado', entrada: {}, estado: 'ok', dur: 0.8,
+        resultado: '{"apps":{"premiere":true},"projeto":"AD07_Body.prproj","ativa":"AD07 — corte 1"}' },
+      { tipo: 'ferramenta', nome: 'Read', entrada: { file_path: '/Users/marina/Editor Automático/Projetos/ad07/decupagem.md' }, estado: 'ok', dur: 0.1,
+        resultado: '# Decupagem AD07\n00:00.0 – Você já acordou com as pernas inchadas?\n00:03.2 – Isso tem nome…' },
+      { tipo: 'ferramenta', nome: 'Bash', entrada: { command: 'ffprobe -v error -show_entries format=duration body.mp4', description: 'Mede a duração do body' }, estado: 'ok', dur: 0.3, resultado: 'duration=58.240000' },
+      { tipo: 'ferramenta', nome: 'Bash', entrada: { command: 'ffmpeg -i body_v2.mp4 -t 2 teste.mp4', description: 'Corta 2 s para conferir o áudio' }, estado: 'erro', dur: 0.2,
+        resultado: 'body_v2.mp4: No such file or directory' },
+      { tipo: 'ferramenta', nome: 'mcp__toolspro-pr__pr_marcadores_criar', entrada: { marcadores: new Array(9).fill({}) }, estado: 'ok', dur: 2.1, resultado: '{"criados":9}' },
+      { tipo: 'ferramenta', nome: 'mcp__toolspro-pr__pr_timeline_colocar', entrada: { clipes: new Array(12).fill({}) }, estado: 'ok', dur: 3.4, resultado: '{"colocados":12}' },
+      { tipo: 'ferramenta', nome: 'mcp__editor__etapa_rodar', entrada: { etapa: 'imagens' }, estado: 'ok', dur: 0.1, recusado: true,
+        porque: '“Imagens de B-roll” gasta crédito. Aprove a etapa 4 (Aprovação do planejamento) antes.' },
+      { tipo: 'texto', texto: 'Marquei **9 pontos de b-roll** na sequência `AD07 — corte 1`:\n\n- 4 inserts de produto\n- 3 de rotina\n- 2 de dor\n\nPara gerar as imagens preciso da **sua aprovação** do planejamento. O orçamento:\n\n```txt\n9 imagens × 2 cr (nano_banana_pro) = 18 cr\nsaldo atual: 820 cr\n```' },
+    ], uso: { duracao_ms: 41200, tokens_entrada: 184000, tokens_saida: 2310, custo_usd: 1.12, turnos: 9 } },
+  ];
+  if (q.get('conversa') === 'cheia') {
+    DADOS['/api/conversa'] = { conversa: 'a', mensagens: MSGS };
+    DADOS['/api/conversas/a'] = { conversa: 'a', mensagens: MSGS,
+      meta: { id: 'a', titulo: 'AD07 — b-roll do body', projeto: 'ad07', projeto_nome: 'AD07 — Body Produto X' } };
+  }
+  DADOS['/api/conversas/a/aprovacao'] = { cartao: q.get('cartao') ? {
+    projeto: 'ad07', etapa: 'plano', n: 4, nome: 'Aprovação do planejamento', libera: 'imagens', libera_nome: 'Imagens de B-roll',
+    custo: { itens: 9, unitario: 2, motor: 'nano_banana_pro', total: 18, saldo: 820 } } : null };
+  DADOS['/api/skills'].skills = [
+    { nome: 'editor-automatico-de-broll', instalada: true, descricao: 'Edita um criativo UGC 9:16 a partir do bruto de um avatar falante' },
+    { nome: 'cortar-aula', instalada: true, descricao: 'Corta silêncios e tempo morto de aulas gravadas' },
+    { nome: 'conferir-ads-por-frame', instalada: true, descricao: 'QA de criativos de vídeo já prontos' },
+  ];
+  if (vivo === 'stream') {
+    TAREFA.etapa = 'Claude conectado, pensando';
+    TAREFA.passos = [
+      { tipo: 'pensando', estado: 'ok', dur: 2.6, texto: '' },
+      { tipo: 'ferramenta', nome: 'TodoWrite', estado: 'ok', dur: 0.1, entrada: {}, tarefas: TAREFAS_TODO },
+      { tipo: 'ferramenta', nome: 'Bash', entrada: { command: 'higgsfield generate cost --model nano_banana_pro', description: 'Orça as 9 imagens' }, estado: 'ok', dur: 1.8, resultado: '2 credits' },
+      { tipo: 'ferramenta', nome: 'mcp__editor__motores_listar', entrada: { tipo: 'imagem' }, estado: 'rodando', inicio: agora - 3 },
+      { tipo: 'parcial', texto: 'O motor mais barato que mantém a **consistência do personagem** é o `nano_banana_pro`, a 2 cr por imagem. Com 9 inserts' },
+    ];
+  }
   // Pasta Documentos: ?pasta=lenta (o macOS perguntando) | negada
   const pasta = q.get('pasta');
   DADOS['/api/pasta'] = pasta === 'negada'
@@ -74,6 +128,7 @@
     if (!caminho.startsWith('/api/')) return real('../../web/' + caminho.replace(/^\//, ''), op);
     const post = op && op.method === 'POST';
     let d = DADOS[caminho] || { ok: true };
+    if (caminho === '/api/conversas/nova') d = { conversa: 'a' };
     if (post && caminho === '/api/conversa') d = { tarefa: 't1' };
     await new Promise((r) => setTimeout(r, caminho === '/api/pasta' && pasta === 'lenta' ? 60000 : 30));
     return { ok: true, status: 200, json: async () => JSON.parse(JSON.stringify(d)) };

@@ -32,6 +32,7 @@ SKILLS="
   blackbelt-omni motion-omni-vsl vibe-motion motion-design
   photorealism-prompts video-prompt-builder avatar-vsl-video-prompts
   pixar3d storyboard-viral-3d omni-flash-reverse video-to-flow
+  clone-ad-validado plataforma-ia-higgsfield boas-praticas-black-belt
 "
 
 # Segunda origem: skills escritas DIRETO para os alunos (não moram no

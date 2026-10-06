@@ -2,10 +2,12 @@
 <html lang="pt-BR">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Editor Automático — banca visual</title>
-<link rel="stylesheet" href="../../web/estilo.css"></head>
+<link rel="stylesheet" href="../../web/estilo.css">
+<link rel="stylesheet" href="../../web/conversa-ui.css"></head>
 <body>
   <div id="raiz"></div>
   <script src="mock.js"></script>
+  <script src="../../web/conversa-ui.js"></script>
   <script src="../../web/app.js"></script>
   <script>
     const q = new URLSearchParams(location.search);
@@ -14,7 +16,13 @@
       if (q.get('grupo')) setTimeout(() => { const g = document.getElementById('g-' + q.get('grupo')); g && g.scrollIntoView(); }, 600);
       if (q.get('menu')) setTimeout(() => { const b = document.querySelector('[data-mais="' + q.get('menu') + '"]'); b && b.click(); }, 400);
       if (q.get('busca')) setTimeout(() => { const i = document.getElementById('guia-busca'); if (i) { i.value = q.get('busca'); i.oninput(); } }, 500);
-      if (q.get('enviar')) setTimeout(() => { const e = document.getElementById('entrada'); if (e) { e.value = q.get('enviar'); document.getElementById('enviar').click(); } }, 500);
+      const campo = () => document.querySelector('.cv-entrada');
+      if (q.get('enviar')) setTimeout(() => { const e = campo(); if (e) { e.value = q.get('enviar'); document.querySelector('.cv-enviar').click(); } }, 500);
+      // conversa nova: ?digitar=/ abre o menu; ?abrir=erro abre a ação com erro
+      if (q.get('digitar')) setTimeout(() => { const e = campo(); if (e) { e.focus(); e.value = q.get('digitar'); e.setSelectionRange(e.value.length, e.value.length); e.dispatchEvent(new Event('input', { bubbles: true })); } }, 900);
+      if (q.get('abrir')) setTimeout(() => { document.querySelectorAll('[data-grupo][aria-expanded="false"]').forEach((g) => g.click()); const b = document.querySelector('.cv-acao.est-' + q.get('abrir') + ' .cv-acao-linha'); if (b) { b.click(); setTimeout(() => { const a = document.querySelector('.cv-acao-det'); a && a.scrollIntoView({ block: 'center' }); }, 100); } }, 900);
+      if (q.get('tarefas')) setTimeout(() => { const t = document.querySelector('[data-tarefas]'); t && t.click(); }, 1000);
+      if (q.get('rolar')) setTimeout(() => { const g = document.querySelector('.cv-grupo'); g && g.scrollIntoView({ block: 'start' }); }, 1200);
     }, 300);
   </script>
 </body>

@@ -122,6 +122,8 @@ Fazer as perguntas **em bloco, de uma vez**, já com o que foi descoberto como c
 
 > **Padrão de geração: Seedance `fast`, 720p, máximo 15 s por cena.** O `fast` custa 3,5 créditos/s contra 4,5 do `std`, sem perda no QA frame a frame. Mínimo do Seedance é 4 s — cena mais curta gera em 4 s e apara-se no corte.
 
+> **Atualização (b-roll de UGC): o padrão passou a ser Kling 3.0 Turbo.** `higgsfield generate create kling3_0_turbo --start-image <id da imagem aprovada> --aspect_ratio 9:16 --resolution 1080p --duration 5`. Motivos: é o motor preferido para b-roll de UGC nos jobs recentes, e o modo `fast` do Seedance deixou de aparecer em algumas contas ("Not found"). Seedance continua valendo para shot list cinematográfico (`video-prompt-builder`). Kling Turbo: mínimo 3 s, sem 4:5 (gere 9:16 e recorte), sai 1076×1928 a 24 fps. **403 com crédito sobrando = moderação** (tire descrição de corpo do prompt).
+
 > **Quem opera a timeline é o Tools PRO.** Não é pergunta, é o padrão: local, ~3 ms, sem login, marcador e clipe em lote. O Higgsfield é quem **gera** imagem e vídeo — as duas coisas somam, não competem. Só cair para as `pr_*` do Higgsfield se o Tools PRO não responder.
 
 > **A conta do Higgsfield é da equipe.** Não é pergunta, é o estado: o teto de **8 jobs Seedance simultâneos** é dividido com os outros — usar fila de 4 e deixar folga. E **nunca medir custo por diferença de saldo**, porque o delta inclui o gasto de quem mais estiver gerando; medir por `higgsfield account transactions`. Detalhe em `armadilhas.md`.
@@ -269,6 +271,10 @@ pr_timeline_remover  →  {"sequencia":"<nome>", "tipo":"audio", "trilha":<n>}
 
 A skill começa no body pronto. Para gerar o bruto a partir da copy (copy → áudio → lipsync), ver `references/heygen-lipsync.md`: HeyGen v3 com Avatar V, clone de voz no ElevenLabs, e o caminho alternativo pelo Higgsfield quando o HeyGen recusa a persona.
 
+**Persona gerada por IA → Avatar IV**, não V: o V exige avatar treinado com filmagem real e recusa `expressiveness`/`motion_prompt` nessa persona; o IV aceita foto + áudio direto. A HeyGen entrega **25 fps** — case a sequência do Premiere com a fonte, senão ele derruba quadro na boca. Produto na mão: o lip sync corrompe o texto do rótulo; recole o frasco do still em vez de regerar. Detalhes no fim de `references/heygen-lipsync.md`.
+
+**Trocar o personagem de um AD que já vende** (mesma estrutura, outro rosto): skill `clone-ad-validado`.
+
 ## Referências
 - `references/como-pedir-marcacoes.md` — **para o usuário**: o prompt, o que muda o resultado e o que precisa estar instalado
 - `references/mcp-premiere.md` — conectar e operar Premiere/AE, as travas e a convenção de cor. **Ler antes de escrever no Premiere.**
@@ -282,3 +288,4 @@ A skill começa no body pronto. Para gerar o bruto a partir da copy (copy → á
 - `references/marcacao.md` — formato dos marcadores de trecho, cores e a regra de cobertura
 - `scripts/qc_colagem.py` — detector de colagem, letterbox e rotação nas imagens geradas
 - `scripts/cep.py` — ExtendScript no Premiere pela porta de debug CEP (o que o Tools PRO não faz)
+- Skill `boas-praticas-black-belt` — as armadilhas de Higgsfield, HeyGen, ElevenLabs, Premiere, ffmpeg/Whisper e QC, por sintoma, causa e conserto

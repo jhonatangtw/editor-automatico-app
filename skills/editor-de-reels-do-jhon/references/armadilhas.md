@@ -57,3 +57,23 @@
   Premiere. Copie para o disco local primeiro.
 - Nunca importe mídia de pasta temporária: tudo que entra no projeto vive na
   pasta do projeto.
+
+## Acrescentadas depois (valem também para o Reels)
+- **Whisper: palavra com duração absurda** (> 1,5 s em fala corrida) é trecho ENGOLIDO,
+  não pausa. Repasse a janela com `large-v3` antes de dizer que a frase não foi gravada.
+  Palavra "dentro" de um corte: meça o nível; pico abaixo de ~−26 dBFS é alucinação.
+- **Referência baixada do Instagram (VP9/AV1)**: o `scene detect` do ffmpeg devolve zero
+  cortes sem erro. Para medir o ritmo de cortes de uma referência, use a diferença de
+  luminância entre quadros em miniatura e confira cada candidato no quadro.
+- **Copiar a legenda de uma referência**: detectar a faixa automaticamente não funciona
+  (pega olhos/boca e camisa clara). Posição a olho com grade; corpo da fonte pela
+  **largura** do texto medido na referência.
+- **Premiere travado depois de importar vários arquivos** (CPU 0 %, toda chamada em
+  timeout): é deadlock, não processamento. Importe um arquivo por vez; ao reabrir,
+  confira a pasta Auto-Save antes de achar que perdeu o import.
+- **Efeito pelo nome**: no Premiere em português a tradução é mista (`Movimento`,
+  `Escala` em PT; `Track Matte Key` em EN). Procure por lista de candidatos e confira o
+  valor lido de volta — "ok" sem erro não prova que aplicou.
+- **Cópia da nuvem truncada**: um `cp` pode morrer calado. Compare o tamanho local ×
+  remoto antes de analisar ou importar.
+- Mais, por ferramenta: skill `boas-praticas-black-belt`.
