@@ -1,6 +1,6 @@
 {
- "version": "0.22.1",
- "notes": "Prévia das entregas dentro da Conversa: imagens em grade (clique abre grande, com setas e contador), vídeos com player e áudios com a forma da onda. Cada mídia tem Mostrar no Finder, Colocar na timeline e Copiar caminho.\n\nLinks do Higgsfield e da HeyGen são baixados sozinhos para a pasta do projeto (media/imagens, media/videos, media/audio) antes de aparecer — o link expira. Sem projeto, a Conversa pergunta onde salvar.\n\nA Conversa ganhou barra no topo, também no painel do Premiere: título editável, + Nova e Histórico com busca. O nome da skill em uso aparece certo no rodapé.\n\nLegenda no Premiere: peça para colocar um .srt na timeline e a Conversa cria a faixa de legenda sozinha, ou a legenda animada no estilo que você escolher (precisa do Tools PRO 1.8.1).\n\nCorrigido: a instalação do Whisper na aba Ambiente falhava em alguns Macs. Agora ele vem com um Python próprio e instala sozinho.",
+ "version": "0.22.2",
+ "notes": "Corrigido: o FFmpeg e o FFprobe não instalavam em computadores sem Homebrew (Mac) ou com o winget desatualizado (Windows). Agora o app baixa os dois direto, sem precisar de nenhum outro programa — é só clicar em Instalar na aba Ambiente.\n\nContinua tudo da 0.22.1: prévias de mídia na Conversa, histórico, legenda no Premiere e o Whisper instalando sozinho.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",

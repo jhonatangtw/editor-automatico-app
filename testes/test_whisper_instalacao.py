@@ -40,3 +40,24 @@ class TestWhisperInstalacao(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestFFmpegInstalacao(unittest.TestCase):
+    def test_ffmpeg_vai_pelo_download_direto(self):
+        with mock.patch.object(ambiente, "_instalar_ffmpeg", return_value={"ok": True, "qual": "ffmpeg"}) as f:
+            self.assertEqual(ambiente.instalar("ffprobe")["qual"], "ffprobe")
+            f.assert_called_once()
+
+    def test_ffmpeg_sempre_instalavel_mesmo_sem_homebrew(self):
+        with mock.patch.object(ambiente, "_tem", return_value=False):
+            r = ambiente.conferir(reler_path=False)
+            itens = {i["id"]: i for i in (r["itens"] if isinstance(r, dict) else r)}
+        self.assertTrue(itens["ffmpeg"]["instalavel"])
+        self.assertTrue(itens["ffprobe"]["instalavel"])
+
+    def test_sem_internet_e_sem_gerenciador_explica(self):
+        with mock.patch.object(ambiente, "_instalar_ffmpeg", side_effect=OSError("sem rede")), \
+             mock.patch.object(ambiente, "_tem", return_value=False):
+            with self.assertRaises(RuntimeError) as c:
+                ambiente.instalar("ffmpeg")
+        self.assertIn("internet", str(c.exception))

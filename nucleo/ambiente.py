@@ -114,10 +114,11 @@ def conferir(reler_path=True):
     itens = [
         {"id": "ffmpeg", "nome": "FFmpeg", "tem": _tem("ffmpeg"),
          "para": "cortar, montar e exportar o vídeo",
-         "essencial": True, "instalavel": brew, "versao": _versao(["ffmpeg", "-version"])},
+         "essencial": True, "instalavel": True,   # baixa direto, sem Homebrew/winget
+         "versao": _versao(["ffmpeg", "-version"])},
         {"id": "ffprobe", "nome": "FFprobe", "tem": _tem("ffprobe"),
          "para": "ler duração, formato e fps do bruto",
-         "essencial": True, "instalavel": brew, "versao": ""},
+         "essencial": True, "instalavel": True, "versao": ""},
         {"id": "whisper", "nome": "Whisper", "tem": _tem("whisper"),
          "para": "transcrever a fala palavra por palavra, sem subir nada",
          "essencial": True,
@@ -288,6 +289,83 @@ def _instalar_heygen(ao_vivo=None):
     return {"ok": _tem("heygen"), "qual": "heygen", "versao": rel.get("tag_name")}
 
 
+FFMPEG_MAC = "https://ffmpeg.martin-riedl.de/redirect/latest/macos/%s/release/%s.zip"
+FFMPEG_WIN = ("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/"
+              "ffmpeg-master-latest-win64-gpl.zip")
+
+
+def _instalar_ffmpeg(ao_vivo=None):
+    """FFmpeg + FFprobe baixados DIRETO para ~/.editorblackbelt/bin.
+
+    ⚠️ Antes dependia do Homebrew (Mac) ou do winget (Windows). Aluno sem
+    Homebrew via a mensagem "cole isto no Terminal" e travava; winget sem a
+    loja atualizada falhava calado. O build estático não precisa de nada:
+    Mac em martin-riedl.de (arm64 e Intel, um zip por programa), Windows o
+    build oficial do BtbN no GitHub. Se o download falhar, cai no gerenciador
+    de pacotes como antes."""
+    import platform as _plat
+    import tempfile
+    import urllib.request
+    import zipfile
+    from . import rede
+
+    diz = ao_vivo or (lambda _: None)
+    os.makedirs(BIN, exist_ok=True)
+
+    def baixar(url, destino):
+        req = urllib.request.Request(url, headers={"User-Agent": "EditorAutomatico"})
+        with urllib.request.urlopen(req, timeout=600, context=rede.contexto()) as r, \
+                open(destino, "wb") as f:
+            total = int(r.headers.get("Content-Length") or 0)
+            feito, passo = 0, 0
+            while True:
+                bloco = r.read(1 << 20)
+                if not bloco:
+                    break
+                f.write(bloco)
+                feito += len(bloco)
+                if total and feito * 10 // total > passo:
+                    passo = feito * 10 // total
+                    diz("baixando… %d%%" % (passo * 10))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        if WIN:
+            diz("baixando o FFmpeg para Windows (~100 MB)…")
+            z = os.path.join(tmp, "ffmpeg.zip")
+            baixar(FFMPEG_WIN, z)
+            with zipfile.ZipFile(z) as zf:
+                for nome in zf.namelist():
+                    base = os.path.basename(nome).lower()
+                    if base in ("ffmpeg.exe", "ffprobe.exe"):
+                        with zf.open(nome) as src, open(os.path.join(BIN, base), "wb") as dst:
+                            shutil.copyfileobj(src, dst)
+        else:
+            arq = "arm64" if _plat.machine().lower() in ("arm64", "aarch64") else "amd64"
+            for prog in ("ffmpeg", "ffprobe"):
+                diz("baixando o %s para Mac (%s)…" % (prog, "chip Apple" if arq == "arm64" else "Intel"))
+                z = os.path.join(tmp, prog + ".zip")
+                baixar(FFMPEG_MAC % (arq, prog), z)
+                with zipfile.ZipFile(z) as zf:
+                    alvo = [n for n in zf.namelist() if os.path.basename(n) == prog]
+                    if not alvo:
+                        raise RuntimeError("o pacote do %s veio sem o programa dentro" % prog)
+                    with zf.open(alvo[0]) as src, open(os.path.join(BIN, prog), "wb") as dst:
+                        shutil.copyfileobj(src, dst)
+                exe = os.path.join(BIN, prog)
+                os.chmod(exe, 0o755)
+                subprocess.run(["xattr", "-d", "com.apple.quarantine", exe], capture_output=True)
+
+    from . import caminho
+    caminho.recarregar(com_shell=False)
+    for prog in ("ffmpeg", "ffprobe"):
+        exe = os.path.join(BIN, prog + (".exe" if WIN else ""))
+        cod, fim = _rodar([exe, "-version"], None)
+        if cod != 0:
+            raise RuntimeError("O %s baixou mas não abriu:\n%s" % (prog, fim))
+    diz("FFmpeg e FFprobe prontos.")
+    return {"ok": True, "qual": "ffmpeg"}
+
+
 def _rodar(cmd, ao_vivo=None, env=None, shell=False):
     ao_vivo and ao_vivo("$ " + (cmd if shell else " ".join(cmd)))
     proc = so.popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -360,6 +438,14 @@ def instalar(qual, ao_vivo=None):
         return _instalar_heygen(ao_vivo)
     if qual == "whisper":
         return _instalar_whisper(ao_vivo)
+    if qual in ("ffmpeg", "ffprobe"):
+        try:
+            return dict(_instalar_ffmpeg(ao_vivo), qual=qual)
+        except Exception as e:
+            # sem internet para o build direto: tenta o gerenciador, como antes
+            ao_vivo and ao_vivo("download direto falhou (%s) — tentando o gerenciador de pacotes…" % e)
+            if not _tem(GERENCIADOR):
+                raise RuntimeError("Não consegui baixar o FFmpeg: %s. Confira a internet e tente de novo." % e)
     if qual == "hyperframes":
         return hyperframes.instalar(ao_vivo)
     if qual == "hyperframes-teste":
