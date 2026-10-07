@@ -426,9 +426,24 @@ def _instalar_whisper(ao_vivo=None):
     from . import caminho
     caminho.recarregar(com_shell=False)
     exe = shutil.which("whisper") or os.path.join(BIN, "whisper.exe" if WIN else "whisper")
-    cod, fim = _rodar([exe, "--help"], None)
+    # Conferência pelo próprio Python do Whisper (importa o pacote), não pelo
+    # `--help`: o texto de ajuda quebrava no console cp1252 do Windows mesmo com
+    # o Whisper instalado e funcionando.
+    env_u = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
+    cod, fim = 1, ""
+    try:
+        base = subprocess.run([uv, "tool", "dir"], capture_output=True, text=True,
+                              timeout=30).stdout.strip()
+        py = os.path.join(base, "openai-whisper", "Scripts" if WIN else "bin",
+                          "python.exe" if WIN else "python")
+        if os.path.isfile(py):
+            cod, fim = _rodar([py, "-c", "import whisper; print('whisper ok')"], None, env=env_u)
+    except Exception as e:
+        fim = str(e)
     if cod != 0:
-        raise RuntimeError("O Whisper instalou mas não abriu:\n" + fim)
+        cod, fim2 = _rodar([exe, "--help"], None, env=env_u)
+        if cod != 0:
+            raise RuntimeError("O Whisper instalou mas não abriu:\n" + (fim2 or fim))
     diz("Whisper pronto.")
     return {"ok": True, "qual": "whisper"}
 

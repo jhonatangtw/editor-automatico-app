@@ -26,6 +26,15 @@ SISTEMA = platform.system()
 MAC = SISTEMA == "Darwin"
 WIN = SISTEMA == "Windows"
 
+# ⚠️ Windows: o console é cp1252 e o Python dos programas que o app abre
+# (Whisper, HyperFrames, scripts das skills) herda isso. Com nome de usuário
+# acentuado ("João Marcos") ou texto fora do cp1252, o `--help` do Whisper e a
+# própria transcrição quebram com UnicodeEncodeError dentro do argparse — o
+# programa está instalado, mas "não abre". UTF-8 para todo filho, de uma vez.
+if WIN:
+    os.environ.setdefault("PYTHONUTF8", "1")
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+
 # Onde o Adobe guarda as extensões CEP — é a casa do plugin do Premiere.
 # ⚠️ `os.path.expandvars` NÃO expande `%VAR%` fora do Windows (o posixpath só
 # entende `$VAR`), então um teste no Mac veria o literal `%APPDATA%` e passaria

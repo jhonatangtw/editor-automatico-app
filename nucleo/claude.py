@@ -111,6 +111,28 @@ def sessao_cli():
                 "msg": "O Claude Code não está instalado nesta máquina. Instale "
                        "pela aba Ambiente e volte aqui."}
     try:
+        # ⚠️ Só o Mac guarda o login do Claude Code no Chaveiro (`security`).
+        # No Windows (e Linux) ele fica em ~/.claude/.credentials.json — chamar
+        # `security` lá dava "[WinError 2] O sistema não pode encontrar o
+        # arquivo especificado" e a conta nunca aparecia conectada.
+        from . import so as _so
+        if not _so.MAC:
+            arq = os.path.join(os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude"),
+                               ".credentials.json")
+            d = {}
+            if os.path.isfile(arq):
+                try:
+                    with open(arq, encoding="utf-8") as f:
+                        d = json.load(f).get("claudeAiOauth") or {}
+                except Exception:
+                    d = {}
+            if not d.get("accessToken") and not d.get("refreshToken"):
+                return {"ok": False, "entrar": True,
+                        "msg": "O Claude Code está instalado, mas ninguém entrou numa "
+                               "conta ainda. Clique em Entrar — abro o terminal com o "
+                               "login e o navegador abre a partir dele."}
+            return {"ok": True, "assinatura": d.get("subscriptionType") or "conta",
+                    "escopos": d.get("scopes") or []}
         bruto = subprocess.run(
             ["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
             capture_output=True, text=True, timeout=15)
