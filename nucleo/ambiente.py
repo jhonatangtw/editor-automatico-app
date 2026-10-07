@@ -433,7 +433,49 @@ def _instalar_whisper(ao_vivo=None):
     return {"ok": True, "qual": "whisper"}
 
 
+# Quanto cada instalação precisa de disco livre (download + extraído), em GB.
+ESPACO_GB = {"ffmpeg": 0.6, "ffprobe": 0.6, "whisper": 2.5, "hyperframes": 1.5,
+             "hyperframes-teste": 0.5, "node": 0.5, "claude": 0.5, "codex": 0.5,
+             "higgsfield": 0.2, "mmx": 0.2, "heygen": 0.2, "ant": 0.2}
+
+
+def _livre_gb():
+    try:
+        return shutil.disk_usage(os.path.expanduser("~")).free / 1e9
+    except Exception:
+        return None
+
+
+def _disco_cheio_msg(precisa=None):
+    livre = _livre_gb()
+    txt = "O disco deste computador está cheio"
+    if livre is not None:
+        txt += " (sobram %.1f GB" % livre + (", e esta instalação precisa de uns %.1f GB" % precisa if precisa else "") + ")"
+    return (txt + ". Libere espaço e clique em Instalar de novo: esvazie a Lixeira, apague downloads e "
+            "renders antigos" + (" ou rode a Limpeza de Disco do Windows" if WIN else "") +
+            ". Não é problema de internet.")
+
+
+def _parece_disco_cheio(texto):
+    t = str(texto).lower()
+    return ("errno 28" in t or "no space left" in t or "enospc" in t or "not enough space" in t
+            or "espaço insuficiente" in t or "disk full" in t)
+
+
 def instalar(qual, ao_vivo=None):
+    precisa = ESPACO_GB.get(qual)
+    livre = _livre_gb()
+    if precisa and livre is not None and livre < precisa + 0.5:
+        raise RuntimeError(_disco_cheio_msg(precisa))
+    try:
+        return _instalar(qual, ao_vivo)
+    except Exception as e:
+        if _parece_disco_cheio(e) or (getattr(e, "errno", None) == 28):
+            raise RuntimeError(_disco_cheio_msg(precisa)) from e
+        raise
+
+
+def _instalar(qual, ao_vivo=None):
     if qual == "heygen":
         return _instalar_heygen(ao_vivo)
     if qual == "whisper":
@@ -445,6 +487,8 @@ def instalar(qual, ao_vivo=None):
             # sem internet para o build direto: tenta o gerenciador, como antes
             ao_vivo and ao_vivo("download direto falhou (%s) — tentando o gerenciador de pacotes…" % e)
             if not _tem(GERENCIADOR):
+                if _parece_disco_cheio(e) or getattr(e, "errno", None) == 28:
+                    raise RuntimeError(_disco_cheio_msg(ESPACO_GB["ffmpeg"])) from e
                 raise RuntimeError("Não consegui baixar o FFmpeg: %s. Confira a internet e tente de novo." % e)
     if qual == "hyperframes":
         return hyperframes.instalar(ao_vivo)

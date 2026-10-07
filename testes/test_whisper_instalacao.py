@@ -61,3 +61,27 @@ class TestFFmpegInstalacao(unittest.TestCase):
             with self.assertRaises(RuntimeError) as c:
                 ambiente.instalar("ffmpeg")
         self.assertIn("internet", str(c.exception))
+
+
+class TestDiscoCheio(unittest.TestCase):
+    def test_recusa_antes_de_baixar_quando_falta_espaco(self):
+        with mock.patch.object(ambiente, "_livre_gb", return_value=0.3), \
+             mock.patch.object(ambiente, "_instalar") as f:
+            with self.assertRaises(RuntimeError) as c:
+                ambiente.instalar("ffmpeg")
+            f.assert_not_called()
+        self.assertIn("disco", str(c.exception).lower())
+        self.assertIn("não é problema de internet", str(c.exception).lower())
+
+    def test_errno_28_vira_mensagem_de_disco(self):
+        with mock.patch.object(ambiente, "_livre_gb", return_value=50.0), \
+             mock.patch.object(ambiente, "_instalar", side_effect=OSError(28, "No space left on device")):
+            with self.assertRaises(RuntimeError) as c:
+                ambiente.instalar("hyperframes")
+        self.assertIn("cheio", str(c.exception))
+
+    def test_com_espaco_segue_normal(self):
+        with mock.patch.object(ambiente, "_livre_gb", return_value=50.0), \
+             mock.patch.object(ambiente, "_instalar", return_value={"ok": True}) as f:
+            self.assertEqual(ambiente.instalar("whisper"), {"ok": True})
+            f.assert_called_once()

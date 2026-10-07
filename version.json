@@ -1,6 +1,6 @@
 {
- "version": "0.22.2",
- "notes": "Corrigido: o FFmpeg e o FFprobe não instalavam em computadores sem Homebrew (Mac) ou com o winget desatualizado (Windows). Agora o app baixa os dois direto, sem precisar de nenhum outro programa — é só clicar em Instalar na aba Ambiente.\n\nContinua tudo da 0.22.1: prévias de mídia na Conversa, histórico, legenda no Premiere e o Whisper instalando sozinho.",
+ "version": "0.22.3",
+ "notes": "O Ambiente agora confere o espaço livre no disco antes de instalar. Com o disco cheio, ele avisa quanto sobra e quanto a instalação precisa, em vez de culpar a internet.\n\nContinua tudo da 0.22.2: FFmpeg e FFprobe instalam direto, sem Homebrew nem winget.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",
