@@ -1,6 +1,6 @@
 {
- "version": "0.22.5",
- "notes": "Correções para Windows:\n\n• Claude: a conta não aparecia conectada no Windows (erro \"o sistema não pode encontrar o arquivo especificado\"). Agora o app lê o login do Claude Code do jeito certo no Windows.\n\n• Whisper: em computadores com nome de usuário acentuado, ele instalava mas o app dizia que \"não abriu\". Corrigido, e a transcrição também passa a funcionar nesses computadores.\n\nContinua da 0.22.4: a tela de Contas percebe sozinha quando você conecta uma conta.",
+ "version": "0.22.6",
+ "notes": "Mais correções para Windows:\n\n• A Conversa (no app e no painel do Premiere) mostrava acentos quebrados, como \"NÃ£o\". Corrigido.\n\n• A IA não tinha permissão para usar as ferramentas do Tools PRO no Windows (\"a permissão não foi concedida\"). Agora as ferramentas do Premiere e do After vêm liberadas na Conversa.\n\n• A dica que aparece enquanto a IA pensa falava de macOS no Windows. Agora fala do sistema certo.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",

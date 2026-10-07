@@ -86,6 +86,12 @@ def resolver(cmd):
 def _calado(kw):
     if WIN:
         kw.setdefault("creationflags", subprocess.CREATE_NO_WINDOW)
+        # ⚠️ Saída em texto do filho é UTF-8 (Claude Code, npm, CLIs). Sem isso o
+        # Python do Windows decodifica em cp1252 e a resposta vira "NÃ£o",
+        # "sequÃªncias" na Conversa.
+        if (kw.get("text") or kw.get("universal_newlines")) and "encoding" not in kw:
+            kw["encoding"] = "utf-8"
+            kw.setdefault("errors", "replace")
     return kw
 
 

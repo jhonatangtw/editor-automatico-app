@@ -1381,7 +1381,7 @@
           <div class="cv-msg cv-ia"><div class="cv-quem">${esc(S.provedor === 'chatgpt' ? 'ChatGPT' : 'Claude')}</div><div class="cv-vivo-passos"></div>
           <div class="cv-estado" role="status"><span class="cv-giro"></span><b>Pensando…</b><span class="cv-tempo" aria-hidden="true">0 s</span><span class="cv-etapa"></span>
             <span class="cv-esc">Esc para parar</span></div>
-          <div class="cv-ajuda" hidden>Se o macOS pedir acesso a uma pasta, clique em <b>Permitir</b> — a resposta continua depois disso.</div></div>`;
+          <div class="cv-ajuda" hidden>${/Mac/i.test(navigator.platform || navigator.userAgent || '') ? 'Se o macOS pedir acesso a uma pasta, clique em <b>Permitir</b> — a resposta continua depois disso.' : 'Se o Windows pedir permissão (firewall ou acesso a pasta), clique em <b>Permitir</b> — a resposta continua depois disso.'}</div></div>`;
         vivoNos.clear();
       }
       const cx = vivoEl.querySelector('.cv-vivo-passos');

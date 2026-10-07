@@ -587,6 +587,13 @@ def _recusou_parciais(bruto):
     return "include-partial-messages" in b and ("unknown" in b or "error" in b)
 
 
+FERRAMENTAS_LIBERADAS = [
+    "mcp__editor", "mcp__toolspro-pr", "mcp__toolspro-ae",
+    "Bash", "Read", "Write", "Edit", "MultiEdit", "Glob", "Grep",
+    "WebFetch", "WebSearch", "TodoWrite", "NotebookEdit", "Task",
+]
+
+
 def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False, _so_nossas=False,
                    controle=None):
     """Uma mensagem para a sessão do Claude Code.
@@ -610,6 +617,10 @@ def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False, _so_nossas=F
     cmd += ["--mcp-config", _mcp_config(),
             "--append-system-prompt", contexto,
             "--permission-mode", "bypassPermissions",
+            # ⚠️ No Windows o bypass sozinho não liberou as ferramentas do Tools
+            # PRO ("a permissão para pr_sequencias_listar não foi concedida").
+            # Liberação explícita por servidor MCP + as ferramentas de trabalho.
+            "--allowedTools", ",".join(FERRAMENTAS_LIBERADAS),
             "--add-dir", RAIZ_APP]
     if pid:
         cmd += ["--add-dir", projetos.dir_projeto(pid)]
