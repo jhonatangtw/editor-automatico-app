@@ -251,16 +251,26 @@ def _higgs_status():
 
     if r.returncode != 0:
         return {"conectado": False, "msg": "Não está conectado. Clique em Entrar."}
+    # ⚠️ `account status` saiu com 0 = logado. Conta recém-criada pode vir sem
+    # créditos (null) ou sem plano: antes o int(None) estourava, a sonda caía na
+    # reserva "não consegui perguntar" e a tela dizia DESCONECTADO para quem
+    # tinha acabado de entrar. O saldo é enfeite; o login é o que importa.
     try:
         d = json.loads(r.stdout)
+        if isinstance(d, list):
+            d = d[0] if d else {}
     except Exception:
-        return {"conectado": False, "msg": "Resposta inesperada do CLI."}
+        d = {}
+    try:
+        cred = float(d.get("credits") or 0)
+        saldo = "%s créditos" % format(int(cred), ",d").replace(",", ".")
+    except Exception:
+        saldo = ""
+    plano = d.get("subscription_plan_type")
     return {
         "conectado": True,
-        "conta": d.get("email", ""),
-        "saldo": "%s créditos · plano %s" % (
-            format(int(d.get("credits", 0)), ",d").replace(",", "."),
-            d.get("subscription_plan_type", "?")),
+        "conta": d.get("email", "") or "conectado",
+        "saldo": (saldo + (" · plano %s" % plano if plano else "")).strip(" ·"),
     }
 
 

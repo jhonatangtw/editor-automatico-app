@@ -306,7 +306,7 @@ function quando(t) {
    "Abri o navegador", e daí em diante nada. Então o app fica olhando: reconfere
    de tempo em tempo até o serviço virar, e avisa. Com hora para desistir, senão
    um login abandonado deixaria o app batendo em CLI para sempre. */
-function esperarLogin(escopo, rotulo, pronto, minutos = 3) {
+function esperarLogin(escopo, rotulo, pronto, minutos = 10) {
   pararEspera(escopo);
   const c = CONFERENCIA[escopo] || (CONFERENCIA[escopo] = {});
   const fim = Date.now() + minutos * 60000;
@@ -327,8 +327,8 @@ function esperarLogin(escopo, rotulo, pronto, minutos = 3) {
     }
     if (Date.now() > fim) {
       pararEspera(escopo);
-      toast('Não vi o login do ' + rotulo + ' terminar. Se concluiu, clique em '
-            + 'Atualizar status.', true);
+      toast('Ainda não vi o login do ' + rotulo + ' terminar. Se já concluiu, clique em '
+            + 'Atualizar status — a tela também confere sozinha enquanto está aberta.', true);
     }
   };
   c.esperando = { rotulo, timer: setInterval(tique, 2500) };
@@ -365,6 +365,18 @@ function aoVoltar(porFoco) {
     CONFERENCIA.ambiente && (CONFERENCIA.ambiente.quando = 0); telaInicio(); }
 }
 window.addEventListener('focus', () => aoVoltar(true));
+/* Login que termina no navegador sem a pessoa voltar o foco para o app (ou que
+   passa dos minutos da espera) deixava a tela parada em "não conectado". Com a
+   aba Contas aberta, reconfere a cada 15 s — a conferência são três CLIs em
+   paralelo, ~0,5 s, e só roda com a janela visível. */
+setInterval(() => {
+  if (document.hidden || projetoAberto || aba !== 'contas') return;
+  const c = CONFERENCIA.contas;
+  if (c && (c.voando || c.esperando)) return;
+  revalidar('contas').then((r) => {
+    if (r && r.ok && r.mudou) { toast('Contas atualizadas.'); desenhar(); }
+  }).catch(() => {});
+}, 15000);
 document.addEventListener('visibilitychange', () => aoVoltar(false));
 
 // ---------------------------------------------------------------- entrada

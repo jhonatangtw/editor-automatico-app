@@ -1,6 +1,6 @@
 {
- "version": "0.22.3",
- "notes": "O Ambiente agora confere o espaço livre no disco antes de instalar. Com o disco cheio, ele avisa quanto sobra e quanto a instalação precisa, em vez de culpar a internet.\n\nContinua tudo da 0.22.2: FFmpeg e FFprobe instalam direto, sem Homebrew nem winget.",
+ "version": "0.22.4",
+ "notes": "A tela de Contas agora percebe sozinha quando você conecta uma conta: confere a cada 15 segundos enquanto está aberta e espera o login por até 10 minutos (dá tempo de criar a conta no site).\n\nCorrigido: uma conta do Higgsfield recém-criada, ainda sem créditos, aparecia como desconectada.\n\nContinua da 0.22.3: aviso claro de disco cheio e FFmpeg instalando direto.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",
