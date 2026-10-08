@@ -148,6 +148,9 @@ def processos(padrao):
         return False
 
 
+_VARS_CERT = ("SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE")
+
+
 def terminal(comando, titulo=""):
     """Roda um comando num terminal DE VERDADE, com TTY.
 
@@ -169,11 +172,18 @@ def terminal(comando, titulo=""):
                                capture_output=True, timeout=25,
                                creationflags=subprocess.CREATE_NO_WINDOW)
         else:
-            linha = " ".join(shlex.quote(x) for x in comando)
+            # ⚠️ O `rede.preparar()` aponta SSL_CERT_FILE para o certifi DENTRO do
+            # app, e o Terminal herda. Com o app aberto direto do .dmg/Downloads
+            # (AppTranslocation) o curl de lá não lê esse caminho e morre com
+            # "curl: (77) error setting certificate verify locations" — foi o que
+            # travou o Homebrew na máquina de um aluno. O Terminal usa o do sistema.
+            limpa = "unset SSL_CERT_FILE SSL_CERT_DIR REQUESTS_CA_BUNDLE CURL_CA_BUNDLE; "
+            linha = limpa + " ".join(shlex.quote(x) for x in comando)
             script = ('tell application "Terminal"\n  activate\n  do script "%s"\n'
                       'end tell' % linha.replace("\\", "\\\\").replace('"', '\\"'))
+            env = {k: v for k, v in os.environ.items() if k not in _VARS_CERT}
             r = subprocess.run(["osascript", "-e", script], capture_output=True,
-                               text=True, timeout=25)
+                               text=True, timeout=25, env=env)
         if r.returncode != 0:
             return {"ok": False, "msg": (r.stderr or b"").decode("utf-8", "ignore")[:160]
                     if isinstance(r.stderr, bytes) else (r.stderr or "")[:160]}

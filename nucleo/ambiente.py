@@ -566,9 +566,14 @@ def instalar_gerenciador():
                        "“Instalador de Aplicativo” e volte aqui."}
     if _tem("brew"):
         return {"ok": True, "ja_tinha": True, "msg": "O Homebrew já está instalado."}
+    # ⚠️ O `$(curl …)` precisa ser expandido por um shell DE FORA e chegar ao
+    # bash como o script. Passado como argumento do bash, o `so.terminal` o põe
+    # entre aspas simples e o bash tenta rodar o script inteiro como UM nome de
+    # comando ("/bin/bash: …: command not found") — o botão nunca instalou nada.
     r = so.terminal(
-        ["/bin/bash", "-c",
-         '"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'],
+        ["/bin/zsh", "-c",
+         '/bin/bash -c "$(curl -fsSL '
+         'https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'],
         "Homebrew")
     if r.get("ok"):
         r["msg"] = ("Abri o Terminal com o instalador do Homebrew. Ele vai pedir a "
