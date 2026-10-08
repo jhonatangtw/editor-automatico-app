@@ -401,6 +401,55 @@ def reabrir():
     return {"ok": True, "msg": "Reabrindo o app…"}
 
 
+def limpar_instaladores(pasta=None, executavel=None):
+    """Ao abrir já atualizado, ejeta o disco do instalador (Mac) e apaga os
+    instaladores baixados (.dmg / .exe) que não são mais novos que esta versão.
+    Cada .dmg montado aparece no Spotlight — e cada .exe velho na busca do
+    Windows — como mais um "Editor Automático": era a origem dos ícones
+    repetidos depois de cada atualização."""
+    import glob
+    import subprocess
+    if not (so.MAC or so.WIN):
+        return {"ejetados": [], "apagados": []}
+    executavel = executavel or sys.executable
+    if executavel.startswith("/Volumes/"):
+        return {"ejetados": [], "apagados": []}  # rodando de dentro do disco: não mexe
+    pasta = os.path.realpath(pasta or os.path.expanduser("~/Downloads"))
+    eu = (local() or {}).get("version")
+    ejetados, apagados = [], []
+    try:
+        info = "" if so.WIN else subprocess.run(["hdiutil", "info"], capture_output=True, text=True,
+                              timeout=15).stdout
+    except Exception:
+        info = ""
+    imagem = None
+    for linha in info.splitlines():
+        if linha.startswith("image-path"):
+            imagem = linha.split(":", 1)[1].strip()
+        elif imagem and "/Volumes/" in linha:
+            nome = os.path.basename(imagem)
+            if nome.startswith("EditorAutomatico") and nome.endswith(".dmg"):
+                vol = linha[linha.index("/Volumes/"):].strip()
+                try:
+                    subprocess.run(["hdiutil", "detach", vol, "-quiet"],
+                                   capture_output=True, timeout=30)
+                    ejetados.append(vol)
+                except Exception:
+                    pass
+            imagem = None
+    for arq in glob.glob(os.path.join(pasta, "EditorAutomatico*" +
+                                      (".exe" if so.WIN else ".dmg"))):
+        m = re.search(r"(\d+\.\d+\.\d+)", os.path.basename(arq))
+        if not m or not eu or maior(m.group(1), eu):
+            continue  # sem versão no nome, ou mais nova que esta: fica
+        try:
+            os.remove(arq)
+            apagados.append(arq)
+        except OSError:
+            pass
+    return {"ejetados": ejetados, "apagados": apagados}
+
+
 def baixar(destino_dir=None, ao_vivo=None):
     """Baixa o .dmg da versão nova e abre. Quem arrasta para Aplicativos é o
     usuário — de propósito."""

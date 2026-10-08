@@ -1411,6 +1411,14 @@ def main():
     # código baixado presta.
     from nucleo import codigo as _cod
     _cod.deu_certo()
+    # disco do instalador montado e .dmg velho no Downloads viram ícone repetido
+    # no Spotlight a cada atualização: some com eles em segundo plano
+    def _limpar():
+        try:
+            atualizacao.limpar_instaladores()
+        except Exception:
+            traceback.print_exc()
+    threading.Thread(target=_limpar, daemon=True).start()
     url = "http://127.0.0.1:%d/?t=%s" % (porta, TOKEN)
 
     # Arquivo de descoberta: é por ele que o painel do Tools PRO acha este app

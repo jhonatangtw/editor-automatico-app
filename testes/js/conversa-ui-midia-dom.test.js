@@ -47,9 +47,11 @@ function montar(o = {}) {
   w.HTMLCanvasElement.prototype.getContext = () => null;
   w.confirm = () => { throw new Error('confirm() não pode ser usado'); };
   if (o.lembrada) w.localStorage.setItem('editor-automatico:conversa:' + (o.janela || 'app'), o.lembrada);
+  // ontem ao meio-dia: "agora − 1,2 dia" vira anteontem depois da meia-noite
+  const ONTEM_MEIO_DIA = (() => { const d = new Date(); d.setDate(d.getDate() - 1); d.setHours(12, 0, 0, 0); return d.getTime() / 1000; })();
   const est = { posts: [], gets: [], tarefa: 'rodando', conversas: o.conversas || [
     { id: 'c1', titulo: 'B-roll do AD07', quando: Date.now() / 1000 - 60, mensagens: 2, projeto: 'ad07', projeto_nome: 'AD07 Body' },
-    { id: 'c2', titulo: 'Legenda karaokê', quando: Date.now() / 1000 - 86400 * 1.2, mensagens: 6, projeto: null, projeto_nome: null },
+    { id: 'c2', titulo: 'Legenda karaokê', quando: ONTEM_MEIO_DIA, mensagens: 6, projeto: null, projeto_nome: null },
   ], destino: o.destino !== undefined ? o.destino : { pasta: '/p', projeto: 'ad07', nome: 'AD07' } };
   const conversa = (cid) => ({
     c1: { conversa: 'c1', mensagens: o.mensagens || MSGS_MIDIA, meta: { id: 'c1', titulo: 'B-roll do AD07', criada: 1, projeto_nome: 'AD07', destino: est.destino } },

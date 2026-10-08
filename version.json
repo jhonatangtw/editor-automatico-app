@@ -1,6 +1,6 @@
 {
- "version": "0.22.6",
- "notes": "Mais correções para Windows:\n\n• A Conversa (no app e no painel do Premiere) mostrava acentos quebrados, como \"NÃ£o\". Corrigido.\n\n• A IA não tinha permissão para usar as ferramentas do Tools PRO no Windows (\"a permissão não foi concedida\"). Agora as ferramentas do Premiere e do After vêm liberadas na Conversa.\n\n• A dica que aparece enquanto a IA pensa falava de macOS no Windows. Agora fala do sistema certo.",
+ "version": "0.22.7",
+ "notes": "Fim dos ícones repetidos:\n\n• Cada atualização deixava o instalador montado (Mac) ou o .exe velho no Downloads (Windows), e a busca do sistema mostrava vários \"Editor Automático\". Agora, ao abrir já atualizado, o app ejeta o disco do instalador e apaga os instaladores de versões já instaladas. Os de versão mais nova ficam.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",
