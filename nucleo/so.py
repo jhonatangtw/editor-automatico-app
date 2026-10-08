@@ -95,6 +95,22 @@ def _calado(kw):
     return kw
 
 
+# ⚠️ Passar pelo `so.run/popen` dependia de quem escreve lembrar. ~20 chamadas
+# iam direto no `subprocess` — `codex login status` da checagem de contas (a
+# cada 15 s), `reg query` da ponte, ffprobe — e no Windows cada uma piscava um
+# terminal e lia a saída em cp1252 (acento virando "Ã£"). Agora vale para TODO
+# Popen do processo, inclusive `subprocess.run` direto. A marca evita embrulhar
+# de novo quando a atualização a quente recarrega o `nucleo`.
+if WIN and not getattr(subprocess.Popen.__init__, "_calado", False):
+    _popen_init = subprocess.Popen.__init__
+
+    def _popen_calado(self, *a, **kw):
+        _popen_init(self, *a, **_calado(kw))
+
+    _popen_calado._calado = True
+    subprocess.Popen.__init__ = _popen_calado
+
+
 def run(cmd, **kw):
     return subprocess.run(resolver(cmd), **_calado(kw))
 

@@ -67,6 +67,10 @@ if _EXTERNO:
     runpy.run_path(os.path.join(_EXTERNO, "app.py"), run_name="__main__")
     sys.exit(0)
 
+# ANTES de qualquer subprocesso: no Windows o `so` faz todo Popen nascer sem
+# janela e ler a saída em UTF-8 — sem isto o terminal pisca e o acento quebra.
+from nucleo import so  # noqa: E402,F401
+
 # ANTES de qualquer import que faça `which`: um .app aberto pelo Finder não
 # herda o PATH do shell, e sem isto NENHUM CLI é encontrado.
 from nucleo import caminho  # noqa: E402
