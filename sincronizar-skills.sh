@@ -33,6 +33,7 @@ SKILLS="
   photorealism-prompts video-prompt-builder avatar-vsl-video-prompts
   pixar3d storyboard-viral-3d omni-flash-reverse video-to-flow
   clone-ad-validado plataforma-ia-higgsfield boas-praticas-black-belt
+  conferir-ads-por-frame
 "
 
 # Segunda origem: skills escritas DIRETO para os alunos (não moram no
@@ -59,7 +60,7 @@ for s in $SKILLS; do
   # aluno: material de cliente não viaja. E nem serviria — cada um tem o seu.
   rsync -a --exclude '__pycache__' --exclude '.DS_Store' --exclude '*.pyc' \
         --exclude '.venv' --exclude '.git' --exclude 'node_modules' \
-        --exclude 'runs' --exclude 'assets/produto_*.png' \
+        --exclude 'runs' --exclude 'assets/produto_*.png' --exclude '.editor-automatico.json' \
         "$ORIGEM/$s" skills/
   printf "  %-30s %s\n" "$s" "$(du -sh skills/$s | cut -f1)"
 done
@@ -73,7 +74,7 @@ for s in $SKILLS_ALUNOS_LISTA; do
   fi
   rsync -a --exclude '__pycache__' --exclude '.DS_Store' --exclude '*.pyc' \
         --exclude '.venv' --exclude '.git' --exclude 'node_modules' \
-        --exclude 'runs' --exclude '.pronta' --exclude 'renders' \
+        --exclude 'runs' --exclude '.pronta' --exclude 'renders' --exclude '.editor-automatico.json' \
         "$ALUNOS/$s" skills/
   printf "  %-30s %s\n" "$s" "$(du -sh skills/$s | cut -f1)  (skills-alunos)"
 done

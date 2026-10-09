@@ -1,11 +1,12 @@
 {
   "origem": "~/.claude/skills",
-  "sincronizado": "2026-10-06",
+  "sincronizado": "2026-10-08",
   "skills": {
     "avatar-vsl-video-prompts": "2b5c217f987d6bf4",
     "blackbelt-omni": "92bf9841442d048e",
     "boas-praticas-black-belt": "91468a6e28e915fd",
     "clone-ad-validado": "82384d103f4de628",
+    "conferir-ads-por-frame": "d2d7e61896d23e18",
     "editor-automatico-de-broll": "a5efab0e9bae2535",
     "editor-de-reels-do-jhon": "8cfe31b53f0edd44",
     "hooks-meat-hook": "d5f1328093cbd923",

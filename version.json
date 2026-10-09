@@ -1,6 +1,6 @@
 {
- "version": "0.22.8",
- "notes": "Windows: fim do terminal piscando e dos acentos quebrados.\n\n• Com o app aberto, uma janela preta abria e fechava sozinha a cada poucos segundos (a checagem das contas e outras verificações). Agora nenhum programa que o app chama abre janela.\n• Textos vindos desses programas apareciam com acento errado (\"Ã£\" no lugar de \"ã\"). Agora tudo é lido em UTF-8.",
+ "version": "0.22.9",
+ "notes": "Nova skill: Conferir ADs por quadro.\n\n• Peça na conversa \"confere os ADs desta pasta contra a copy\" — o app confere resolução, formato, quadro preto/congelado, silêncio e duração, monta o mosaico de quadros de cada vídeo, transcreve a fala e compara com a copy.\n• Usa o FFmpeg e o Whisper que o app já instala. A leitura da legenda na tela é opcional (precisa do Tesseract); sem ele a conferência segue sem essa parte.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",
