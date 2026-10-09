@@ -1,6 +1,6 @@
 {
- "version": "0.22.9",
- "notes": "Nova skill: Conferir ADs por quadro.\n\n• Peça na conversa \"confere os ADs desta pasta contra a copy\" — o app confere resolução, formato, quadro preto/congelado, silêncio e duração, monta o mosaico de quadros de cada vídeo, transcreve a fala e compara com a copy.\n• Usa o FFmpeg e o Whisper que o app já instala. A leitura da legenda na tela é opcional (precisa do Tesseract); sem ele a conferência segue sem essa parte.",
+ "version": "0.22.10",
+ "notes": "Guia de comandos: grupo novo \"Conferir vídeo contra a copy\".\n\n• Conferir a demanda inteira contra a copy e os comentários do copywriter.\n• QA técnico rápido antes de subir.\n• Conferir a fala de um AD palavra por palavra.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",

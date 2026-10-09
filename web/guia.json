@@ -512,6 +512,67 @@
       ]
     },
     {
+      "id": "conferencia",
+      "titulo": "Conferir vídeo contra a copy",
+      "descricao": "Antes de entregar ou subir: o vídeo pronto conferido por quadro, pela fala e pela legenda contra a copy e contra cada comentário do copywriter. Aponta o que está fora — não conserta.",
+      "requer_skill": "conferir-ads-por-frame",
+      "comandos": [
+        {
+          "titulo": "Conferir a demanda inteira contra a copy e os comentários",
+          "nivel": "completo",
+          "comando": "Use a skill conferir-ads-por-frame: confira os vídeos da pasta [PASTA DOS VÍDEOS] contra a copy [ARQUIVO OU LINK DA COPY].\nLeia a copy JUNTO com os comentários do copywriter e liste cada pedido de edição (insert, b-roll, lettering, troca de palavra).\nRode a conferência com transcrição (modelo medium, idioma [INGLÊS / PORTUGUÊS]) e leitura da legenda na tela.\nPara cada AD e cada hook: fala × copy palavra por palavra, legenda × copy, e se cada comentário foi atendido (com o segundo onde aparece ou não).\nSepare ERRO DE EDIÇÃO (corrigir) de DECISÃO DA COPY (só risco de Meta/TikTok). Antes de acusar erro de legenda, confira 2–3 quadros em volta do momento.\nNo fim, me entregue a lista por urgência e abra o relatorio.html.",
+          "faz": "A conferência completa da demanda: técnica (resolução, formato, quadro preto/congelado, silêncio), fala e legenda contra a copy, e o checklist dos comentários do copywriter atendidos ou não.",
+          "quando": "Demanda pronta, antes de entregar para o cliente ou subir no Frame.io.",
+          "precisa": [
+            "Os vídeos exportados numa pasta (sem \"_QA\" no caminho)",
+            "A copy com os comentários (.docx, Google Doc ou texto)",
+            "FFmpeg e Whisper (aba Ambiente)"
+          ],
+          "ia": "Claude e ChatGPT",
+          "tempo": "cerca de 10–20 min para 20 vídeos curtos",
+          "usa": [
+            "conferir-ads-por-frame",
+            "FFmpeg",
+            "Whisper"
+          ]
+        },
+        {
+          "titulo": "QA técnico rápido antes de subir",
+          "nivel": "rápido",
+          "comando": "Use a skill conferir-ads-por-frame: faça o QA técnico da pasta [PASTA DOS VÍDEOS], formato [9:16 / 1:1 / 4:5], largura mínima 1080.\nSem copy: só arquivo quebrado, resolução, formato, sem áudio/silêncio, quadro preto, quadro congelado e duração. Olhe os mosaicos e me diga só o que está fora, com o AD e o segundo.",
+          "faz": "Pega o erro de exportação antes do cliente: resolução errada, formato errado, quadro preto no fim, trecho congelado, áudio sumido.",
+          "quando": "Logo depois de renderizar, em qualquer lote de vídeos.",
+          "precisa": [
+            "Os vídeos exportados numa pasta",
+            "FFmpeg (aba Ambiente)"
+          ],
+          "ia": "Claude e ChatGPT",
+          "tempo": "poucos minutos",
+          "usa": [
+            "conferir-ads-por-frame",
+            "FFmpeg"
+          ]
+        },
+        {
+          "titulo": "Conferir a fala de um AD palavra por palavra",
+          "nivel": "rápido",
+          "comando": "Use a skill conferir-ads-por-frame: transcreva [ARQUIVO DO VÍDEO] com o Whisper medium (idioma [INGLÊS / PORTUGUÊS]) e compare palavra por palavra com este trecho da copy: [COLE O TRECHO].\nAponte palavra trocada, frase que falta, frase que sobra, repetição e corte da primeira palavra, com o segundo de cada uma. Nome de remédio ou marca que o Whisper errou: confira ouvindo o trecho antes de acusar.",
+          "faz": "Prova que a locução (ou o avatar) disse exatamente a copy, e mostra onde não disse.",
+          "quando": "Body de avatar ou locução nova chegou e você precisa saber se pode montar.",
+          "precisa": [
+            "O vídeo ou áudio",
+            "O trecho da copy",
+            "Whisper (aba Ambiente)"
+          ],
+          "ia": "Claude e ChatGPT",
+          "usa": [
+            "conferir-ads-por-frame",
+            "Whisper"
+          ]
+        }
+      ]
+    },
+    {
       "id": "aulas",
       "titulo": "Aulas e cortes",
       "descricao": "Tirar tempo morto sem comer palavra, e remontar gravação de OBS para 16:9.",

@@ -572,6 +572,60 @@ Me dê a lista do que está fora com o tempo de cada item. Não conserte nada se
 - **Por baixo:** `clone-ad-validado`, `FFmpeg`, `Whisper`
 
 
+## Conferir vídeo contra a copy
+
+Antes de entregar ou subir: o vídeo pronto conferido por quadro, pela fala e pela legenda contra a copy e contra cada comentário do copywriter. Aponta o que está fora — não conserta.
+
+### Conferir a demanda inteira contra a copy e os comentários
+
+*Nível: completo* · *Tempo: cerca de 10–20 min para 20 vídeos curtos*
+
+```text
+Use a skill conferir-ads-por-frame: confira os vídeos da pasta [PASTA DOS VÍDEOS] contra a copy [ARQUIVO OU LINK DA COPY].
+Leia a copy JUNTO com os comentários do copywriter e liste cada pedido de edição (insert, b-roll, lettering, troca de palavra).
+Rode a conferência com transcrição (modelo medium, idioma [INGLÊS / PORTUGUÊS]) e leitura da legenda na tela.
+Para cada AD e cada hook: fala × copy palavra por palavra, legenda × copy, e se cada comentário foi atendido (com o segundo onde aparece ou não).
+Separe ERRO DE EDIÇÃO (corrigir) de DECISÃO DA COPY (só risco de Meta/TikTok). Antes de acusar erro de legenda, confira 2–3 quadros em volta do momento.
+No fim, me entregue a lista por urgência e abra o relatorio.html.
+```
+
+- **O que faz:** A conferência completa da demanda: técnica (resolução, formato, quadro preto/congelado, silêncio), fala e legenda contra a copy, e o checklist dos comentários do copywriter atendidos ou não.
+- **Quando usar:** Demanda pronta, antes de entregar para o cliente ou subir no Frame.io.
+- **Precisa:** Os vídeos exportados numa pasta (sem "_QA" no caminho); A copy com os comentários (.docx, Google Doc ou texto); FFmpeg e Whisper (aba Ambiente)
+- **Funciona com:** Claude e ChatGPT
+- **Por baixo:** `conferir-ads-por-frame`, `FFmpeg`, `Whisper`
+
+### QA técnico rápido antes de subir
+
+*Nível: rápido* · *Tempo: poucos minutos*
+
+```text
+Use a skill conferir-ads-por-frame: faça o QA técnico da pasta [PASTA DOS VÍDEOS], formato [9:16 / 1:1 / 4:5], largura mínima 1080.
+Sem copy: só arquivo quebrado, resolução, formato, sem áudio/silêncio, quadro preto, quadro congelado e duração. Olhe os mosaicos e me diga só o que está fora, com o AD e o segundo.
+```
+
+- **O que faz:** Pega o erro de exportação antes do cliente: resolução errada, formato errado, quadro preto no fim, trecho congelado, áudio sumido.
+- **Quando usar:** Logo depois de renderizar, em qualquer lote de vídeos.
+- **Precisa:** Os vídeos exportados numa pasta; FFmpeg (aba Ambiente)
+- **Funciona com:** Claude e ChatGPT
+- **Por baixo:** `conferir-ads-por-frame`, `FFmpeg`
+
+### Conferir a fala de um AD palavra por palavra
+
+*Nível: rápido*
+
+```text
+Use a skill conferir-ads-por-frame: transcreva [ARQUIVO DO VÍDEO] com o Whisper medium (idioma [INGLÊS / PORTUGUÊS]) e compare palavra por palavra com este trecho da copy: [COLE O TRECHO].
+Aponte palavra trocada, frase que falta, frase que sobra, repetição e corte da primeira palavra, com o segundo de cada uma. Nome de remédio ou marca que o Whisper errou: confira ouvindo o trecho antes de acusar.
+```
+
+- **O que faz:** Prova que a locução (ou o avatar) disse exatamente a copy, e mostra onde não disse.
+- **Quando usar:** Body de avatar ou locução nova chegou e você precisa saber se pode montar.
+- **Precisa:** O vídeo ou áudio; O trecho da copy; Whisper (aba Ambiente)
+- **Funciona com:** Claude e ChatGPT
+- **Por baixo:** `conferir-ads-por-frame`, `Whisper`
+
+
 ## Aulas e cortes
 
 Tirar tempo morto sem comer palavra, e remontar gravação de OBS para 16:9.
