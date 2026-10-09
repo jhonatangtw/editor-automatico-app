@@ -20,9 +20,11 @@ anexado na Release "latest". Comparou, achou maior, oferece.
 
 Duas decisões que valem a pena registrar:
 
-  * **O app não se substitui sozinho.** Baixa o .dmg e abre — o aluno arrasta
-    para Aplicativos. Trocar por baixo um bundle que está rodando é onde mora o
-    app que não abre mais, e o custo de errar isso é suporte, não conveniência.
+  * **O app nunca se substitui ENQUANTO roda.** No Mac (desde a 0.23.0) ele
+    prepara a cópia nova ao lado de Aplicativos, fecha, e um script à parte faz
+    a troca e reabre — ver `instalar_mac.py`. Se a preparação falhar, cai no
+    jeito antigo: abre o .dmg e o aluno arrasta. Trocar por baixo um bundle que
+    está rodando é onde mora o app que não abre mais.
 
   * **Falha de rede não pode quebrar a tela.** Toda função aqui devolve o erro
     como dado (`{"erro": ...}`), nunca levanta. Um aluno sem internet continua
@@ -38,7 +40,7 @@ import sys
 import urllib.parse
 import urllib.request
 
-from . import codigo, rede, so
+from . import codigo, instalar_mac, rede, so
 
 TEMPO = 20
 UA = {"User-Agent": "EditorAutomatico"}
@@ -490,6 +492,9 @@ def baixar(destino_dir=None, ao_vivo=None):
                     ao_vivo("baixando… %d%%" % int(lido * 100 / total))
     os.replace(tmp, alvo)
 
+    pronto = _instalar_sozinho(alvo, info["ultima"], ao_vivo)
+    if pronto:
+        return pronto
     aberto = so.abrir(alvo)
     comofaz = ("O instalador FECHA o app sozinho para trocar os arquivos — no "
                "Windows um programa aberto não pode ser sobrescrito. Siga as telas "
@@ -498,6 +503,28 @@ def baixar(destino_dir=None, ao_vivo=None):
     return {"ok": True, "arquivo": alvo, "aberto": aberto, "versao": info["ultima"],
             "msg": "Baixei a versão %s e abri o instalador. %s"
                    % (info["ultima"], comofaz)}
+
+
+def _instalar_sozinho(dmg, versao, ao_vivo=None):
+    """Mac empacotado: põe a versão nova em Aplicativos, fecha e reabre.
+    Devolve None quando não dá (Windows, desenvolvimento, falha) — aí quem
+    chamou abre o instalador como sempre."""
+    if not so.MAC or not instalar_mac.bundle_atual() or not dmg.endswith(".dmg"):
+        return None
+    try:
+        novo, dest = instalar_mac.preparar_do_dmg(dmg, ao_vivo)
+    except Exception as e:
+        ao_vivo and ao_vivo("não consegui instalar sozinho (%s) — abrindo o instalador…"
+                            % str(e)[:160])
+        return None
+    instalar_mac.trocar_e_reabrir(novo, dest)
+    try:
+        os.remove(dmg)
+    except OSError:
+        pass
+    return {"ok": True, "instalado": True, "versao": versao, "destino": dest,
+            "msg": "Versão %s instalada em %s. O app vai fechar e abrir de novo sozinho."
+                   % (versao, os.path.dirname(dest))}
 
 
 def _como_instalar():
@@ -518,6 +545,9 @@ def _instalador_do_servidor(info, destino_dir, ao_vivo=None):
     alvo = os.path.join(destino_dir, info["asset"])
     ao_vivo and ao_vivo("baixando a versão %s…" % info["ultima"])
     _baixar_conferido(info["url"], info["sha256"], destino=alvo, ao_vivo=ao_vivo, timeout=60)
+    pronto = _instalar_sozinho(alvo, info["ultima"], ao_vivo)
+    if pronto:
+        return dict(pronto, fonte="servidor")
     aberto = so.abrir(alvo)
     return {"ok": True, "arquivo": alvo, "aberto": aberto, "versao": info["ultima"],
             "fonte": "servidor",

@@ -1,6 +1,6 @@
 {
- "version": "0.22.10",
- "notes": "Guia de comandos: grupo novo \"Conferir vídeo contra a copy\".\n\n• Conferir a demanda inteira contra a copy e os comentários do copywriter.\n• QA técnico rápido antes de subir.\n• Conferir a fala de um AD palavra por palavra.",
+ "version": "0.23.0",
+ "notes": "Mac: atualizar ficou sem arrastar nada.\n\n• Quando a atualização precisa do instalador, o app baixa, coloca a versão nova em Aplicativos, fecha e abre de novo sozinho. Se algo der errado, o app antigo continua lá e o instalador abre como antes.\n• Se o app estiver aberto fora de Aplicativos (Downloads, Mesa ou de dentro do instalador), ele oferece se mudar para lá.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",

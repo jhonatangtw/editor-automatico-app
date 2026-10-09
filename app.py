@@ -90,6 +90,7 @@ if "--mcp" in sys.argv:
     mcp_servidor.main()
     sys.exit(0)
 
+from nucleo import instalar_mac  # noqa: E402
 from nucleo import (adobe, ambiente, atualizacao, cancelar, chaves, claude,  # noqa: E402
                     conta, conversa, conversas,
                     decupar, etapas, gerar, ia, midia, montagem, pipeline, plugin,
@@ -1109,6 +1110,8 @@ class Handler(BaseHTTPRequestHandler):
                                    "mensagens": midia.anotar(conversas.mensagens(cid)) if cid else []})
             if caminho == "/api/atualizacao":
                 return self._json(atualizacao.conferir())
+            if caminho == "/api/app/local":
+                return self._json(instalar_mac.local())
             if caminho == "/api/ia":
                 return self._json(ia.estado())
             if caminho == "/api/plugin":
@@ -1284,6 +1287,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"tarefa": tid})
             if caminho == "/api/atualizacao/reabrir":
                 return self._json(atualizacao.reabrir())
+            if caminho == "/api/app/mover":
+                tid = em_fundo("Movendo para Aplicativos",
+                               lambda log: instalar_mac.mover_para_aplicativos(log))
+                return self._json({"tarefa": tid})
             if caminho == "/api/atualizacao/baixar":
                 tid = em_fundo("Baixando a atualização",
                                lambda log: atualizacao.baixar(ao_vivo=log))

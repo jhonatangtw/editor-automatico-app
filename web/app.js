@@ -689,8 +689,9 @@ function atualizarCodigo() {
   }).catch((e) => { v.remove(); toast(e.message, true); });
 }
 
-// A troca do .app é do usuário: baixo o .dmg e abro. Substituir por baixo um
-// app que está rodando é onde nasce o app que não abre mais.
+// Mac empacotado: o app põe a versão nova em Aplicativos, fecha e reabre
+// sozinho (nucleo/instalar_mac.py). Windows, ou se a preparação falhar: abre o
+// instalador como sempre. Nunca se troca o .app que está rodando.
 function baixarAtualizacao() {
   const v = modal(`<h2>Atualizando para ${esc(ATT.ultima)}</h2>
     ${ATT.notas ? `<p class="sub">${esc(ATT.notas)}</p>` : ''}
@@ -700,7 +701,13 @@ function baixarAtualizacao() {
       const st = await api('/api/tarefas/' + r.tarefa);
       v.querySelector('#log').textContent = (st.log || []).slice(-3).join('\n') || 'baixando…';
       if (st.estado === 'pronto') {
-        clearInterval(t); v.remove();
+        clearInterval(t);
+        if (st.resultado?.instalado) {
+          v.innerHTML = `<h2>Pronto — versão ${esc(st.resultado.versao)}</h2>
+            <p class="sub">${esc(st.resultado.msg)}</p>`;
+          return;
+        }
+        v.remove();
         toast(st.resultado?.msg || 'Baixado.');
       } else if (st.estado === 'erro') { clearInterval(t); v.remove(); toast(st.erro, true); }
     }, 900);
@@ -2840,6 +2847,35 @@ async function iniciar() {
     ATT = a;
     desenhar();          // sempre: é o que tira o rodapé mudo
   }).catch(() => { ATT = { versao: '?', erro: 'não consegui conferir' }; desenhar(); });
+  api('/api/app/local').then((l) => { if (l.fora) oferecerMover(l); }).catch(() => {});
+}
+
+// Mac: app aberto de Downloads, da Mesa ou de dentro do .dmg roda translocado e
+// some na próxima vez. Oferece levar para Aplicativos (nucleo/instalar_mac.py).
+function oferecerMover(l) {
+  const v = modal(`<h2>Mover para Aplicativos?</h2>
+    <p class="sub">O Editor Automático está aberto ${l.no_dmg ? 'de dentro do instalador'
+      : 'fora da pasta Aplicativos'}. Lá ele se atualiza sozinho e não some.
+      O app fecha e abre de novo, já no lugar certo.</p>
+    <div class="portao" id="log" style="max-height:120px;display:none"></div>
+    <div class="etapa-acoes">
+      <button class="bt principal" id="mover">Mover para Aplicativos</button>
+      <button class="bt discreto" id="depois">Agora não</button>
+    </div>`);
+  v.querySelector('#depois').onclick = () => v.remove();
+  v.querySelector('#mover').onclick = () => {
+    const log = v.querySelector('#log');
+    log.style.display = ''; log.textContent = 'copiando…';
+    v.querySelector('.etapa-acoes').remove();
+    post('/api/app/mover').then((r) => {
+      const t = setInterval(async () => {
+        const st = await api('/api/tarefas/' + r.tarefa);
+        log.textContent = (st.log || []).slice(-2).join('\n') || 'copiando…';
+        if (st.estado === 'pronto') { clearInterval(t); log.textContent = st.resultado?.msg || 'Reabrindo…'; }
+        else if (st.estado === 'erro') { clearInterval(t); v.remove(); toast(st.erro, true); }
+      }, 700);
+    }).catch((e) => { v.remove(); toast(e.message, true); });
+  };
 }
 
 iniciar();
