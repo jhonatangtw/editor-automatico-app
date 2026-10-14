@@ -1,6 +1,6 @@
 {
- "version": "0.23.1",
- "notes": "Skill nova: clone de AD de emagrecimento.\n\n• advalidado-weightloss viaja no app: pega um AD de perda de peso que já vende (GLP-1, receita de gelatina, story-ad de mãe/mulher) e entrega outro com a mesma copy no corpo — personagem nova, hooks novos, avatar falante na HeyGen, b-roll palavra por palavra (metade IA, metade orgânico do TikTok recortado sem texto) e a edição dinâmica montada no HyperFrames.\n• Guia de comandos ganha o grupo \"Clone de AD de emagrecimento\" (3 comandos).",
+ "version": "0.23.2",
+ "notes": "Clone de AD de emagrecimento em um comando só.\n\n• No Guia de comandos, o grupo \"Clone de AD de emagrecimento\" ganhou o Comando único: o job inteiro em 11 etapas (ambiente, ficha do original, hooks, personagem, avatar na HeyGen, b-roll metade IA e metade TikTok, montagem no HyperFrames e export), com pausas para a sua aprovação e nenhum gasto sem o seu ok.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",
