@@ -1,6 +1,6 @@
 {
- "version": "0.23.2",
- "notes": "Clone de AD de emagrecimento em um comando só.\n\n• No Guia de comandos, o grupo \"Clone de AD de emagrecimento\" ganhou o Comando único: o job inteiro em 11 etapas (ambiente, ficha do original, hooks, personagem, avatar na HeyGen, b-roll metade IA e metade TikTok, montagem no HyperFrames e export), com pausas para a sua aprovação e nenhum gasto sem o seu ok.",
+ "version": "0.23.3",
+ "notes": "Clone de AD de emagrecimento segue a copy do copywriter.\n\n• O Comando único agora lê a copy e o briefing junto com os comentários do copywriter e segue à risca: hooks e corpo como vieram, cada pedido de insert, b-roll ou lettering vira item do plano, e personagem e voz saem do briefing. Só escreve hook quando a copy não traz.\n• Na revisão, confere fala e legenda contra a copy e marca cada comentário do copywriter como atendido ou não.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",

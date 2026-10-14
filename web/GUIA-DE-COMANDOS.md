@@ -581,28 +581,28 @@ Um AD validado de perda de peso (GLP-1, receita de gelatina, story-ad de mãe/mu
 *Nível: completo* · *Tempo: algumas horas, com pausas para as suas aprovações*
 
 ```text
-Use a skill advalidado-weightloss para clonar o AD validado de emagrecimento [ARQUIVO DO AD], que está na pasta [PASTA DO JOB]. Produto: [PRODUTO]. Data do job: [DDMMAA].
+Use a skill advalidado-weightloss para clonar o AD validado de emagrecimento [ARQUIVO DO AD], que está na pasta [PASTA DO JOB], seguindo a copy e o briefing [ARQUIVO OU LINK DA COPY]. Produto: [PRODUTO]. Data do job: [DDMMAA].
 
 Regra geral: antes de QUALQUER gasto (imagem, avatar, voz), me mostre o custo e espere o meu "pode". Nunca use nome, rosto ou endosso de pessoa real. Pare e me mostre o resultado em cada ponto marcado com ⏸.
 
 1. Confira o ambiente (ffmpeg, Whisper, Node 24 + HyperFrames, Higgsfield, HeyGen CLI, yt-dlp) sem mostrar nenhuma chave, e me diga o que falta e como resolver.
 2. Crie dentro da pasta do job as subpastas original, avatar, broll, entrega, analise, edicao e hyperframes, e mova o AD para original/ sem alterar o arquivo. Me diga duração, resolução e se tem legenda queimada.
 3. Faça a ficha técnica do original: ângulo, promessa, prova, objeções que ele quebra, ritmo de cortes por segundo e o mapa de fluxo do hook ao CTA. Transcreva com Whisper medium e confira os trechos duvidosos na legenda queimada. Aponte os trechos borrados (pessoa real escondida). ⏸
-4. Escreva [3] hooks novos no mesmo formato do hook original, um ângulo diferente cada, com no máximo [5] segundos de fala, no copy.md. O corpo usa a copy do original palavra por palavra; só tire nome de pessoa real. ⏸
-5. Crie o start frame de cada hook no GPT Image 2.5, 9:16, com a personagem nova: [IDADE, ETNIA, CABELO, ROUPA, CENÁRIO]. Gere o H1 primeiro como âncora do rosto; os outros usam o H1 como referência. Boca fechada e olhar na lente. ⏸
-6. Gere o avatar falante na HeyGen (Avatar IV, 9:16, 1080p) a partir de cada start frame, com uma voz americana coerente com a idade dela (desenhe uma nova e compare a altura com a voz original): um vídeo para cada hook e um para o corpo. Transcreva a fala do avatar e compare com a copy palavra por palavra antes de seguir. ⏸
-7. Monte o plano de b-roll palavra por palavra: posição = onde o original tinha b-roll; conteúdo = exatamente o que é falado naquela palavra. Metade das cenas por IA (toda cena com a personagem, sempre com o mesmo rosto do H1, os mecanismos em 3D e as que precisam de texto exato) e metade com orgânico do TikTok (objetos e ações, recortados num trecho sem texto queimado, 9:16, sem áudio). Nenhuma cena repete outra.
+4. Leia a copy e o briefing JUNTO com os comentários do copywriter e siga à risca: hooks e corpo como estão escritos, cada pedido de insert, b-roll, lettering ou troca de palavra vira item do plano, e personagem, voz, tom e estilo saem do briefing. Registre no copy.md a copy recebida e a lista de pedidos do copywriter. Se a copy não trouxer hooks, escreva no mesmo formato do original (um ângulo cada, até 5 s de fala); se não trouxer corpo, use a copy do original palavra por palavra, sem nome de pessoa real. Se a copy e o briefing divergirem, me pergunte antes de seguir. ⏸
+5. Crie o start frame de cada hook no GPT Image 2.5, 9:16, com a personagem do briefing (se o briefing não definir: [IDADE, ETNIA, CABELO, ROUPA, CENÁRIO]). Gere o H1 primeiro como âncora do rosto; os outros usam o H1 como referência. Boca fechada e olhar na lente. ⏸
+6. Gere o avatar falante na HeyGen (Avatar IV, 9:16, 1080p) a partir de cada start frame, com a voz do briefing (se não houver, uma voz americana coerente com a idade dela; desenhe uma nova e compare a altura com a voz original): um vídeo para cada hook e um para o corpo. Transcreva a fala do avatar e compare com a copy palavra por palavra antes de seguir. ⏸
+7. Monte o plano de b-roll palavra por palavra, incluindo todos os pedidos de b-roll e insert do copywriter: posição = onde o original tinha b-roll ou onde a copy pede; conteúdo = exatamente o que é falado naquela palavra. Metade das cenas por IA (toda cena com a personagem, sempre com o mesmo rosto do H1, os mecanismos em 3D e as que precisam de texto exato) e metade com orgânico do TikTok (objetos e ações, recortados num trecho sem texto queimado, 9:16, sem áudio). Nenhuma cena repete outra.
 8. Me mostre uma folha de contato com todas as cenas (selo IA ou TIKTOK, tempo e fala) e o que você trocaria e por quê. ⏸
-9. Monte o AD no HyperFrames seguindo o tempo da voz nova: avatar de base, b-roll na palavra certa, legenda palavra por palavra na área segura do Reels (palavra ativa em destaque), lettering nas frases fortes só com palavras faladas, X vermelho nas negações, seta no CTA, flash nas viradas e SFX discretos. Edição dinâmica e dopaminérgica, com punch-in a cada frase e um corte por palavra nas listas. Faça primeiro o 1º minuto e abra no HyperFrames Studio para eu aprovar o ritmo. ⏸ Depois monte o restante.
-10. Rode o check do HyperFrames, me mostre os quadros e abra o Studio para eu revisar. ⏸
+9. Monte o AD no HyperFrames seguindo o tempo da voz nova: avatar de base, b-roll na palavra certa, legenda palavra por palavra na área segura do Reels (palavra ativa em destaque), lettering nas frases fortes e onde o copywriter pediu (só com palavras faladas), X vermelho nas negações, seta no CTA, flash nas viradas e SFX discretos. Edição dinâmica e dopaminérgica, com punch-in a cada frase e um corte por palavra nas listas. Faça primeiro o 1º minuto e abra no HyperFrames Studio para eu aprovar o ritmo. ⏸ Depois monte o restante.
+10. Rode o check do HyperFrames, confira a fala e a legenda contra a copy e cada comentário do copywriter (atendido ou não, com o segundo), me mostre os quadros e abra o Studio para eu revisar. ⏸
 11. Com o meu ok, exporte em 1080×1920 para entrega/ com o nome [DDMMAA] AD[DDMMAA] HK1 [PRODUTO].mp4 (um arquivo por hook, hook + corpo) e confira duração, resolução e volume.
 
-No fim, me entregue a lista dos arquivos, quanto foi gasto e os riscos de compliance para o Meta (promessas de saúde, marca de remédio na tela, antes/depois de corpo, vídeos de terceiros).
+No fim, me entregue a lista dos arquivos, quanto foi gasto, os pedidos do copywriter que ficaram de fora (se houver) e os riscos de compliance para o Meta (promessas de saúde, marca de remédio na tela, antes/depois de corpo, vídeos de terceiros).
 ```
 
-- **O que faz:** O job inteiro num comando só, em 11 etapas com pausas para a sua aprovação (⏸): ambiente, pastas, ficha do original, hooks, personagem, avatar falante, b-roll metade IA e metade TikTok, folha de contato, montagem no HyperFrames, revisão e export.
+- **O que faz:** O job inteiro num comando só, em 11 etapas com pausas para a sua aprovação (⏸), seguindo a copy e o briefing do copywriter: ambiente, pastas, ficha do original, copy e pedidos do copywriter, personagem, avatar falante, b-roll metade IA e metade TikTok, folha de contato, montagem no HyperFrames, revisão contra a copy e export.
 - **Quando usar:** Você recebeu um AD de emagrecimento que já vende e precisa entregar a versão nova com outra personagem e hooks novos.
-- **Precisa:** O AD validado em vídeo; Higgsfield e HeyGen logados (aba Contas / Ambiente); FFmpeg, Whisper, Node e yt-dlp (aba Ambiente)
+- **Precisa:** O AD validado em vídeo; A copy e o briefing do copywriter com os comentários (Google Doc ou .docx); Higgsfield e HeyGen logados (aba Contas / Ambiente); FFmpeg, Whisper, Node e yt-dlp (aba Ambiente)
 - **Funciona com:** Claude e ChatGPT
 - **Por baixo:** `advalidado-weightloss`, `Higgsfield`, `HeyGen`, `HyperFrames`, `FFmpeg`, `Whisper`
 

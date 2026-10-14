@@ -38,11 +38,17 @@ duvidosos recortando a área da legenda com ffmpeg.
 - Trecho **borrado** no original quase sempre esconde celebridade ou especialista real usado
   como endosso. **Nunca** reproduza nome nem rosto: troque por pronome ("She's suing those people").
 
-## Passo 2 — Hooks e copy (`copy.md`)
-- Hooks no **mesmo formato** do original (mesma pessoa, mesma câmera), **um ângulo cada**,
-  ≤ 5 s de fala (~14 palavras). Ex.: resultado primeiro · alternativa ao remédio · a mãe que
-  sumiu das fotos.
-- **Corpo = a copy do original palavra por palavra.** Só sai nome de pessoa real.
+## Passo 2 — Copy e briefing do copywriter (`copy.md`)
+Normalmente a copy **vem pronta**: um documento com hooks, corpo, briefing e comentários do copywriter.
+- Leia a copy **junto com os comentários** (Google Doc: exporte com os comentários; uma cópia do Doc
+  perde todos) e siga à risca: hooks e corpo como estão escritos, sem reescrever.
+- Cada pedido do copywriter (insert, b-roll, lettering, troca de palavra) vira um item do plano.
+- Personagem, voz, tom e estilo saem do briefing.
+- Registre em `copy.md` a copy recebida e a lista de pedidos do copywriter.
+- Só se a copy **não** trouxer hooks: escreva no mesmo formato do original, um ângulo cada, ≤ 5 s de
+  fala (~14 palavras). Sem copy de corpo: corpo = copy do original **palavra por palavra** (só sai
+  nome de pessoa real).
+- Copy e briefing dizendo coisas diferentes: pergunte ao editor, não decida.
 
 ## Passo 3 — Personagem nova (start frames)
 GPT Image 2.5 no Higgsfield, 9:16, 2k. Personagem **diferente** da do original (idade, cabelo,
