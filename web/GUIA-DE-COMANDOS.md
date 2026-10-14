@@ -572,6 +572,62 @@ Me dê a lista do que está fora com o tempo de cada item. Não conserte nada se
 - **Por baixo:** `clone-ad-validado`, `FFmpeg`, `Whisper`
 
 
+## Clone de AD de emagrecimento
+
+Um AD validado de perda de peso (GLP-1, receita de gelatina, story-ad de mãe/mulher) vira outro com a mesma estrutura e a mesma copy no corpo: personagem nova, hooks novos, avatar falante, b-roll palavra por palavra (metade IA, metade orgânico do TikTok) e edição dinâmica no HyperFrames. Para em cada gasto pedindo o seu ok.
+
+### Clonar o AD de emagrecimento de ponta a ponta
+
+*Nível: completo* · *Tempo: algumas horas, com pausas para as suas aprovações*
+
+```text
+Use a skill advalidado-weightloss no AD validado [ARQUIVO DO AD] da pasta do job [PASTA DO JOB].
+1) Faça a ficha técnica do original (ângulo, promessa, prova, objeções, ritmo de cortes, fluxo do hook ao CTA).
+2) Crie [3] hooks novos no mesmo formato, um ângulo cada, até 5 s de fala, no copy.md. O corpo usa a copy do original palavra por palavra.
+3) Personagem nova: [IDADE, ETNIA, CABELO, ROUPA]. Me mostre o custo antes de gerar os start frames.
+4) Avatar na HeyGen (Avatar IV, 9:16) com voz coerente com a idade dela — confira a fala contra a copy.
+5) Plano de b-roll palavra por palavra, metade IA com a mesma personagem e metade orgânico do TikTok recortado sem texto. Folha de contato para eu aprovar.
+6) Monte no HyperFrames com edição dinâmica (punch-in, legenda palavra por palavra na área segura do Reels, lettering nas frases fortes, SFX discretos) e abra o Studio para eu conferir antes de renderizar.
+```
+
+- **O que faz:** O job inteiro do AD clonado, com aprovação sua antes de cada gasto: ficha, hooks, personagem, avatar falante, b-roll e a montagem pronta no HyperFrames Studio.
+- **Quando usar:** Você tem um AD de emagrecimento que já vende e precisa de uma versão nova (criativo cansou, outra personagem, hooks novos).
+- **Precisa:** O AD validado em vídeo; Higgsfield e HeyGen logados (aba Contas / Ambiente); FFmpeg, Whisper, Node e yt-dlp (aba Ambiente)
+- **Funciona com:** Claude e ChatGPT
+- **Por baixo:** `advalidado-weightloss`, `Higgsfield`, `HeyGen`, `HyperFrames`, `FFmpeg`, `Whisper`
+
+### Só hooks novos e a personagem
+
+*Nível: rápido* · *Tempo: cerca de 15 min*
+
+```text
+Use a skill advalidado-weightloss: a partir do AD [ARQUIVO DO AD], escreva [3] hooks novos no mesmo formato do original (um ângulo cada, até 5 s de fala) e acrescente no copy.md da pasta [PASTA DO JOB].
+Depois crie o start frame de cada hook com a mesma personagem nova ([DESCRIÇÃO DA PERSONAGEM]), boca fechada e olhando para a lente. Me mostre o custo antes de gerar.
+```
+
+- **O que faz:** Hooks novos no copy.md e um start frame por hook, com o mesmo rosto nos três.
+- **Quando usar:** O corpo continua bom e você só quer testar hooks com outra personagem.
+- **Precisa:** O AD validado; Higgsfield logado
+- **Funciona com:** Claude e ChatGPT
+- **Por baixo:** `advalidado-weightloss`, `Higgsfield`
+
+### Montar no HyperFrames a partir do avatar e dos b-rolls prontos
+
+*Nível: completo* · *Tempo: cerca de 30–60 min*
+
+```text
+Use a skill advalidado-weightloss: monte o AD no HyperFrames com o avatar [ARQUIVOS DO AVATAR: HOOK E CORPO] e os b-rolls aprovados da pasta [PASTA DO JOB]/broll.
+Transcreva o avatar palavra por palavra e coloque cada b-roll na palavra que ele mostra. Edição dinâmica: punch-in a cada frase, legenda palavra por palavra na área segura do Reels, lettering nas frases fortes, X nos "no injection / no diet / no gym", seta no CTA e SFX discretos.
+Rode o check, me mostre os quadros e abra o Studio para eu conferir antes de renderizar.
+```
+
+- **O que faz:** A timeline completa no HyperFrames Studio, pronta para você revisar e renderizar.
+- **Quando usar:** Avatar e b-roll já estão prontos e aprovados.
+- **Precisa:** Vídeos do avatar (hook e corpo); B-rolls aprovados; Node e HyperFrames (aba Ambiente)
+- **Funciona com:** Claude e ChatGPT
+- **Por baixo:** `advalidado-weightloss`, `HyperFrames`, `Whisper`
+
+
 ## Conferir vídeo contra a copy
 
 Antes de entregar ou subir: o vídeo pronto conferido por quadro, pela fala e pela legenda contra a copy e contra cada comentário do copywriter. Aponta o que está fora — não conserta.

@@ -44,7 +44,7 @@ SKILLS="
 #   ./sincronizar-skills.sh && python3 gerar-guia.py && .venv/bin/python -m unittest discover -s testes
 ALUNOS="${SKILLS_ALUNOS:-$HOME/Documents/03_Apps/Editor Black Belt/skills-alunos}"
 SKILLS_ALUNOS_LISTA="
-  editor-de-reels-do-jhon
+  editor-de-reels-do-jhon advalidado-weightloss
 "
 
 [ -d "$ORIGEM" ] || { echo "x nao achei $ORIGEM" >&2; exit 1; }

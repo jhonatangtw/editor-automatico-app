@@ -1,7 +1,8 @@
 {
   "origem": "~/.claude/skills",
-  "sincronizado": "2026-10-08",
+  "sincronizado": "2026-10-13",
   "skills": {
+    "advalidado-weightloss": "8c2ed5d5432db89c",
     "avatar-vsl-video-prompts": "2b5c217f987d6bf4",
     "blackbelt-omni": "92bf9841442d048e",
     "boas-praticas-black-belt": "91468a6e28e915fd",

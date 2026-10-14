@@ -1,6 +1,6 @@
 {
- "version": "0.23.0",
- "notes": "Mac: atualizar ficou sem arrastar nada.\n\n• Quando a atualização precisa do instalador, o app baixa, coloca a versão nova em Aplicativos, fecha e abre de novo sozinho. Se algo der errado, o app antigo continua lá e o instalador abre como antes.\n• Se o app estiver aberto fora de Aplicativos (Downloads, Mesa ou de dentro do instalador), ele oferece se mudar para lá.",
+ "version": "0.23.1",
+ "notes": "Skill nova: clone de AD de emagrecimento.\n\n• advalidado-weightloss viaja no app: pega um AD de perda de peso que já vende (GLP-1, receita de gelatina, story-ad de mãe/mulher) e entrega outro com a mesma copy no corpo — personagem nova, hooks novos, avatar falante na HeyGen, b-roll palavra por palavra (metade IA, metade orgânico do TikTok recortado sem texto) e a edição dinâmica montada no HyperFrames.\n• Guia de comandos ganha o grupo \"Clone de AD de emagrecimento\" (3 comandos).",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",
