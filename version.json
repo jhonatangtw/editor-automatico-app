@@ -1,6 +1,6 @@
 {
- "version": "0.23.3",
- "notes": "Clone de AD de emagrecimento segue a copy do copywriter.\n\n• O Comando único agora lê a copy e o briefing junto com os comentários do copywriter e segue à risca: hooks e corpo como vieram, cada pedido de insert, b-roll ou lettering vira item do plano, e personagem e voz saem do briefing. Só escreve hook quando a copy não traz.\n• Na revisão, confere fala e legenda contra a copy e marca cada comentário do copywriter como atendido ou não.",
+ "version": "0.23.4",
+ "notes": "Node.js encontrado em mais computadores.\n\n• Corrigido: em alguns computadores o app dizia que o Node.js não estava instalado, mesmo estando. Agora ele procura nos lugares onde nvm, Homebrew (node@22/node@20), volta, fnm e o instalador oficial do Windows colocam o Node.\n• No Windows, um Node instalado com o app aberto aparece ao clicar em Atualizar, sem fechar o app.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",

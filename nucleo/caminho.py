@@ -38,7 +38,7 @@ CONHECIDOS = [
     "/opt/homebrew/bin", "/opt/homebrew/sbin",     # Apple Silicon
     "/usr/local/bin", "/usr/local/sbin",           # Intel
     "~/.local/bin",                                # claude, heygen
-    "~/.npm-global/bin", "~/.nvm/versions/node",   # higgsfield
+    "~/.npm-global/bin",                           # higgsfield
     "~/.bun/bin", "~/.cargo/bin", "~/go/bin",
     "/usr/bin", "/bin", "/usr/sbin", "/sbin",
 ]
@@ -53,6 +53,86 @@ def _pythons_do_usuario():
                       reverse=True)
     except OSError:
         return []
+
+
+def _versao_da_pasta(nome):
+    """"v22.11.0" -> (22, 11, 0); "node@24" -> (24,); "node" (sem número) vai
+    para a frente, porque no Homebrew é a mais nova."""
+    import re
+    n = [int(x) for x in re.findall(r"\d+", nome)]
+    return tuple(n) if n else (999,)
+
+
+def _pastas_node():
+    """Onde o Node mora quando NÃO está no PATH que o app recebe.
+
+    ⚠️ Era o "o Node está instalado e o app diz que não" dos alunos. O shell de
+    login (`zsh -l`) lê o `.zprofile`, mas o nvm, o fnm e o volta se registram
+    no `.zshrc` — que só o terminal interativo lê. E o Homebrew não liga
+    `node@22`/`node@20` no PATH (keg-only). No Windows, o Node instalado com o
+    app aberto não aparece no PATH do processo. Por isso a gente procura nas
+    pastas de cada instalador em vez de confiar no PATH.
+
+    Entram no FIM do PATH: só valem quando nenhum Node anterior foi achado, e
+    não trocam o Node de quem já tinha um funcionando."""
+    import glob
+    pastas = []
+    if sys.platform.startswith("win"):
+        for base in (os.environ.get("ProgramFiles"), os.environ.get("ProgramW6432"),
+                     os.environ.get("ProgramFiles(x86)"),
+                     os.path.join(os.environ.get("LOCALAPPDATA") or "", "Programs")):
+            if base:
+                pastas.append(os.path.join(base, "nodejs"))
+        for var in ("NVM_SYMLINK", "VOLTA_HOME"):
+            if os.environ.get(var):
+                pastas.append(os.environ[var])
+        la = os.environ.get("LOCALAPPDATA") or ""
+        pastas += [os.path.join(la, "Volta", "bin"),
+                   os.path.join(os.environ.get("ProgramFiles") or "", "Volta")]
+        return pastas
+
+    casa = os.path.expanduser("~")
+    nvm = glob.glob(os.path.join(os.environ.get("NVM_DIR") or casa + "/.nvm",
+                                 "versions", "node", "*", "bin"))
+    pastas += sorted(nvm, key=lambda d: _versao_da_pasta(os.path.basename(os.path.dirname(d))),
+                     reverse=True)
+    pastas += [casa + "/.volta/bin", casa + "/.asdf/shims",
+               casa + "/.local/share/mise/shims", casa + "/.n/bin",
+               casa + "/.local/share/fnm/aliases/default/bin",
+               casa + "/Library/Application Support/fnm/aliases/default/bin",
+               casa + "/.fnm/aliases/default/bin"]
+    for brew in ("/opt/homebrew/opt", "/usr/local/opt"):
+        kegs = [d for d in glob.glob(brew + "/node*/bin")
+                if os.path.basename(os.path.dirname(d)) == "node"
+                or os.path.basename(os.path.dirname(d)).startswith("node@")]
+        pastas += sorted(kegs, key=lambda d: _versao_da_pasta(os.path.basename(os.path.dirname(d))),
+                         reverse=True)
+    return pastas
+
+
+def _path_do_registro():
+    """O PATH que o Windows tem AGORA (usuário + sistema), lido do registro.
+
+    O processo recebe uma cópia do PATH no arranque. Quem instala o Node com o
+    app aberto — ou com o Explorer aberto desde antes — fica com a cópia velha,
+    e o "Atualizar" nunca via o Node novo."""
+    if not sys.platform.startswith("win"):
+        return []
+    try:
+        import winreg
+    except ImportError:
+        return []
+    saida = []
+    for raiz, chave in ((winreg.HKEY_CURRENT_USER, r"Environment"),
+                        (winreg.HKEY_LOCAL_MACHINE,
+                         r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment")):
+        try:
+            with winreg.OpenKey(raiz, chave) as k:
+                valor, _ = winreg.QueryValueEx(k, "Path")
+        except OSError:
+            continue
+        saida += [os.path.expandvars(x.strip()) for x in str(valor).split(";") if x.strip()]
+    return saida
 
 
 _pronto = False
@@ -85,7 +165,7 @@ def _extras_windows():
             extras.append(os.path.join(base, n, "Scripts"))
     except Exception:
         pass
-    return extras
+    return extras + _path_do_registro() + _pastas_node()
 
 
 def _windows():
@@ -124,7 +204,7 @@ def _montar(com_shell):
 
     atual = [x for x in (os.environ.get("PATH") or "").split(":") if x]
     conhecidos = [os.path.expanduser(x) for x in CONHECIDOS] + _pythons_do_usuario()
-    fontes = ([_do_shell()] if com_shell else []) + [conhecidos, atual]
+    fontes = ([_do_shell()] if com_shell else []) + [conhecidos, atual, _pastas_node()]
     partes = []
     for lista in fontes:
         for d in lista:
@@ -172,7 +252,8 @@ def recarregar(com_shell=False):
         else:
             atual = _dirs()
             for d in ([os.path.expanduser(x) for x in CONHECIDOS]
-                      + _pythons_do_usuario() + _extras_windows()):
+                      + _pythons_do_usuario() + _extras_windows()
+                      + ([] if sys.platform.startswith("win") else _pastas_node())):
                 if d and d not in atual and os.path.isdir(d):
                     atual.append(d)
             os.environ["PATH"] = os.pathsep.join(atual)
@@ -201,4 +282,4 @@ def diagnostico():
     return {"path": os.environ.get("PATH", ""),
             "achados": {b: which(b) for b in
                         ("claude", "heygen", "higgsfield", "ffmpeg", "ffprobe",
-                         "whisper", "ant", "brew", "npm")}}
+                         "whisper", "ant", "brew", "node", "npm")}}
