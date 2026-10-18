@@ -1230,6 +1230,8 @@ class Handler(BaseHTTPRequestHandler):
             if caminho == "/api/midia/baixar":
                 codigo, d = rota_midia_baixar(corpo)
                 return self._json(d, codigo)
+            if caminho == "/api/blackbeltedit/instalar":
+                return self._json(blackbeltedit.instalar())
             if caminho == "/api/blackbeltedit/abrir":
                 return self._json(blackbeltedit.abrir(corpo.get("arquivo") or None))
             if caminho == "/api/midia/mostrar":

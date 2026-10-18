@@ -2830,9 +2830,12 @@ async function telaEditor() {
     ? `<div class="aviso">Por enquanto o BlackBeltEdit é só para Mac (Apple Silicon).</div>`
     : e.instalado
       ? `<div class="aviso bom">${ic('editor')}Instalado neste Mac${e.versao ? ` · versão ${esc(e.versao)}` : ''}.</div>`
-      : `<div class="aviso ruim">Ainda não está instalado neste Mac. Abra o instalador (.dmg) do BlackBeltEdit e arraste o app para Aplicativos; depois volte aqui.</div>`;
+      : `<div class="aviso ruim">Ainda não está instalado neste Mac. Clique em Instalar — o app baixa e coloca em Aplicativos para você (~35 MB).</div>`;
   moldura(`
-    ${cabecalho('editor', e.instalado ? `<button class="bt principal grande" id="bbe-abrir">${ic('editor')}Abrir o BlackBeltEdit</button>` : '')}
+    ${cabecalho('editor', !e.suportado ? '' : e.instalado
+      ? `<button class="bt discreto" id="bbe-instalar" title="Baixa a versão beta mais recente e substitui a instalada">Atualizar</button>
+         <button class="bt principal grande" id="bbe-abrir">${ic('editor')}Abrir o BlackBeltEdit</button>`
+      : `<button class="bt principal grande" id="bbe-instalar">${ic('editor')}Instalar o BlackBeltEdit (beta)</button>`)}
     ${status}
     <section class="grupo" style="margin-top:22px">
       <div class="grupo-cab"><h2>O que é</h2>
@@ -2854,6 +2857,17 @@ async function telaEditor() {
         </ul>
       </div>
     </section>`);
+  const bi = document.getElementById('bbe-instalar');
+  if (bi) bi.onclick = async () => {
+    bi.disabled = true; bi.classList.add('ocupado');
+    const txt = bi.innerHTML; bi.textContent = 'Baixando e instalando…';
+    try {
+      const r = await post('/api/blackbeltedit/instalar');
+      toast(r.msg || (r.ok ? 'Instalado.' : 'Não consegui instalar.'), !r.ok);
+      if (r.ok) return telaEditor();
+    } catch (err) { toast(err.message, true); }
+    bi.disabled = false; bi.classList.remove('ocupado'); bi.innerHTML = txt;
+  };
   const b = document.getElementById('bbe-abrir');
   if (b) b.onclick = async () => {
     b.disabled = true;

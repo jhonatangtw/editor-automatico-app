@@ -1,6 +1,6 @@
 {
- "version": "0.23.4",
- "notes": "Node.js encontrado em mais computadores.\n\n• Corrigido: em alguns computadores o app dizia que o Node.js não estava instalado, mesmo estando. Agora ele procura nos lugares onde nvm, Homebrew (node@22/node@20), volta, fnm e o instalador oficial do Windows colocam o Node.\n• No Windows, um Node instalado com o app aberto aparece ao clicar em Atualizar, sem fechar o app.",
+ "version": "0.24.0",
+ "notes": "Novo: Editor de vídeo (beta).\n\n• No menu lateral, \"Editor de vídeo\" traz o BlackBeltEdit, o nosso editor com timeline, Tools PRO embutido e assistente de IA — sem precisar do Premiere.\n• Um clique instala (ou atualiza) o BlackBeltEdit em Aplicativos e outro abre. Por enquanto só para Mac com chip Apple.\n• É beta: confira o vídeo exportado antes de entregar a cliente e mantenha o Premiere como plano B.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",
