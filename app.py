@@ -91,7 +91,7 @@ if "--mcp" in sys.argv:
     sys.exit(0)
 
 from nucleo import instalar_mac  # noqa: E402
-from nucleo import (adobe, ambiente, atualizacao, cancelar, chaves, claude,  # noqa: E402
+from nucleo import (adobe, ambiente, atualizacao, blackbeltedit, cancelar, chaves, claude,  # noqa: E402
                     conta, conversa, conversas,
                     decupar, etapas, gerar, ia, midia, montagem, pipeline, plugin,
                     ponte, preparar, projetos, qc, servicos, skill, skills, voz)
@@ -737,6 +737,7 @@ ROTAS_GET = {
     "/api/servicos": lambda h: rota_servicos(_forcar(h)),
     "/api/projetos": lambda h: rota_projetos(None),
     "/api/estilos": lambda h: {"estilos": skill.estilos()},
+    "/api/blackbeltedit": lambda h: blackbeltedit.estado(),
 }
 
 
@@ -1229,6 +1230,8 @@ class Handler(BaseHTTPRequestHandler):
             if caminho == "/api/midia/baixar":
                 codigo, d = rota_midia_baixar(corpo)
                 return self._json(d, codigo)
+            if caminho == "/api/blackbeltedit/abrir":
+                return self._json(blackbeltedit.abrir(corpo.get("arquivo") or None))
             if caminho == "/api/midia/mostrar":
                 try:
                     return self._json({"ok": midia.mostrar(corpo.get("p") or "")})

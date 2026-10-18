@@ -6,7 +6,8 @@ const TOKEN = new URLSearchParams(location.search).get('t') || '';
 const raiz  = document.getElementById('raiz');
 
 let E = null;            // estado do app (conta, serviços, ferramentas)
-let aba = 'inicio';
+// `#editor`, `#guia`… no endereço abre direto naquela seção (link de aula, suporte)
+let aba = ['inicio', 'chat', 'projetos', 'contas', 'ambiente', 'guia', 'editor'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'inicio';
 let projetoAberto = null;
 let conversaAtual = null;
 let ATT = null;          // versão nova publicada, quando houver
@@ -514,6 +515,7 @@ function telaCadastro() {
    internet, então nada de pacote de ícones de fora. */
 const ICONE = {
   inicio: '<path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/>',
+  editor: '<rect x="3" y="5" width="18" height="12" rx="1.5"/><path d="M3 20h18M7 17v3M12 17v3M17 17v3M10 9l4 2-4 2z"/>',
   chat: '<path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-4.5 3.5V16H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/><path d="M8.5 10.5h7M8.5 13h4"/>',
   projetos: '<circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/>',
   contas: '<circle cx="9" cy="9" r="3.2"/><path d="M3.8 19c.6-3 2.6-4.6 5.2-4.6s4.6 1.6 5.2 4.6"/><path d="M15.5 6.2a3 3 0 0 1 0 5.6M17.8 14.8c1.3.7 2.1 2.1 2.4 4.2"/>',
@@ -539,6 +541,7 @@ const SECOES = {
   projetos: ['Histórico', 'Suas conversas anteriores. Abrir uma volta com tudo o que já foi feito.'],
   contas:   ['Contas', 'As ferramentas de IA que o app usa, cada uma entrando com a SUA conta.'],
   ambiente: ['Ambiente', 'Os programas que o app precisa neste computador. Ele instala o que faltar.'],
+  editor:   ['Editor de vídeo', 'BlackBeltEdit: o nosso editor com timeline, Tools PRO embutido e assistente de IA — sem precisar do Premiere.'],
   guia:     ['Guia de comandos', 'Os melhores pedidos para a IA, prontos para copiar — com o que cada um faz e o que precisa estar aberto.'],
 };
 
@@ -567,6 +570,7 @@ function moldura(conteudo) {
     ['contas',    'contas',   'Contas'],
     ['ambiente',  'ambiente', 'Ambiente'],
     ['guia',      'guia',     'Guia de comandos'],
+    ['editor',    'editor',   'Editor de vídeo', '<span class="selo-beta">beta</span>'],
   ];
   const nome = E?.conta?.nome || 'Conectado';
   raiz.innerHTML = `
@@ -2817,6 +2821,50 @@ async function conferirPasta() {
 }
 
 // ---------------------------------------------------------------- ciclo
+// BlackBeltEdit (beta): o editor próprio, programa à parte. Esta tela só diz o
+// que ele é, se está instalado e abre. Beta de verdade: a tela fala o que já
+// funciona e o que ainda não, para ninguém trocar o Premiere sem saber.
+async function telaEditor() {
+  const e = await api('/api/blackbeltedit');
+  const status = !e.suportado
+    ? `<div class="aviso">Por enquanto o BlackBeltEdit é só para Mac (Apple Silicon).</div>`
+    : e.instalado
+      ? `<div class="aviso bom">${ic('editor')}Instalado neste Mac${e.versao ? ` · versão ${esc(e.versao)}` : ''}.</div>`
+      : `<div class="aviso ruim">Ainda não está instalado neste Mac. Abra o instalador (.dmg) do BlackBeltEdit e arraste o app para Aplicativos; depois volte aqui.</div>`;
+  moldura(`
+    ${cabecalho('editor', e.instalado ? `<button class="bt principal grande" id="bbe-abrir">${ic('editor')}Abrir o BlackBeltEdit</button>` : '')}
+    ${status}
+    <section class="grupo" style="margin-top:22px">
+      <div class="grupo-cab"><h2>O que é</h2>
+        <p class="sub">Uma interface de edição completa, nossa: projeto, monitores, timeline com várias trilhas, cor, áudio, legendas e exportação. Tudo em português e com o visual Black Belt.</p></div>
+      <div class="surf" style="padding:16px 18px;line-height:1.6">
+        <b>Já dá para usar</b>
+        <ul style="margin:8px 0 14px 18px">
+          <li>Criar, salvar e reabrir projetos; importar vídeo, cortar e montar na timeline; exportar em H.264.</li>
+          <li><b>Tools PRO embutido</b> (painel à direita): cortar silêncios, transições, efeitos sonoros do Baú, zoom animado, apresentador em janela, copiar ajustes, legendas (.srt), corrigir legenda pela copy, baixar vídeo de link e exportar com a nomenclatura de entregáveis.</li>
+          <li><b>Acabamento premium</b>: legenda com palavra ativa, lettering com brilho, flash de luz e CTA.</li>
+          <li><b>Assistente de IA</b> dentro do editor (Claude ou Codex, com a sua conta): você pede em português e ele edita a timeline; tudo volta com Desfazer.</li>
+          <li>Receber e enviar sequência do Premiere (pelo Tools PRO).</li>
+        </ul>
+        <b>Ainda é beta</b>
+        <ul style="margin:8px 0 0 18px">
+          <li>Não abre o arquivo .prproj direto — traga a sequência do Premiere pelo menu BlackBelt.</li>
+          <li>Algumas transições e estilos de legenda do Tools PRO são aproximações; os recursos de After Effects ainda não vieram.</li>
+          <li>Para entregas de cliente, confira o vídeo exportado antes de enviar e mantenha o Premiere como plano B.</li>
+        </ul>
+      </div>
+    </section>`);
+  const b = document.getElementById('bbe-abrir');
+  if (b) b.onclick = async () => {
+    b.disabled = true;
+    try {
+      const r = await post('/api/blackbeltedit/abrir');
+      toast(r.msg || (r.ok ? 'Abrindo…' : 'Não consegui abrir.'), !r.ok);
+    } catch (err) { toast(err.message, true); }
+    b.disabled = false;
+  };
+}
+
 async function desenhar() {
   try {
     if (projetoAberto) return await telaProjeto();
@@ -2825,6 +2873,7 @@ async function desenhar() {
     if (aba === 'contas') return await telaContas();
     if (aba === 'ambiente') return await telaAmbiente();
     if (aba === 'guia') return await telaGuia();
+    if (aba === 'editor') return await telaEditor();
     return await telaProjetos();
   } catch (e) {
     toast(e.message, true);
