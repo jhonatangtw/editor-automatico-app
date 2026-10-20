@@ -1,6 +1,6 @@
 {
- "version": "0.24.0",
- "notes": "Novo: Editor de vídeo (beta).\n\n• No menu lateral, \"Editor de vídeo\" traz o BlackBeltEdit, o nosso editor com timeline, Tools PRO embutido e assistente de IA — sem precisar do Premiere.\n• Um clique instala (ou atualiza) o BlackBeltEdit em Aplicativos e outro abre. Por enquanto só para Mac com chip Apple.\n• É beta: confira o vídeo exportado antes de entregar a cliente e mantenha o Premiere como plano B.",
+ "version": "0.24.1",
+ "notes": "Correções de segurança e confiabilidade.\n\n• A Conversa volta a usar a sua chave do Claude mesmo quando o programa \"ant\" está instalado sem login (antes dizia \"Sem credencial\").\n• A IA da Conversa não consegue mais gerar imagem, vídeo ou voz pagos por fora das etapas com aprovação.\n• Sem internet, o app abre por até 7 dias desde a última confirmação da sua conta.\n• O Ambiente avisa quando o Whisper está instalado mas quebrado, com o botão Reparar.\n• Reabrir uma etapa guarda o histórico das aprovações antigas.\n• Mensagens de erro em português, sem caminho de pasta.\n• O Editor de vídeo (beta) só aparece para Mac com chip Apple.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",
