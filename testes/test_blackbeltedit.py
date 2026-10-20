@@ -36,6 +36,33 @@ class TestBlackBeltEdit(unittest.TestCase):
             r = blackbeltedit.abrir("/nao/existe.fcproj")
             self.assertFalse(r["ok"])
 
+    def test_mac_intel_nao_e_suportado(self):
+        falso = mock.Mock(stdout="0\n")
+        with mock.patch.object(blackbeltedit.so, "MAC", True), \
+             mock.patch("platform.machine", return_value="x86_64"), \
+             mock.patch("subprocess.run", return_value=falso):
+            e = blackbeltedit.estado()
+            self.assertFalse(e["suportado"])
+            self.assertEqual(e["msg"], "Por enquanto só para Mac com chip Apple.")
+            r = blackbeltedit.instalar()
+            self.assertFalse(r["ok"])
+            self.assertIn("chip Apple", r["msg"])
+
+    def test_chip_apple_sob_rosetta_e_suportado(self):
+        with mock.patch.object(blackbeltedit.so, "MAC", True), \
+             mock.patch("platform.machine", return_value="x86_64"), \
+             mock.patch("subprocess.run", return_value=mock.Mock(stdout="1\n")):
+            self.assertTrue(blackbeltedit.estado()["suportado"])
+
+    def test_arm64_e_suportado(self):
+        with mock.patch.object(blackbeltedit.so, "MAC", True), \
+             mock.patch("platform.machine", return_value="arm64"):
+            self.assertTrue(blackbeltedit.chip_apple())
+
+    def test_windows_nao_e_suportado(self):
+        with mock.patch.object(blackbeltedit.so, "MAC", False):
+            self.assertFalse(blackbeltedit.estado()["suportado"])
+
     def test_plist_quebrado_nao_derruba(self):
         with tempfile.TemporaryDirectory() as d:
             os.makedirs(os.path.join(d, "Contents"))

@@ -2827,7 +2827,7 @@ async function conferirPasta() {
 async function telaEditor() {
   const e = await api('/api/blackbeltedit');
   const status = !e.suportado
-    ? `<div class="aviso">Por enquanto o BlackBeltEdit é só para Mac (Apple Silicon).</div>`
+    ? `<div class="aviso">${esc(e.msg || 'Por enquanto só para Mac com chip Apple.')}</div>`
     : e.instalado
       ? `<div class="aviso bom">${ic('editor')}Instalado neste Mac${e.versao ? ` · versão ${esc(e.versao)}` : ''}.</div>`
       : `<div class="aviso ruim">Ainda não está instalado neste Mac. Clique em Instalar — o app baixa e coloca em Aplicativos para você (~35 MB).</div>`;

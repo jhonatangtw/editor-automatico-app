@@ -11,6 +11,7 @@ vez de oferecer um botão que não faz nada.
 """
 
 import os
+import platform
 import plistlib
 import shutil
 import subprocess
@@ -53,10 +54,30 @@ def _versao(app):
         return ""
 
 
+MSG_SO_APPLE = "Por enquanto só para Mac com chip Apple."
+
+
+def chip_apple():
+    """O app é só arm64. `platform.machine()` como no `atualizacao._qual_asset`;
+    sob Rosetta ele diz x86_64 num Mac com chip Apple, então o sysctl confirma."""
+    if not so.MAC:
+        return False
+    if platform.machine() == "arm64":
+        return True
+    try:
+        r = subprocess.run(["sysctl", "-n", "hw.optional.arm64"],
+                           capture_output=True, text=True, timeout=5)
+        return r.stdout.strip() == "1"
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
 def estado():
     app = localizar()
+    ok = chip_apple()
     return {
-        "suportado": so.MAC,
+        "suportado": ok,
+        "msg": "" if ok else MSG_SO_APPLE,
         "instalado": bool(app),
         "caminho": app or "",
         "versao": _versao(app) if app else "",
@@ -105,8 +126,8 @@ def instalar(url=URL_DMG, destino=None):
     Baixado pelo Python, o .dmg não ganha a marca de quarentena — é isso que
     evita o "não é possível abrir" do macOS num app sem notarização, que pelo
     navegador travaria o aluno. Devolve {ok, msg}; nunca levanta."""
-    if not so.MAC:
-        return {"ok": False, "msg": "O BlackBeltEdit (beta) ainda é só para Mac."}
+    if not chip_apple():
+        return {"ok": False, "msg": MSG_SO_APPLE}
     if destino is None and _rodando():
         return {"ok": False, "msg": "Feche o BlackBeltEdit antes de instalar a versão nova."}
     tmp = tempfile.mkdtemp(prefix="blackbeltedit-")
