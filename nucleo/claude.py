@@ -176,13 +176,25 @@ def fonte():
     if os.environ.get("ANTHROPIC_AUTH_TOKEN"):
         return "ambiente", "ANTHROPIC_AUTH_TOKEN exportada no shell"
 
-    saida, erro = _cli("auth", "status")
-    if not erro and saida and "profile" in saida.lower():
-        return "perfil", saida.splitlines()[0][:120]
+    if _perfil_logado():
+        return "perfil", "conta da Anthropic conectada"
 
     if chaves.ler("claude"):
         return "chave", "chave de API guardada no cofre"
     return None, ""
+
+
+def _perfil_logado():
+    """Só conta como "perfil" se houver credencial DE VERDADE. Sem login o
+    `ant auth status` sai mesmo assim com "Active profile: default (fallback —
+    no active_config set)" — a palavra "profile" aparece e não prova nada."""
+    saida, erro = _cli("auth", "status")
+    if erro or not saida:
+        return False
+    b = saida.lower()
+    if "fallback" in b or "no active_config" in b or "not logged in" in b:
+        return False
+    return bool(_token_oauth())
 
 
 def _token_oauth():
