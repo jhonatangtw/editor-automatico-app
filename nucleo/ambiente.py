@@ -32,7 +32,11 @@ def _tem(b):
 def _versao(cmd):
     try:
         r = so.run(cmd, capture_output=True, text=True, timeout=15)
-        return (r.stdout or r.stderr).strip().splitlines()[0][:60]
+        # aviso em inglês antes da versão ("Warning: could not connect to a
+        # running Ollama instance") não é versão — e assustava o aluno
+        linhas = [l.strip() for l in ((r.stdout or "") + "\n" + (r.stderr or "")).splitlines()
+                  if l.strip() and not l.strip().lower().startswith("warning")]
+        return linhas[0][:60] if linhas else ""
     except Exception:
         return ""
 

@@ -13,6 +13,7 @@ existe pro aluno ou só pra quem tem terminal.
 import json
 import mimetypes
 import os
+import re
 import secrets
 import socket
 import sys
@@ -152,6 +153,43 @@ def tarefa_log(tid, linha):
             t["log"] = (t["log"] + [str(linha)])[-40:]
 
 
+# Caminho absoluto no meio de uma mensagem (Mac, Windows, pasta temporária)
+_CAMINHO = re.compile(r"""(?:/(?:Users|private|var|tmp|Volumes|Applications|opt|home)/|[A-Za-z]:\\)[^\s'"]+""")
+# Erro do Python que ninguém traduziu: texto em inglês e de programador
+_CRUS = (TypeError, AttributeError, IndexError, NameError, ZeroDivisionError,
+         UnicodeError, AssertionError, LookupError)
+
+
+def erro_humano(e):
+    """O erro que vai para a tela, em português e sem caminho da máquina.
+    `str(e)` cru mostrava "Expecting value: line 1 column 1", "'servico'" ou o
+    caminho inteiro de um FileNotFoundError ao aluno."""
+    if isinstance(e, json.JSONDecodeError):
+        return "Pedido inválido: os dados enviados não vieram no formato certo."
+    if isinstance(e, KeyError):
+        campo = e.args[0] if e.args else ""
+        return "Pedido inválido: faltou o campo “%s”." % campo if campo else "Pedido inválido."
+    if isinstance(e, FileNotFoundError):
+        alvo = str(e.filename or "")
+        if alvo.startswith(projetos.RAIZ):
+            return "Projeto não encontrado."
+        return "Arquivo não encontrado%s." % (": " + os.path.basename(alvo) if alvo else "")
+    if isinstance(e, PermissionError):
+        return "Sem permissão para abrir esse arquivo ou pasta."
+    if isinstance(e, OSError) and not str(e).strip()[:1].isupper():
+        return "Não consegui ler ou gravar um arquivo. Tente de novo."
+    if isinstance(e, _CRUS):
+        return "Algo deu errado aqui dentro. Tente de novo; se repetir, fale com o suporte."
+    msg = str(e) or e.__class__.__name__
+    # mensagem nossa (ValueError, RuntimeError…) fica, mas sem caminho absoluto
+    def curto(m):
+        c = m.group(0)
+        resto = c[len(c.rstrip(".,;:)")):]          # pontuação da frase volta
+        nome = re.split(r"[\\/]", c.rstrip(".,;:)").rstrip("\\/"))[-1]
+        return (nome or "arquivo") + resto
+    return _CAMINHO.sub(curto, msg)
+
+
 def tarefa_fim(tid, resultado=None, erro=None, estado=None):
     with _trava:
         t = TAREFAS.get(tid)
@@ -207,7 +245,7 @@ def em_fundo(rotulo, fn, controle=None):
         except cancelar.Cancelado:
             tarefa_fim(tid, estado="cancelado")
         except Exception as e:
-            tarefa_fim(tid, erro=str(e) or e.__class__.__name__)
+            tarefa_fim(tid, erro=erro_humano(e))
     threading.Thread(target=alvo, daemon=True).start()
     return tid
 
@@ -1169,7 +1207,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"erro": str(e)}, 404)
         except Exception as e:
             traceback.print_exc()
-            return self._json({"erro": str(e) or e.__class__.__name__}, 400)
+            return self._json({"erro": erro_humano(e)}, 400)
 
     # -------------------------------------------------------------- POST
     def do_POST(self):
@@ -1380,7 +1418,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"erro": str(e), "sem_acesso": True}, 401)
         except Exception as e:
             traceback.print_exc()
-            return self._json({"erro": str(e) or e.__class__.__name__}, 400)
+            return self._json({"erro": erro_humano(e)}, 400)
 
 
 def _tarefa_rodando():
