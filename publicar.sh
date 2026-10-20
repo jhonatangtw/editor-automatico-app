@@ -5,8 +5,9 @@
 # Windows só nasce numa máquina Windows, e o runner do GitHub é a máquina
 # Windows que não precisa existir na mesa de ninguém.
 #
-# O contrato do auto-update são TRÊS arquivos na Release "latest":
-#   EditorAutomatico.dmg              — Mac  (nome FIXO: a URL não pode mudar)
+# O contrato do auto-update são QUATRO arquivos na Release "latest":
+#   EditorAutomatico.dmg              — Mac com chip Apple (nome FIXO: a URL não pode mudar)
+#   EditorAutomatico-Intel.dmg        — Mac Intel
 #   EditorAutomatico-Instalador.exe   — Windows
 #   version.json                      — o mesmo que viaja dentro do app
 set -e
@@ -27,6 +28,14 @@ if [ -n "$(git status --porcelain)" ]; then
   exit 1
 fi
 
+# Os testes rodam AQUI também, antes de empurrar: o CI repete, mas descobrir
+# lá leva 10 minutos e uma tag já empurrada.
+echo "▸ rodando os testes"
+PY="${PY:-.venv/bin/python}"
+[ -x "$PY" ] || PY=python3
+"$PY" -m unittest discover -s testes -q || { echo "x os testes Python falharam" >&2; exit 1; }
+node --test testes/js/ >/dev/null || { echo "x os testes da tela (node --test) falharam" >&2; exit 1; }
+
 echo "▸ empurrando main e a tag"
 git push -q origin main
 git tag -f "$TAG" >/dev/null
@@ -39,7 +48,7 @@ ID=$(gh run list --repo "$REPO" --workflow publicar.yml --limit 1 --json databas
 gh run watch "$ID" --repo "$REPO" --exit-status
 
 echo "▸ conferindo o que o app vai enxergar"
-for A in EditorAutomatico.dmg EditorAutomatico-Instalador.exe version.json; do
+for A in EditorAutomatico.dmg EditorAutomatico-Intel.dmg EditorAutomatico-Instalador.exe version.json; do
   CODE=$(curl -sIL -o /dev/null -w '%{http_code}' \
         "https://github.com/$REPO/releases/latest/download/$A")
   echo "   $A -> $CODE"
