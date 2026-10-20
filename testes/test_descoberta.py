@@ -88,6 +88,11 @@ class Arquivo(_Home):
         self.assertFalse(descoberta.apagar())            # já não existe
 
 
+# O serviço sobe com o app de verdade (pywebview + Chaveiro); no runner do
+# GitHub ele não grava a descoberta e sai sem erro (medido 20/10/2026, 4/4).
+# Roda em toda máquina de gente; no CI fica de fora com o motivo dito.
+@unittest.skipIf(os.environ.get("GITHUB_ACTIONS") == "true",
+                 "precisa de sessão gráfica do macOS, que o runner não tem")
 class ModoServico(_Home):
     """O app de verdade subindo com --servico (sem janela), num HOME de sandbox."""
 

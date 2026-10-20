@@ -27,7 +27,9 @@ class ConversaUI(unittest.TestCase):
         # Sem --test-force-exit: com ele o node às vezes saía antes do último
         # caso (medido 19/10: 1 em 6 rodadas deu "# pass 23"). Sem ele roda em
         # ~2 s e não pendura; o timeout abaixo segura se um dia pendurar.
-        r = subprocess.run([NODE, "--test",
+        # --test-reporter=tap: o node do CI imprimia "ℹ fail 0" (spec) e a
+        # conferência abaixo procura o "# fail 0" do TAP.
+        r = subprocess.run([NODE, "--test", "--test-reporter=tap",
                             os.path.join(RAIZ, "testes", "js", arquivo)],
                            capture_output=True, text=True, timeout=180, cwd=RAIZ)
         saida = "\n".join(l for l in (r.stdout + r.stderr).splitlines()
