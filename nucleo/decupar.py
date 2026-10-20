@@ -24,6 +24,22 @@ def disponivel():
     return which("whisper") is not None
 
 
+def _ruido(linha):
+    """Aviso técnico em inglês que o Whisper sempre imprime no Mac (FP16 na
+    CPU) — não diz nada ao aluno e parece erro."""
+    b = linha.lower()
+    return "fp16 is not supported" in b or "warnings.warn(" in b
+
+
+def _motivo(saida):
+    """O erro certo: ambiente do Whisper quebrado não é culpa do áudio."""
+    b = (saida or "").lower()
+    if "modulenotfounderror" in b or "no module named" in b or "importerror" in b:
+        return ("O Whisper está instalado mas quebrado. Vá em Ambiente e clique em "
+                "Reparar no Whisper.")
+    return "O Whisper falhou. Confira se o arquivo tem áudio."
+
+
 def rodar(pid, modelo="medium", ao_vivo=None):
     """Gera transcricao.json com uma entrada por palavra."""
     p = projetos.ler(pid)
@@ -36,12 +52,14 @@ def rodar(pid, modelo="medium", ao_vivo=None):
 
     proc = so.popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                     text=True, bufsize=1)
+    saida = []
     for linha in proc.stdout:
-        if ao_vivo:
+        saida.append(linha)
+        if ao_vivo and not _ruido(linha):
             ao_vivo(linha.rstrip())
     proc.wait()
     if proc.returncode != 0:
-        raise RuntimeError("O Whisper falhou. Confira se o arquivo tem áudio.")
+        raise RuntimeError(_motivo("".join(saida[-40:])))
 
     base = os.path.splitext(os.path.basename(video))[0]
     bruto = os.path.join(saida_dir, base + ".json")

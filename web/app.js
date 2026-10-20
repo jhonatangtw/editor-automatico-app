@@ -2461,6 +2461,7 @@ async function telaAmbiente() {
               ${!i.essencial ? '<span class="chip">opcional</span>' : ''}</div>
             <div class="dep-para">${esc(i.para)}</div>
             ${!i.tem && i.manual ? `<div class="dep-para" style="color:var(--ouro)">${esc(i.manual)}</div>` : ''}
+            ${!i.tem && i.aviso ? `<div class="dep-para" style="color:var(--ouro)">${esc(i.aviso)}</div>` : ''}
           </div>
           <div class="dep-versao">${esc(i.versao || '')}</div>
           ${(i.acoes || []).includes('testar') ? `<button class="bt" data-inst="${i.id}-teste" title="Renderiza 1 segundo de vídeo para provar que funciona">Testar</button>` : ''}

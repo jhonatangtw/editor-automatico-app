@@ -97,6 +97,52 @@ def _hyperframes():
     return item
 
 
+_WHISPER_OK = {}
+
+
+def _whisper_funciona(exe):
+    """Testa de verdade (importa o pacote), como o instalador faz no fim.
+    `which` sozinho mostrava ✓ com o ambiente do Whisper quebrado — e a
+    decupagem falhava culpando o áudio. Guarda por arquivo+data: importar o
+    torch leva segundos e a aba Ambiente reconfere toda hora."""
+    try:
+        chave = (exe, os.path.getmtime(exe))
+    except OSError:
+        return False
+    if chave in _WHISPER_OK:
+        return _WHISPER_OK[chave]
+    env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
+    cmd = [exe, "--help"]
+    try:
+        with open(exe, "rb") as f:
+            topo = f.readline().decode("utf-8", "ignore").strip()
+        if topo.startswith("#!") and os.path.isfile(topo[2:].strip().split(" ")[0]):
+            cmd = [topo[2:].strip().split(" ")[0], "-c", "import whisper"]
+    except OSError:
+        pass
+    try:
+        ok = subprocess.run(cmd, capture_output=True, text=True, timeout=90,
+                            env=env).returncode == 0
+    except Exception:
+        ok = False
+    _WHISPER_OK[chave] = ok
+    return ok
+
+
+def _whisper():
+    item = {"id": "whisper", "nome": "Whisper", "tem": False,
+            "para": "transcrever a fala palavra por palavra, sem subir nada",
+            "essencial": True,
+            "instalavel": True}   # o uv traz o próprio Python
+    exe = shutil.which("whisper")
+    if exe and _whisper_funciona(exe):
+        item["tem"] = True
+    elif exe:
+        item["aviso"] = "Whisper instalado mas quebrado — use Reparar."
+        item["acoes"] = ["reparar"]
+    return item
+
+
 def conferir(reler_path=True):
     """O diagnóstico que a tela mostra. Cada item diz para que serve — sem isso
     o aluno vê uma lista de nomes técnicos e não sabe o que é opcional.
@@ -119,10 +165,7 @@ def conferir(reler_path=True):
         {"id": "ffprobe", "nome": "FFprobe", "tem": _tem("ffprobe"),
          "para": "ler duração, formato e fps do bruto",
          "essencial": True, "instalavel": True, "versao": ""},
-        {"id": "whisper", "nome": "Whisper", "tem": _tem("whisper"),
-         "para": "transcrever a fala palavra por palavra, sem subir nada",
-         "essencial": True,
-         "instalavel": True},   # o uv traz o próprio Python
+        _whisper(),
         {"id": "node", "nome": "Node.js", "tem": _tem("npm"),
          "para": "é por ele que Claude, Higgsfield e MiniMax se instalam",
          "essencial": True, "instalavel": brew,

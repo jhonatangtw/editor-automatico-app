@@ -38,6 +38,41 @@ class TestWhisperInstalacao(unittest.TestCase):
         self.assertTrue(itens["whisper"]["instalavel"])
 
 
+class TestWhisperDeVerdade(unittest.TestCase):
+    """`which` só não basta: ambiente quebrado aparece como quebrado."""
+
+    def setUp(self):
+        ambiente._WHISPER_OK.clear()
+        import tempfile
+        self.tmp = tempfile.mkdtemp()
+        self.exe = os.path.join(self.tmp, "whisper")
+        with open(self.exe, "w") as f:
+            f.write("#!/bin/sh\n")
+
+    def _item(self, codigo):
+        with mock.patch("shutil.which", return_value=self.exe), \
+             mock.patch("subprocess.run", return_value=mock.Mock(returncode=codigo)):
+            return ambiente._whisper()
+
+    def test_quebrado_pede_reparar(self):
+        i = self._item(1)
+        self.assertFalse(i["tem"])
+        self.assertEqual(i["aviso"], "Whisper instalado mas quebrado — use Reparar.")
+        self.assertIn("reparar", i["acoes"])
+        self.assertNotIn("manual", i)      # senão o Preparar pularia o conserto
+
+    def test_funcionando(self):
+        self.assertTrue(self._item(0)["tem"])
+
+    def test_decupar_nao_culpa_o_audio(self):
+        from nucleo import decupar
+        m = decupar._motivo("Traceback...\nModuleNotFoundError: No module named 'whisper'")
+        self.assertIn("Reparar", m)
+        self.assertNotIn("áudio", m)
+        self.assertIn("áudio", decupar._motivo("RuntimeError: bad file"))
+        self.assertTrue(decupar._ruido("UserWarning: FP16 is not supported on CPU; using FP32 instead"))
+
+
 if __name__ == "__main__":
     unittest.main()
 
