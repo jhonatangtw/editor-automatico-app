@@ -200,26 +200,38 @@ isso está cheio; na de um editor, vazio — então o mesmo app, com o mesmo Cla
 respondia com um repertório completamente diferente conforme quem abria, e sem
 nenhum aviso.
 
-O app leva treze e as instala com um clique (aba **Ambiente**, card no topo — ou
-junto com tudo, em **Preparar esta máquina**):
+O app leva vinte (a lista sai de `skills/FONTE.json`) e as instala com um
+clique (aba **Ambiente**, card no topo — ou junto com tudo, em **Preparar esta
+máquina**):
 
 | Skill | Para quê |
 |---|---|
 | `editor-automatico-de-broll` | a régua da edição: punch, cadência, marcador, portão |
+| `editor-de-reels-do-jhon` | Reels de talking head do bruto ao vídeo pronto |
+| `clone-ad-validado` | clonar um AD que já vende trocando personagem e/ou copy |
+| `advalidado-weightloss` | clone de AD validado de emagrecimento, de ponta a ponta |
+| `hooks-meat-hook` | hooks novos no formato Meat Hook para ADs de saúde |
+| `conferir-ads-por-frame` | conferência (QA) de ADs prontos: imagem, legenda e fala |
+| `boas-praticas-black-belt` | armadilhas e receitas por ferramenta, antes de gerar |
+| `skill-black-belt` | pipeline de criativo de vídeo IA para direct response |
+| `avatar-vsl-video-prompts` | prompts de avatar falante (UGC / VSL) |
 | `photorealism-prompts` | prompts de imagem ultrarrealista |
 | `pixar3d` | personagens 3D estilo Pixar para criativo |
 | `storyboard-viral-3d` | storyboard cena a cena |
 | `video-prompt-builder` | shot list e prompts de vídeo |
-| `skill-black-belt` | pipeline de criativo de vídeo IA para direct response |
-| `avatar-vsl-video-prompts` | prompts de avatar falante (UGC / VSL) |
 | `blackbelt-omni` | clipes de 10s no estilo Black Belt para o Omni Flash |
-| `gemini-omni` | motion graphics sobre vídeo selfie no Gemini Omni |
 | `omni-flash-reverse` | engenharia reversa de uma referência de motion |
-| `video-to-flow` | vídeo pronto → workflow de edição no Google Flow |
-| `motion-viral-jhon1` | Reels de motion no After Effects, via Tools PRO |
 | `motion-omni-vsl` | lotes de overlay (cartelas, preço, garantia) para VSL |
+| `motion-design` | prompts de motion design a partir de galeria ou vídeo de referência |
+| `vibe-motion` | prompts de motion graphics para o Vibe Motion |
+| `video-to-flow` | vídeo pronto → workflow de edição no Google Flow |
+| `plataforma-ia-higgsfield` | montar uma plataforma web própria de geração com IA |
 
-Ficam de fora de propósito: `corte-viral` (precisa de venv própria, do modelo
+As que ensinam a gerar por fora (`higgsfield generate`, `heygen`…) levam no
+topo o aviso de que, dentro do app, gerar é só pelas etapas do pipeline.
+
+Ficam de fora de propósito: `motion-viral-jhon1` e `gemini-omni` (feitas para
+os vídeos de uma pessoa específica, não são genéricas), `corte-viral` (precisa de venv própria, do modelo
 YuNet e de subagentes em `~/.claude/agents`, que o app ainda não instala) e
 `motion-vox` (a fonte está sem os PNGs de asset).
 
