@@ -460,7 +460,7 @@ def destino_da_conversa(cid):
         return None
     m = conversas.meta(cid)
     pid = m.get("projeto")
-    if pid and os.path.isdir(projetos.dir_projeto(pid)):
+    if pid and projetos.valido(pid) and os.path.isdir(projetos.dir_projeto(pid)):
         return {"pasta": projetos.dir_projeto(pid), "projeto": pid,
                 "nome": _nome_projeto(pid)}
     pasta = m.get("pasta_projeto")

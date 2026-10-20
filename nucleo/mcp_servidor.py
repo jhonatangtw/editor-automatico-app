@@ -133,6 +133,8 @@ def _chamar(nome, a):
     pid = a.get("projeto")
     if not pid:
         return {"erro": "falta o id do projeto"}
+    if not projetos.existe(pid):
+        return {"erro": "Projeto não encontrado. Use projetos_listar para ver os ids."}
     est = projetos.estado_pipeline(pid)
 
     if nome == "projeto_estado":

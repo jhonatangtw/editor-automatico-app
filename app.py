@@ -393,6 +393,7 @@ def rota_pipeline(pid):
 def rota_etapa_iniciar(pid, eid, corpo):
     """O ponto onde o portão vale dinheiro: `pipeline.iniciar` levanta Bloqueado
     ANTES de qualquer chamada paga. A ordem destas linhas é a regra inteira."""
+    projetos.exigir(pid)                 # id qualquer não vira pasta-fantasma
     est = projetos.estado_pipeline(pid)
     pipeline.iniciar(est, eid)           # <- portão. Nada sai daqui sem passar.
     projetos.gravar_pipeline(pid, est)
@@ -515,7 +516,7 @@ def rota_destino(cid, corpo):
         raise ValueError("Conversa inválida.")
     if corpo.get("projeto"):
         pid = corpo["projeto"]
-        if "/" in pid or ".." in pid or not os.path.isdir(projetos.dir_projeto(pid)):
+        if not projetos.existe(pid):
             raise ValueError("Projeto não encontrado.")
         conversas.gravar_meta(cid, projeto=pid)
     else:
@@ -692,6 +693,9 @@ def rota_anexo(handler, cid):
 def rota_limpar(cid):
     """/limpar: apaga as mensagens desta conversa e começa sessão nova da IA
     (sem a memória do que foi dito). O projeto continua amarrado."""
+    conversas.validar(cid)
+    if not os.path.isdir(conversas.dir_conversa(cid)):
+        raise ValueError("Conversa não encontrada.")
     conversas.gravar_mensagens(cid, [])
     for arq in ("sessao.txt", "codex.txt"):
         try:
@@ -919,8 +923,7 @@ class Handler(BaseHTTPRequestHandler):
         rel = caminho.lstrip("/") or "index.html"
         alvo = os.path.normpath(os.path.join(WEB, rel))
         if not alvo.startswith(WEB) or not os.path.isfile(alvo):
-            self.send_response(404), self.end_headers()
-            return
+            return self._vazio(404)     # sem Content-Length a conexão HTTP/1.1 pendura
         tipo = mimetypes.guess_type(alvo)[0] or "application/octet-stream"
         with open(alvo, "rb") as f:
             dados = f.read()
@@ -1061,6 +1064,8 @@ class Handler(BaseHTTPRequestHandler):
             if caminho in ROTAS_GET:
                 return self._json(ROTAS_GET[caminho](self))
             partes = caminho.strip("/").split("/")
+            if len(partes) >= 3 and partes[1] == "projetos":
+                projetos.exigir(partes[2])
             if len(partes) == 3 and partes[1] == "projetos":
                 return self._json(rota_projeto(partes[2]))
             if caminho == "/api/claude":
@@ -1159,6 +1164,8 @@ class Handler(BaseHTTPRequestHandler):
                 # e não no meio da primeira mensagem, com a conversa parada
                 return self._json(conversas.garantir_acesso())
             return self._json({"erro": "rota não existe"}, 404)
+        except projetos.NaoEncontrado as e:
+            return self._json({"erro": str(e)}, 404)
         except Exception as e:
             traceback.print_exc()
             return self._json({"erro": str(e) or e.__class__.__name__}, 400)
@@ -1240,9 +1247,7 @@ class Handler(BaseHTTPRequestHandler):
                 except PermissionError as e:
                     return self._json({"erro": str(e)}, 403)
             if len(partes) == 4 and partes[1] == "conversas" and partes[3] == "renomear":
-                cid = partes[2]
-                if "/" in cid or ".." in cid:
-                    raise ValueError("Conversa inválida.")
+                cid = conversas.validar(partes[2])
                 return self._json({"ok": True, "meta": conversas.renomear(cid, corpo.get("titulo"))})
             if len(partes) == 4 and partes[1] == "conversas" and partes[3] == "destino":
                 return self._json(rota_destino(partes[2], corpo))
@@ -1333,6 +1338,8 @@ class Handler(BaseHTTPRequestHandler):
 
             if caminho == "/api/projetos":
                 return self._json(rota_projeto_novo(corpo))
+            if len(partes) >= 3 and partes[1] == "projetos":
+                projetos.exigir(partes[2])
 
             if len(partes) == 4 and partes[1] == "projetos":
                 pid, acao = partes[2], partes[3]
@@ -1365,6 +1372,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"erro": "rota não existe"}, 404)
         except pipeline.Bloqueado as e:
             return self._json({"erro": str(e), "bloqueado": True}, 409)
+        except projetos.NaoEncontrado as e:
+            return self._json({"erro": str(e)}, 404)
         except Exception as e:
             traceback.print_exc()
             return self._json({"erro": str(e) or e.__class__.__name__}, 400)

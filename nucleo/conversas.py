@@ -197,12 +197,17 @@ def renomear(cid, titulo):
     return gravar_meta(cid, titulo=titulo, titulo_manual=True)
 
 
-def apagar(cid):
-    import shutil
+def validar(cid):
     # o id vem da tela (agora também do painel do Premiere): nada de "..",
     # barra ou vazio — senão "apagar conversa" viraria apagar qualquer pasta
     if not cid or not isinstance(cid, str) or any(x in cid for x in ("/", "\\", "..")) or cid.startswith("."):
         raise ValueError("Conversa inválida.")
+    return cid
+
+
+def apagar(cid):
+    import shutil
+    validar(cid)
     d = dir_conversa(cid)
     if os.path.isdir(d):
         shutil.rmtree(d)

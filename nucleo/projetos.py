@@ -27,8 +27,37 @@ def _id(nome):
     return (base or "projeto") + "-" + str(int(time.time()))[-6:]
 
 
+class NaoEncontrado(ValueError):
+    """Projeto que não existe (ou id que nem é de projeto). Vira 404 na rota."""
+
+    def __init__(self, msg="Projeto não encontrado."):
+        super().__init__(msg)
+
+
+def valido(pid):
+    """O id vem da tela, do painel e da IA: nada de "..", barra ou vazio —
+    senão "apagar projeto" viraria apagar qualquer pasta (a mesma regra de
+    `conversas.apagar`)."""
+    return (isinstance(pid, str) and bool(pid.strip()) and not pid.startswith(".")
+            and not any(x in pid for x in ("/", "\\", "..", "\0")))
+
+
 def dir_projeto(pid):
+    if not valido(pid):
+        raise NaoEncontrado("Projeto inválido.")
     return os.path.join(RAIZ, pid)
+
+
+def existe(pid):
+    return valido(pid) and os.path.isfile(caminho(pid, "plano.json"))
+
+
+def exigir(pid):
+    """Para as rotas: projeto tem que existir de verdade antes de qualquer
+    gravação — senão uma etapa num id qualquer criava pasta-fantasma."""
+    if not existe(pid):
+        raise NaoEncontrado()
+    return pid
 
 
 def caminho(pid, *partes):
@@ -105,6 +134,7 @@ def estado_pipeline(pid):
 
 
 def gravar_pipeline(pid, est):
+    exigir(pid)
     _gravar(caminho(pid, "pipeline.json"), est)
     return est
 
@@ -167,7 +197,7 @@ def listar():
 
 
 def apagar(pid):
-    d = dir_projeto(pid)
+    d = dir_projeto(pid)     # levanta se o id não for de projeto
     if os.path.isdir(d):
         shutil.rmtree(d)
     return True
