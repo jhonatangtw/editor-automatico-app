@@ -127,8 +127,9 @@ def situacao(est, eid):
 
 
 def aprovada(est, eid):
-    """Aprovação EXPLÍCITA — não confundir com concluída."""
-    return any(a["etapa"] == eid and a["acao"] == "aprovou"
+    """Aprovação EXPLÍCITA — não confundir com concluída. Aprovação de antes
+    de uma reabertura fica no registro, mas marcada como invalidada."""
+    return any(a["etapa"] == eid and a["acao"] == "aprovou" and not a.get("invalidada")
                for a in est.get("aprovacoes", []))
 
 
@@ -244,7 +245,13 @@ def reabrir(est, eid, quem, nota=""):
         if situacao(est, outro)["status"] != PENDENTE:
             derrubadas.append(outro)
         marcar(est, outro, PENDENTE, dados={} if outro != eid else None)
-    est["aprovacoes"] = [a for a in est["aprovacoes"] if a["etapa"] not in ORDEM[i:]]
+    # "todo julgamento fica registrado": o que valia antes NÃO some — só deixa
+    # de valer. `aprovada()` ignora o que está invalidado.
+    quando = _agora()
+    for a in est["aprovacoes"]:
+        if a["etapa"] in ORDEM[i:] and not a.get("invalidada"):
+            a["invalidada"] = quando
+            a["invalidada_por"] = "reabertura da etapa " + eid
     est["aprovacoes"].append({"etapa": eid, "acao": "reabriu", "quem": quem,
                               "quando": _agora(), "nota": nota,
                               "derrubou": derrubadas})

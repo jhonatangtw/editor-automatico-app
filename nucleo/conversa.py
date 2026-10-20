@@ -524,7 +524,8 @@ def _contexto_ambiente(pid):
             if pnl["aprovacoes"]:
                 linhas.append("- Últimas aprovações: %s"
                               % "; ".join("%s %s" % (x["acao"], x["etapa"])
-                                          for x in pnl["aprovacoes"][:4]))
+                                          for x in [a for a in pnl["aprovacoes"]
+                                                    if not a.get("invalidada")][:4]))
             linhas.append("- Passe `projeto: \"%s\"` nas ferramentas do pipeline." % pid)
         except Exception:
             pass
