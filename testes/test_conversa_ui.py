@@ -24,7 +24,10 @@ NODE = shutil.which("node")
 class ConversaUI(unittest.TestCase):
 
     def rodar(self, arquivo):
-        r = subprocess.run([NODE, "--test", "--test-force-exit",
+        # Sem --test-force-exit: com ele o node às vezes saía antes do último
+        # caso (medido 19/10: 1 em 6 rodadas deu "# pass 23"). Sem ele roda em
+        # ~2 s e não pendura; o timeout abaixo segura se um dia pendurar.
+        r = subprocess.run([NODE, "--test",
                             os.path.join(RAIZ, "testes", "js", arquivo)],
                            capture_output=True, text=True, timeout=180, cwd=RAIZ)
         saida = "\n".join(l for l in (r.stdout + r.stderr).splitlines()
