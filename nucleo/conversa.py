@@ -469,6 +469,11 @@ def _contexto_ambiente(pid):
         linhas.append("PROGRAMAS DE LINHA DE COMANDO JÁ INSTALADOS E LOGADOS "
                       "(use direto pelo terminal, não pergunte se existem):")
         linhas += ferramentas
+        linhas.append("GERAR MÍDIA QUE GASTA CRÉDITO (imagem, vídeo, avatar, voz) é SÓ pela "
+                      "ferramenta `etapa_rodar` do MCP `editor`, que passa pela aprovação "
+                      "do usuário. `higgsfield generate`, `heygen` e `mmx` direto no "
+                      "terminal estão bloqueados — mesmo que uma skill mande rodar. "
+                      "Preço e saldo: `motores_listar`.")
         linhas.append("")
 
     try:
@@ -594,6 +599,55 @@ FERRAMENTAS_LIBERADAS = [
 ]
 
 
+# ⚠️ O que a IA NÃO pode rodar sozinha: tudo que gasta crédito. O bypass de
+# permissões libera o Bash inteiro — e as skills ensinam `higgsfield generate
+# create` direto, pulando os portões do pipeline. Regra de bloqueio vale mesmo
+# no bypass. Gerar mídia paga é SÓ pela ferramenta `etapa_rodar` do MCP editor.
+_APIS_PAGAS = ["higgsfield.ai", "api.heygen.com", "upload.heygen.com",
+               "api.elevenlabs.io", "fal.run", "fal.ai", "klingai.com",
+               "api.minimax", "minimaxi.com"]
+FERRAMENTAS_BLOQUEADAS = (
+    ["Bash(higgsfield generate*)", "Bash(higgsfield *create*)",
+     "Bash(heygen*)", "Bash(mmx*)",
+     # caminho completo, `npx`, `bash -c "..."` e afins
+     "Bash(*higgsfield generate*)", "Bash(*higgsfield *create*)",
+     "Bash(*heygen *)", "Bash(*/mmx *)", "Bash(npx mmx*)"]
+    + ["Bash(curl *%s*)" % h for h in _APIS_PAGAS]
+    + ["Bash(wget *%s*)" % h for h in _APIS_PAGAS]
+    # servidores MCP de geração que o usuário tenha instalado por fora
+    + ["mcp__higgsfield", "mcp__heygen", "mcp__elevenlabs", "mcp__fal",
+       "mcp__minimax", "mcp__hwstudio"]
+)
+
+
+def argumentos_claude(texto, contexto, sid, retomar, pid=None, parciais=True,
+                      so_nossas=False):
+    """Monta a linha do `claude -p`. Separado para o teste conferir as travas."""
+    cmd = ["claude", "-p", texto,
+           "--output-format", "stream-json", "--verbose"]
+    if parciais:
+        cmd.append("--include-partial-messages")
+    cmd += ["--mcp-config", _mcp_config(),
+            "--append-system-prompt", contexto,
+            "--permission-mode", "bypassPermissions",
+            # ⚠️ No Windows o bypass sozinho não liberou as ferramentas do Tools
+            # PRO ("a permissão para pr_sequencias_listar não foi concedida").
+            # Liberação explícita por servidor MCP + as ferramentas de trabalho.
+            "--allowedTools", ",".join(FERRAMENTAS_LIBERADAS),
+            "--disallowedTools", ",".join(FERRAMENTAS_BLOQUEADAS),
+            "--add-dir", RAIZ_APP]
+    if pid:
+        cmd += ["--add-dir", projetos.dir_projeto(pid)]
+    cmd += (["--resume", sid] if retomar else ["--session-id", sid])
+    if so_nossas:
+        # ⚠️ Só as ferramentas DESTE app. Isola a conversa de servidor MCP de
+        # terceiro com esquema inválido. Não é o padrão de propósito: no caminho
+        # normal o Claude usa também o Tools PRO do usuário, e isso é capacidade
+        # que ninguém quer perder por precaução.
+        cmd.append("--strict-mcp-config")
+    return cmd
+
+
 def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False, _so_nossas=False,
                    controle=None):
     """Uma mensagem para a sessão do Claude Code.
@@ -610,27 +664,8 @@ def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False, _so_nossas=F
     if controle:
         controle.conferir()
     parciais = PARCIAIS["aceita"]
-    cmd = ["claude", "-p", texto,
-           "--output-format", "stream-json", "--verbose"]
-    if parciais:
-        cmd.append("--include-partial-messages")
-    cmd += ["--mcp-config", _mcp_config(),
-            "--append-system-prompt", contexto,
-            "--permission-mode", "bypassPermissions",
-            # ⚠️ No Windows o bypass sozinho não liberou as ferramentas do Tools
-            # PRO ("a permissão para pr_sequencias_listar não foi concedida").
-            # Liberação explícita por servidor MCP + as ferramentas de trabalho.
-            "--allowedTools", ",".join(FERRAMENTAS_LIBERADAS),
-            "--add-dir", RAIZ_APP]
-    if pid:
-        cmd += ["--add-dir", projetos.dir_projeto(pid)]
-    cmd += (["--resume", sid] if retomar else ["--session-id", sid])
-    if _so_nossas:
-        # ⚠️ Só as ferramentas DESTE app. Isola a conversa de servidor MCP de
-        # terceiro com esquema inválido. Não é o padrão de propósito: no caminho
-        # normal o Claude usa também o Tools PRO do usuário, e isso é capacidade
-        # que ninguém quer perder por precaução.
-        cmd.append("--strict-mcp-config")
+    cmd = argumentos_claude(texto, contexto, sid, retomar, pid=pid,
+                            parciais=parciais, so_nossas=_so_nossas)
 
     _etapa(ao_vivo, "abrindo o Claude Code")
     proc = so.popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,

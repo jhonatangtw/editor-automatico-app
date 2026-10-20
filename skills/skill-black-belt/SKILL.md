@@ -4,6 +4,9 @@ description: >-
   Pipeline completo de criativos de vídeo IA para direct response (VSL, UGC, TikTok Shop, Meta Ads) — do prompt à execução no Higgsfield. Núcleo: prompts de vídeo para avatares falantes a partir de copy + imagem (Veo 3.1, Kling V3, Seedance 2.0), em blocos autocontidos ≤2500 chars com travas anti-bug. Módulos: storyboard viral 3D Pixar cena a cena pro TikTok Shop; prompts shot-by-shot de efeitos (brand film, B-roll); prompts de imagem ultrarrealista (start frame, produto). Executa manual ou via Higgsfield MCP (Seedance 2.0, Nano Banana Pro). Use SEMPRE que o usuário enviar copy de anúncio com imagem de avatar, pedir "separe em blocos", "talking head", "avatar falando", "image-to-video", mencionar Veo/Kling/Seedance, pedir storyboard, "criativo cena por cena", "personagem 3D", "criativo viral", "prompt de vídeo", "shot list", "gerar imagem", "fotorrealismo", "start frame", corrigir/regerar bloco (fala corrida, legenda, voz extra, loop, erro 422), ou executar no Higgsfield.
 ---
 
+<!-- editor-automatico:portao-de-credito -->
+> **No Editor Automático:** gerar imagem, vídeo, avatar ou voz que gasta crédito é feito **só pelas etapas do pipeline do app** (ferramenta `etapa_rodar` do MCP `editor`), que mostram o preço e esperam a aprovação do aluno. Os comandos de geração citados nesta skill (`higgsfield generate`, `heygen`, `mmx`) ficam bloqueados na Conversa — use-os só como referência de modelo, prompt e parâmetros. Preço e saldo: `motores_listar`.
+
 # Skill Black Belt — Pipeline de Criativos IA (Editor Black Belt)
 
 Uma skill, quatro modos, do brief à geração. Explicações em **PT-BR; prompts em inglês**. Entrega **inline no chat** (nunca arquivo, salvo pedido).

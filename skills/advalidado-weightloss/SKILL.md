@@ -3,6 +3,9 @@ name: advalidado-weightloss
 description: Clona um AD validado de emagrecimento (story-ad de mãe/mulher, GLP-1, "receita de gelatina", resposta direta em saúde para os EUA) de ponta a ponta — ficha técnica do original, hooks novos, start frames da personagem nova (GPT Image 2.5 no Higgsfield), avatar falante na HeyGen (Avatar IV, voz desenhada), b-roll palavra por palavra (50% IA com a mesma personagem + 50% orgânico do TikTok recortado sem texto) e a edição dinâmica/dopaminérgica montada no HyperFrames (punch-in, legenda palavra por palavra na área segura do Reels, lettering nas frases fortes, X vermelho, seta de CTA, SFX discretos). Use SEMPRE que pedirem "clona esse AD de emagrecimento", "faz o ADVALIDADO-WEIGHTLOSS", "mesmo AD com outra personagem", "AD validado weight loss", ou mandarem um AD validado de perda de peso / GLP-1 / gelatina pedindo uma versão nova. NÃO é para conferir AD pronto (conferir-ads-por-frame), nem para clone fora de emagrecimento (clone-ad-validado), nem para só escrever hooks (hooks-meat-hook).
 ---
 
+<!-- editor-automatico:portao-de-credito -->
+> **No Editor Automático:** gerar imagem, vídeo, avatar ou voz que gasta crédito é feito **só pelas etapas do pipeline do app** (ferramenta `etapa_rodar` do MCP `editor`), que mostram o preço e esperam a aprovação do aluno. Os comandos de geração citados nesta skill (`higgsfield generate`, `heygen`, `mmx`) ficam bloqueados na Conversa — use-os só como referência de modelo, prompt e parâmetros. Preço e saldo: `motores_listar`.
+
 # ADVALIDADO-WEIGHTLOSS
 
 Pega um AD de emagrecimento que já vende e entrega outro, com **a mesma estrutura e a mesma copy

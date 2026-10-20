@@ -112,8 +112,16 @@ vai para a IA marcada, e a escolha fica guardada entre sessões.
 | **ChatGPT** | `codex login` na sua conta (assinatura) ou chave de API | as ferramentas do app por MCP — sem as skills do Claude Code |
 
 Os dois passam pelos **mesmos portões**: se a IA tentar gerar b-roll antes da
-aprovação do planejamento, recebe a recusa e tem que explicar. Não existe
-caminho por fora do pipeline para nenhuma das duas.
+aprovação do planejamento, recebe a recusa e tem que explicar.
+
+Gerar mídia que gasta crédito é só pela ferramenta `etapa_rodar` do app. No
+Claude, os comandos diretos (`higgsfield generate`, `heygen`, `mmx`, `curl` para
+as APIs pagas e os MCPs de geração mais comuns) vão em `--disallowedTools`, que
+vale mesmo com `bypassPermissions` — conferido com um `higgsfield` falso no PATH.
+As skills empacotadas levam no topo um aviso dizendo o mesmo
+(`limpar-skills.py` põe o aviso em toda skill que ensina a gerar por fora). No
+ChatGPT (Codex) a trava ainda é só a regra escrita no contexto: o Codex não tem
+lista de bloqueio por linha de comando — falta testar as regras `.rules` dele.
 
 **Histórico por conversa e por provedor.** A tela mostra tudo o que foi
 conversado, com o nome de quem respondeu em cada resposta; mas cada IA só recebe

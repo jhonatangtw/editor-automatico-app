@@ -13,6 +13,9 @@ description: >-
   aula (use cortar-aula), nem para gerar prompts sem editar (use skill-black-belt).
 ---
 
+<!-- editor-automatico:portao-de-credito -->
+> **No Editor Automático:** gerar imagem, vídeo, avatar ou voz que gasta crédito é feito **só pelas etapas do pipeline do app** (ferramenta `etapa_rodar` do MCP `editor`), que mostram o preço e esperam a aprovação do aluno. Os comandos de geração citados nesta skill (`higgsfield generate`, `heygen`, `mmx`) ficam bloqueados na Conversa — use-os só como referência de modelo, prompt e parâmetros. Preço e saldo: `motores_listar`.
+
 # Editor Automático de B-roll
 
 Recebe o **bruto** de um criativo (body de avatar falante em plano único) e devolve o criativo **editado**: B-roll gerado, inserts encaixados na fala, punch-ins, legenda e MP4 final.

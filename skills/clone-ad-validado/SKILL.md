@@ -3,6 +3,9 @@ name: clone-ad-validado
 description: Clona um AD validado (anúncio que já vende) trocando o personagem e/ou a copy, no automático e com aprovação antes de cada gasto — decupa o original com Whisper (mapa de cenas com tempos, legenda queimada como juiz), cria a personagem nova (retrato-âncora no GPT Image 2.5 com bloco anti-cara-de-IA e o mesmo rosto em cada cenário), escolhe a voz no ElevenLabs medindo o F0 contra a original e encaixa cada frase no mesmo segundo, faz o lip sync no HeyGen Avatar IV a partir de foto + áudio, refaz no Kling só os b-rolls que mostravam a pessoa antiga, monta no HyperFrames com a mesma estrutura e os mesmos tempos, e confere (lip sync por quadro do silêncio × quadro do pico, folha original × clone, nenhuma imagem da pessoa antiga, legenda contra a copy, −14 LUFS). Use SEMPRE que pedirem "clona esse AD", "clone de AD validado", "troca o personagem do anúncio", "troca a apresentadora/o avatar", "mesmo AD com outra pessoa", "o criativo cansou, faz outro rosto", "refaz esse anúncio com outra atriz", "mantém a estrutura e troca a copy/o produto", ou mandarem um AD que performa pedindo uma versão nova. NÃO é para editar um bruto de avatar do zero (use editor-automatico-de-broll), nem para só conferir um AD pronto (use conferir-ads-por-frame), nem para trocar só o hook (use hooks-meat-hook).
 ---
 
+<!-- editor-automatico:portao-de-credito -->
+> **No Editor Automático:** gerar imagem, vídeo, avatar ou voz que gasta crédito é feito **só pelas etapas do pipeline do app** (ferramenta `etapa_rodar` do MCP `editor`), que mostram o preço e esperam a aprovação do aluno. Os comandos de geração citados nesta skill (`higgsfield generate`, `heygen`, `mmx`) ficam bloqueados na Conversa — use-os só como referência de modelo, prompt e parâmetros. Preço e saldo: `motores_listar`.
+
 # Clone de AD validado
 
 Um anúncio que vende um dia cansa: o público já viu aquele rosto e passa reto.

@@ -190,9 +190,60 @@ def limpar(raiz):
     return trocas
 
 
+# ---------------------------------------------------------------- 2b. portão de crédito
+# As skills nasceram fora do app e mandam rodar `higgsfield generate create`,
+# `heygen video create`… direto. Dentro do app isso pula a aprovação — e a
+# Conversa bloqueia esses comandos. O aviso no topo diz o caminho certo.
+
+PAGO = re.compile(r"higgsfield generate|generate create|heygen (video|asset|avatar)|\bmmx \w|"
+                  r"Higgsfield MCP|tools do Higgsfield")
+MARCA_AVISO = "<!-- editor-automatico:portao-de-credito -->"
+AVISO = (MARCA_AVISO + "\n"
+         "> **No Editor Automático:** gerar imagem, vídeo, avatar ou voz que gasta crédito é feito "
+         "**só pelas etapas do pipeline do app** (ferramenta `etapa_rodar` do MCP `editor`), que mostram "
+         "o preço e esperam a aprovação do aluno. Os comandos de geração citados nesta skill "
+         "(`higgsfield generate`, `heygen`, `mmx`) ficam bloqueados na Conversa — use-os só como "
+         "referência de modelo, prompt e parâmetros. Preço e saldo: `motores_listar`.\n\n")
+
+
+def avisar_portao(raiz):
+    """Põe o aviso no SKILL.md de toda skill que ensina a gerar por fora."""
+    n = 0
+    for skill in sorted(os.listdir(raiz)):
+        sk = os.path.join(raiz, skill, "SKILL.md")
+        if not os.path.isfile(sk):
+            continue
+        ensina = False
+        for d, subs, arqs in os.walk(os.path.join(raiz, skill)):
+            subs[:] = [x for x in subs if x not in PULAR]
+            for a in arqs:
+                if os.path.splitext(a)[1].lower() not in TEXTO:
+                    continue
+                try:
+                    with open(os.path.join(d, a), encoding="utf-8") as f:
+                        if PAGO.search(f.read()):
+                            ensina = True
+                except (UnicodeDecodeError, OSError):
+                    pass
+        with open(sk, encoding="utf-8") as f:
+            t = f.read()
+        if not ensina or MARCA_AVISO in t:
+            continue
+        # logo depois do cabeçalho YAML (o `---` de fechamento)
+        m = re.match(r"---\n.*?\n---\n\n?", t, re.S)
+        corte = m.end() if m else 0
+        t = t[:corte] + AVISO + t[corte:]
+        with open(sk, "w", encoding="utf-8") as f:
+            f.write(t)
+        n += 1
+        print("  aviso   %s/SKILL.md" % skill)
+    return n
+
+
 if __name__ == "__main__":
     raiz = sys.argv[1] if len(sys.argv) > 1 else "skills"
     n = limpar(raiz)
+    avisar_portao(raiz)
     achados = auditar(raiz)
     for rel, linha, tipo, trecho in achados:
         print("  x %s:%d  [%s]  %s" % (rel, linha, tipo, trecho), file=sys.stderr)

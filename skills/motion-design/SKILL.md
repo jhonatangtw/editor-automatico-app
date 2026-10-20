@@ -3,6 +3,9 @@ name: motion-design
 description: Adapt motion-design gallery prompts or closely recreate a supplied video for a new subject through Higgsfield MCP. Supports full-film prompts and production in Codex and Claude Code. References are optional; prompt review does not generate media.
 ---
 
+<!-- editor-automatico:portao-de-credito -->
+> **No Editor Automático:** gerar imagem, vídeo, avatar ou voz que gasta crédito é feito **só pelas etapas do pipeline do app** (ferramenta `etapa_rodar` do MCP `editor`), que mostram o preço e esperam a aprovação do aluno. Os comandos de geração citados nesta skill (`higgsfield generate`, `heygen`, `mmx`) ficam bloqueados na Conversa — use-os só como referência de modelo, prompt e parâmetros. Preço e saldo: `motores_listar`.
+
 # Motion Design
 
 For gallery adaptation, start from the closest example's complete original prompt and adapt its useful visual and motion techniques to the new communication goal. For a supplied video, default to close recreation: that clip controls the sequence, framing, timing and movement while the subject and copy change. An explicit request for loose inspiration overrides this default. Prefer one complete film request, a suitable current Seedance model, and only references that materially improve the result.

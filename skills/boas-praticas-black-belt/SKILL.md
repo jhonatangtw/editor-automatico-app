@@ -3,6 +3,9 @@ name: boas-praticas-black-belt
 description: As armadilhas e receitas que já custaram horas e crédito em jobs reais de edição com IA — organizadas por ferramenta (Higgsfield, HeyGen, ElevenLabs, HyperFrames, Premiere/Tools PRO, ffmpeg/Whisper e QC), cada uma com sintoma, causa e o que fazer. Serve de consulta antes de gerar, montar ou entregar, e de AUDITORIA de um job (confere a pasta e os entregáveis contra a lista e devolve o que está fora, sem mexer em nada). Use quando pedirem "confere meu job contra as boas práticas", "o que pode dar errado nisso", "por que o Higgsfield/HeyGen/Kling deu erro", "deu 401/403", "o vídeo da HeyGen ficou travando no Premiere", "a cor do iPhone ficou lavada", "o Whisper inventou palavra", "a legenda saiu errada", "o lettering fica pulando", "o Premiere travou no import", "o script não aplicou o efeito", "baixei a imagem pequena", "o rótulo do produto saiu errado no lip sync", ou antes de qualquer etapa cara. NÃO executa a edição: aponta e explica. Para fazer o trabalho, use a skill do formato (editor-automatico-de-broll, clone-ad-validado, hooks-meat-hook...).
 ---
 
+<!-- editor-automatico:portao-de-credito -->
+> **No Editor Automático:** gerar imagem, vídeo, avatar ou voz que gasta crédito é feito **só pelas etapas do pipeline do app** (ferramenta `etapa_rodar` do MCP `editor`), que mostram o preço e esperam a aprovação do aluno. Os comandos de geração citados nesta skill (`higgsfield generate`, `heygen`, `mmx`) ficam bloqueados na Conversa — use-os só como referência de modelo, prompt e parâmetros. Preço e saldo: `motores_listar`.
+
 # Boas práticas Black Belt
 
 O que já quebrou em job real e como não quebrar de novo. Cada item:
