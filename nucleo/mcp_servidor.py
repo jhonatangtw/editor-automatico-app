@@ -146,7 +146,8 @@ def _chamar(nome, a):
                  if k not in ("projeto", "etapa") and v is not None}
         try:
             r = rota_etapa_iniciar(pid, a["etapa"], corpo)
-        except pipeline.Bloqueado as e:
+        except (pipeline.Bloqueado, PermissionError) as e:
+            # PermissionError = conta.SemAcesso: a sessão do aluno não vale
             return {"recusado": True, "porque": str(e)}
         if r.get("longa"):
             return {"rodando": True, "tarefa": r["tarefa"]}

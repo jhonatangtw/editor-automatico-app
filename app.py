@@ -396,6 +396,7 @@ def rota_etapa_iniciar(pid, eid, corpo):
     projetos.exigir(pid)                 # id qualquer não vira pasta-fantasma
     est = projetos.estado_pipeline(pid)
     pipeline.iniciar(est, eid)           # <- portão. Nada sai daqui sem passar.
+    conta.exigir()                       # sessão do aluno conferida no servidor
     projetos.gravar_pipeline(pid, est)
 
     exec_ = EXECUTORES.get(eid)
@@ -1306,6 +1307,7 @@ class Handler(BaseHTTPRequestHandler):
                                lambda log: atualizacao.baixar(ao_vivo=log))
                 return self._json({"tarefa": tid})
             if caminho == "/api/skills/instalar":
+                conta.exigir()
                 tid = em_fundo("Instalando as skills",
                                lambda log: skills.instalar(
                                    bool(corpo.get("substituir")), log))
@@ -1374,6 +1376,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"erro": str(e), "bloqueado": True}, 409)
         except projetos.NaoEncontrado as e:
             return self._json({"erro": str(e)}, 404)
+        except conta.SemAcesso as e:
+            return self._json({"erro": str(e), "sem_acesso": True}, 401)
         except Exception as e:
             traceback.print_exc()
             return self._json({"erro": str(e) or e.__class__.__name__}, 400)
