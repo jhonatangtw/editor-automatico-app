@@ -1,6 +1,6 @@
 {
- "version": "0.24.1",
- "notes": "Correções de segurança e confiabilidade.\n\n• A Conversa volta a usar a sua chave do Claude mesmo quando o programa \"ant\" está instalado sem login (antes dizia \"Sem credencial\").\n• A IA da Conversa não consegue mais gerar imagem, vídeo ou voz pagos por fora das etapas com aprovação.\n• Sem internet, o app abre por até 7 dias desde a última confirmação da sua conta.\n• O Ambiente avisa quando o Whisper está instalado mas quebrado, com o botão Reparar.\n• Reabrir uma etapa guarda o histórico das aprovações antigas.\n• Mensagens de erro em português, sem caminho de pasta.\n• O Editor de vídeo (beta) só aparece para Mac com chip Apple.",
+ "version": "0.24.2",
+ "notes": "O Mac para de pedir a senha das chaves.\n\n• O aviso \"Editor Automático deseja acessar a chave\" não aparece mais a cada atualização. Nesta versão ele pode aparecer uma última vez por conta conectada — clique em Permitir Sempre e pronto.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",

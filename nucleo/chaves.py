@@ -32,6 +32,19 @@ import subprocess
 
 SERVICO = "EditorAutomatico"
 
+# No Mac as chaves vão pelo /usr/bin/security, num serviço PRÓPRIO dele.
+# ⚠️ O app é assinado ad hoc: o Chaveiro amarra o "Permitir Sempre" à impressão
+# exata do binário, que muda a cada versão — com o keyring (que chama o cofre de
+# dentro do app) o Mac pedia a senha de novo a cada atualização, uma vez por
+# chave. O `security` é da Apple, a assinatura dele não muda, e ele não pede nada
+# para ler item que ele mesmo criou. O serviço é outro nome para não colidir com
+# os itens antigos do keyring, que são migrados uma vez (ver ler()).
+SERVICO_MAC = "EditorAutomatico.cofre"
+_SECURITY = "/usr/bin/security"
+
+# Leitura guardada em memória: a aba Contas reconfere a cada 15 s.
+_cache = {}
+
 SERVICOS = ["elevenlabs", "higgsfield", "heygen", "minimax"]
 
 _RESERVA = os.path.expanduser("~/.editorblackbelt/chaves.json")
@@ -47,10 +60,10 @@ except Exception:
 
 def cofre():
     """Qual cofre está em uso — a UI mostra isso, porque o 'arquivo' merece aviso."""
-    if _keyring:
-        return "keyring"
     if _MAC:
         return "chaveiro"
+    if _keyring:
+        return "keyring"
     if _WIN:
         return "credenciais"
     return "arquivo"
@@ -59,24 +72,47 @@ def cofre():
 # ------------------------------------------------------------ Mac
 
 def _mac_gravar(nome, valor):
-    subprocess.run(["security", "delete-generic-password", "-s", SERVICO, "-a", nome],
+    subprocess.run([_SECURITY, "delete-generic-password", "-s", SERVICO_MAC, "-a", nome],
                    capture_output=True)
     r = subprocess.run(
-        ["security", "add-generic-password", "-s", SERVICO, "-a", nome,
+        [_SECURITY, "add-generic-password", "-s", SERVICO_MAC, "-a", nome,
          "-w", valor, "-U"], capture_output=True)
     return r.returncode == 0
 
 
 def _mac_ler(nome):
     r = subprocess.run(
-        ["security", "find-generic-password", "-s", SERVICO, "-a", nome, "-w"],
+        [_SECURITY, "find-generic-password", "-s", SERVICO_MAC, "-a", nome, "-w"],
         capture_output=True, text=True)
     return r.stdout.strip() if r.returncode == 0 else ""
 
 
 def _mac_apagar(nome):
-    subprocess.run(["security", "delete-generic-password", "-s", SERVICO, "-a", nome],
+    subprocess.run([_SECURITY, "delete-generic-password", "-s", SERVICO_MAC, "-a", nome],
                    capture_output=True)
+
+
+def _mac_antigo(nome):
+    """Item gravado pelo keyring nas versões até a 0.24.1. Consultado UMA vez por
+    chave (a marca fica em _MIGRADAS): ler esse item é o que dispara o aviso do
+    Chaveiro, e quem não tem chave antiga levaria o aviso a cada abertura."""
+    feitas = _reserva_todas().get("_migradas_mac", [])
+    if nome in feitas:
+        return ""
+    v = ""
+    if _keyring:
+        try:
+            v = _keyring.get_password(SERVICO, nome) or ""
+        except Exception:
+            v = ""
+    if v and _mac_gravar(nome, v):
+        try:
+            _keyring.delete_password(SERVICO, nome)
+        except Exception:
+            pass
+    if not v or _mac_ler(nome):
+        _reserva_gravar("_migradas_mac", sorted(set(feitas) | {nome}))
+    return v
 
 
 # ------------------------------------------------------------ Windows
@@ -154,14 +190,16 @@ def gravar(servico, valor):
     if not valor:
         apagar(servico)
         return True
-    if _keyring:
+    _cache.pop(servico, None)
+    if _MAC and _mac_gravar(servico, valor):
+        _cache[servico] = valor
+        return True
+    if _keyring and not _MAC:
         try:
             _keyring.set_password(SERVICO, servico, valor)
             return True
         except Exception:
             pass
-    if _MAC and _mac_gravar(servico, valor):
-        return True
     if _WIN and _win_gravar(servico, valor):
         return True
     _reserva_gravar(servico, valor)
@@ -169,6 +207,19 @@ def gravar(servico, valor):
 
 
 def ler(servico):
+    if servico in _cache:
+        return _cache[servico]
+    v = _ler(servico)
+    _cache[servico] = v
+    return v
+
+
+def _ler(servico):
+    if _MAC:
+        v = _mac_ler(servico) or _mac_antigo(servico)
+        if v:
+            return v
+        return _reserva_ler(servico)
     if _keyring:
         try:
             v = _keyring.get_password(SERVICO, servico)
@@ -176,10 +227,6 @@ def ler(servico):
                 return v
         except Exception:
             pass
-    if _MAC:
-        v = _mac_ler(servico)
-        if v:
-            return v
     if _WIN:
         v = _win_ler(servico)
         if v:
@@ -188,7 +235,8 @@ def ler(servico):
 
 
 def apagar(servico):
-    if _keyring:
+    _cache.pop(servico, None)
+    if _keyring and not _MAC:
         try:
             _keyring.delete_password(SERVICO, servico)
         except Exception:
