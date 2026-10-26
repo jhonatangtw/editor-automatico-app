@@ -91,6 +91,32 @@ TROCAS = [
     ("*", r'(?i)linfaflow', 'MarcaC', 0),
     ("*", r'(?i)cardioflush', 'MarcaD', 0),
 
+    # --- agente IA Creator (samurai e as exclusivas dele): o dono dos gates
+    #     e das escolhas era o autor; no aluno, é o próprio aluno. Regras com
+    #     pasta terminada em "/" valem para tudo dentro dela.
+    *[(pasta, pad, troca, 0) for pasta in ("samurai/", "upsell-agente/", "editor-senior-dr/", "_agentes/")
+      for pad, troca in (
+        (r'`~/Library/CloudStorage/[^`]*`', '`<pasta do Drive da equipe>`'),
+        (r'`~/\.claude/projects/[^`]*`', '`a memória do Claude`'),
+        (r'~/Documents/01_Producao/', '<pasta de trabalho>/'),
+        (r'`~/Documents/[^`]*`', '`<arquivo local da referência>`'),
+        (r'\(Diogo, Frame\.io 23/10\)', '(revisão de 23/10)'),
+        (r'Frame\.io f\.io/\w+', 'ferramenta de revisão'),
+        (r'\b([dn])o Frame\.io\b', lambda m: {'d': 'da', 'n': 'na'}[m.group(1)] + ' ferramenta de revisão'),
+        (r'Frame\.io', 'ferramenta de revisão'),
+        (r'(?i)artibrex', 'MarcaE'), (r'(?i)peaksoda', 'MarcaF'), (r'(?i)cogniclear', 'MarcaG'),
+        (r'(?i)burnmelt', 'MarcaH'), (r'(?i)divine prayer', 'ProdutoI'), (r"(?i)king'?s code", 'ProdutoJ'),
+        (r'\b\d{3}_[A-Z]{2}\b', 'NNN_XX'), (r'\b\d{3}[A-Z]{2}\b', 'NNNXX'),
+        (r'\b(d|n|a|pel)o Jhon\b', r'\1o usuário'),
+        (r'\bJhon\b', 'usuário'),
+      )],
+    ("upsell-agente/templates/render_3.sh", r'^J=/Users/\S+', 'J="${JOB:-$PWD}"   # pasta do job', re.M),
+    ("upsell-agente/scripts/tts_lote.py", r'Chave em ~/\.config/hw-creative/\.env \(não imprimir\)',
+     'Chave em ELEVENLABS_API_KEY (variável de ambiente; não imprimir)', 0),
+    ("upsell-agente/scripts/tts_lote.py", r'^K = \[l\.split.*?\]\[0\]\n',
+     lambda m: 'K = os.environ.get("ELEVENLABS_API_KEY") or ""\n'
+               'if not K:\n    sys.exit("Defina ELEVENLABS_API_KEY (a mesma chave da aba Contas do Editor Automatico).")\n',
+     re.M | re.S),
     # --- a casa
     ("*", r'\(HW Publishing\)', '(Editor Black Belt)', 0),
     ("*", r'HW Publishing', 'a equipe', 0),
@@ -115,7 +141,7 @@ PADROES = {
     "link interno": re.compile(r"(?i)drive\.google|docs\.google|frame\.io|slack\.com|monday\.com|notion\.so|hstgr|hostinger"),
     "casa ou cliente": re.compile(
         r"\bH&W\b|\bHW Publishing\b|hw-publishing|LeafTide|Leaftide|CardioFlush|MemoFlow|LinfaFlow|GlucoJaro|Ameripel"
-        r"|\bBifi\b|\bJonas\b|\bMarcelo\b|\bRoque\b|\bGuino\b|\bJhon\b|Jhonatan|jhonatangtw"),
+        r"|ArtiBrex|Artibrex|PeakSoda|CogniClear|BurnMelt|Divine Prayer|King'?s Code|\bBifi\b|\bJonas\b|\bMarcelo\b|\bRoque\b|\bGuino\b|\bJhon\b|Jhonatan|jhonatangtw"),
     # ID de voz da ElevenLabs (20 caracteres alfanuméricos) colado numa linha que fala de voz
     "id de voz": re.compile(r"(?i)voi(?:ce|z)[^\n]{0,60}\b[A-Za-z0-9]{20}\b"),
 }
@@ -179,7 +205,7 @@ def limpar(raiz):
                 antes = f.read()
             t = antes
             for qual, pad, troca, flags in TROCAS:
-                if qual != "*" and qual != rel:
+                if qual != "*" and qual != rel and not (qual.endswith("/") and rel.startswith(qual)):
                     continue
                 t = re.sub(pad, troca, t, flags=flags)
             if t != antes:

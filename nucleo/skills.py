@@ -49,13 +49,155 @@ def _raiz():
     return os.path.join(aqui, "skills")
 
 
-def embutidas():
+def _pastas():
+    """Toda skill do retrato. `_agentes/` não é skill: são os manifestos."""
     r = _raiz()
     try:
         return sorted(n for n in os.listdir(r)
-                      if os.path.isdir(os.path.join(r, n)))
+                      if os.path.isdir(os.path.join(r, n)) and not n.startswith("_"))
     except OSError:
         return []
+
+
+def embutidas():
+    """As do botão geral. As EXCLUSIVAS de um agente só chegam pelo cartão dele —
+    quem não quer o agente não recebe a agência inteira na lista do Claude."""
+    so_de_agente = {s for a in agentes() for s in a.get("exclusivas", [])}
+    return [n for n in _pastas() if n not in so_de_agente]
+
+
+# ---------------------------------------------------------------- agentes
+# Um agente é um PACOTE: as skills de que ele precisa (algumas já são do botão
+# geral, outras só dele) + os subagentes que ele despacha, que o Claude Code lê
+# de ~/.claude/agents. O manifesto mora em skills/_agentes/<id>/agente.json.
+
+DESTINO_AGENTES = os.path.expanduser("~/.claude/agents")
+REGISTRO_AGENTES = os.path.expanduser("~/.editorblackbelt/subagentes.json")
+
+
+def agentes():
+    base = os.path.join(_raiz(), "_agentes")
+    try:
+        ids = sorted(os.listdir(base))
+    except OSError:
+        return []
+    out = []
+    for i in ids:
+        try:
+            with open(os.path.join(base, i, "agente.json"), encoding="utf-8") as f:
+                out.append(json.load(f))
+        except (OSError, ValueError):
+            continue
+    return out
+
+
+def _agente(id_):
+    for a in agentes():
+        if a.get("id") == id_:
+            return a
+    raise KeyError("Este app não traz o agente '%s'." % id_)
+
+
+def _hash_arquivo(p):
+    with open(p, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()
+
+
+def _registro():
+    try:
+        with open(REGISTRO_AGENTES, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def _situacao_sub(id_, nome, reg=None):
+    """Mesma regra de posse das skills, com o hash guardado FORA do arquivo
+    (um .md de subagente não tem onde levar marca): o que o app instalou e
+    ninguém mexeu atualiza sozinho; o que foi mexido é do aluno."""
+    origem = os.path.join(_raiz(), "_agentes", id_, "agents", nome + ".md")
+    alvo = os.path.join(DESTINO_AGENTES, nome + ".md")
+    if not os.path.isfile(alvo):
+        return "faltando"
+    atual, hr = _hash_arquivo(alvo), _hash_arquivo(origem)
+    if atual == hr:
+        return "em_dia"
+    if (reg if reg is not None else _registro()).get(nome) == atual:
+        return "desatualizada"
+    return "do_usuario"
+
+
+def estado_agentes():
+    reg = _registro()
+    r = _raiz()
+    out = []
+    for a in agentes():
+        sk = [{"nome": n, "situacao": situacao(n, DESTINO, hash_pasta(os.path.join(r, n)))
+               if os.path.isdir(os.path.join(r, n)) else "ausente_no_app"} for n in a.get("skills", [])]
+        sub = [{"nome": n, "situacao": _situacao_sub(a["id"], n, reg)} for n in a.get("subagentes", [])]
+        itens = sk + sub
+        out.append({
+            "id": a["id"], "nome": a.get("nome", a["id"]), "descricao": a.get("descricao", ""),
+            "chamar": a.get("chamar", ""), "skills": sk, "subagentes": sub,
+            "faltam": [i["nome"] for i in itens if i["situacao"] == "faltando"],
+            "atualizar": [i["nome"] for i in itens if i["situacao"] == "desatualizada"],
+            "do_usuario": [i["nome"] for i in itens if i["situacao"] == "do_usuario"],
+            "instalado": not any(i["situacao"] == "faltando" for i in itens),
+        })
+    return {"agentes": out}
+
+
+def instalar_agente(id_, substituir=False, ao_vivo=None):
+    """Instala o agente inteiro: as skills dele (no Claude e no Codex, igual ao
+    botão geral) e os subagentes (só Claude — o Codex não tem subagente)."""
+    diz = ao_vivo or (lambda _: None)
+    a = _agente(id_)
+    r = _raiz()
+    faltam_no_app = [n for n in a.get("skills", []) if not os.path.isdir(os.path.join(r, n))]
+    if faltam_no_app:
+        raise RuntimeError("Este app veio sem parte do agente (%s). Reinstale o app."
+                           % ", ".join(faltam_no_app))
+    feitos = _instalar_nomes(a["skills"], substituir, diz)
+
+    os.makedirs(DESTINO_AGENTES, exist_ok=True)
+    reg = _registro()
+    for nome in a.get("subagentes", []):
+        origem = os.path.join(r, "_agentes", id_, "agents", nome + ".md")
+        alvo = os.path.join(DESTINO_AGENTES, nome + ".md")
+        st = _situacao_sub(id_, nome, reg)
+        item = {"subagente": nome, "para": "claude"}
+        if st == "em_dia":
+            item["acao"] = "já estava em dia"
+        elif st in ("faltando", "desatualizada") or substituir:
+            if st == "do_usuario":
+                os.makedirs(os.path.join(BACKUP, "agents"), exist_ok=True)
+                item["anterior"] = os.path.join(BACKUP, "agents", "%s-%s.md"
+                                                % (nome, time.strftime("%Y%m%d-%H%M%S")))
+                shutil.move(alvo, item["anterior"])
+            diz("instalando o subagente %s" % nome)
+            shutil.copyfile(origem, alvo + ".instalando")
+            os.replace(alvo + ".instalando", alvo)
+            item["acao"] = {"faltando": "instalada", "desatualizada": "atualizada"}.get(st, "substituída")
+        else:
+            item["acao"] = "mantida (cópia sua)"
+        if item["acao"] != "mantida (cópia sua)":
+            reg[nome] = _hash_arquivo(alvo)
+        feitos.append(item)
+    os.makedirs(os.path.dirname(REGISTRO_AGENTES), exist_ok=True)
+    with open(REGISTRO_AGENTES, "w", encoding="utf-8") as f:
+        json.dump(reg, f, indent=1)
+
+    novas = [f for f in feitos if f["acao"] in ("instalada", "atualizada", "substituída")]
+    mantidas = [f for f in feitos if f["acao"].startswith("mantida")]
+    msg = ("%s instalado: %d item(ns) novos ou atualizados." % (a.get("nome", id_), len(novas))
+           if novas else "%s já estava instalado e em dia." % a.get("nome", id_))
+    if novas and any("subagente" in f for f in novas):
+        msg += " Feche e reabra o Claude Code para os subagentes aparecerem."
+    if mantidas:
+        msg += " %d mantidos porque você mexeu neles — use Reinstalar para trocar." % len(mantidas)
+    if a.get("chamar"):
+        msg += " Para começar, digite %s na conversa." % a["chamar"]
+    return {"ok": True, "feitos": feitos, "novas": len(novas), "mantidas": len(mantidas), "msg": msg}
 
 
 def hash_pasta(pasta):
@@ -195,19 +337,12 @@ def _guardar(alvo, quem):
     return destino
 
 
-def instalar(substituir=False, ao_vivo=None):
-    """Instala o que falta e atualiza o que é nosso. Devolve o que fez, item a item.
-
-    Rodar duas vezes seguidas não muda nada na segunda (idempotente)."""
-    diz = ao_vivo or (lambda _: None)
+def _instalar_nomes(nomes, substituir, diz):
     r = _raiz()
-    if not embutidas():
-        raise RuntimeError("Este app não trouxe skills. Reinstale — elas vêm junto.")
-
     feitos = []
     for quem, destino in destinos():
         os.makedirs(destino, exist_ok=True)
-        for nome in embutidas():
+        for nome in nomes:
             origem, alvo = os.path.join(r, nome), os.path.join(destino, nome)
             hr = hash_pasta(origem)
             st = situacao(nome, destino, hr)
@@ -232,6 +367,20 @@ def instalar(substituir=False, ao_vivo=None):
             else:
                 item["acao"] = "mantida (cópia sua)"
             feitos.append(item)
+
+    return feitos
+
+
+def instalar(substituir=False, ao_vivo=None):
+    """Instala o que falta e atualiza o que é nosso. Devolve o que fez, item a item.
+
+    Rodar duas vezes seguidas não muda nada na segunda (idempotente)."""
+    diz = ao_vivo or (lambda _: None)
+    r = _raiz()
+    if not embutidas():
+        raise RuntimeError("Este app não trouxe skills. Reinstale — elas vêm junto.")
+
+    feitos = _instalar_nomes(embutidas(), substituir, diz)
 
     novas = [f for f in feitos if f["acao"] in ("instalada", "atualizada", "substituída")]
     mantidas = [f for f in feitos if f["acao"].startswith("mantida")]

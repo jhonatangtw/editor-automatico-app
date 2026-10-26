@@ -159,7 +159,8 @@ PROIBIDO = {
                        r"|(?i:api[_-]?key|secret|token|password)[\"']?\s*[:=]\s*[\"'][A-Za-z0-9_\-]{12,}"),
     "link interno": r"(?i)drive\.google|docs\.google|frame\.io|slack\.com|monday\.com|notion\.so|hostinger",
     "casa ou cliente": (r"\bH&W\b|HW Publishing|hw-publishing|LeafTide|Leaftide|CardioFlush|MemoFlow|LinfaFlow"
-                        r"|GlucoJaro|Ameripel|\bJhon\b|Jhonatan|jhonatangtw|\bMarcelo\b"),
+                        r"|GlucoJaro|Ameripel|\bJhon\b|Jhonatan|jhonatangtw|\bMarcelo\b"
+                        r"|ArtiBrex|Artibrex|PeakSoda|CogniClear|BurnMelt|Divine Prayer|King'?s Code"),
 }
 
 
@@ -210,17 +211,80 @@ class RetratoDoPacote(unittest.TestCase):
     def test_cada_skill_tem_skill_md_com_o_nome_da_pasta(self):
         for nome in os.listdir(RETRATO):
             p = os.path.join(RETRATO, nome)
-            if not os.path.isdir(p):
+            if not os.path.isdir(p) or nome.startswith("_"):
                 continue
             cab = ler(os.path.join(p, "SKILL.md")).split("---")[1]
             self.assertRegex(cab, r"(?m)^name:\s*%s\s*$" % re.escape(nome))
 
     def test_fonte_json_bate_com_o_conteudo(self):
         fonte = json.loads(ler(os.path.join(RETRATO, "FONTE.json")))
-        pastas = sorted(n for n in os.listdir(RETRATO) if os.path.isdir(os.path.join(RETRATO, n)))
+        pastas = sorted(n for n in os.listdir(RETRATO)
+                        if os.path.isdir(os.path.join(RETRATO, n)) and not n.startswith("_"))
         self.assertEqual(sorted(fonte["skills"]), pastas)
         for n in pastas:
             self.assertEqual(fonte["skills"][n], skills.hash_pasta(os.path.join(RETRATO, n)), n)
+
+
+class AgenteIACreator(unittest.TestCase):
+    """O cartão "Agente IA Creator" instala o pacote inteiro: skills + subagentes."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        casa = os.path.join(self.tmp, "home")
+        self.p = [mock.patch.object(skills, "DESTINO", os.path.join(casa, ".claude", "skills")),
+                  mock.patch.object(skills, "DESTINO_AGENTES", os.path.join(casa, ".claude", "agents")),
+                  mock.patch.object(skills, "REGISTRO_AGENTES", os.path.join(casa, ".editorblackbelt", "sub.json")),
+                  mock.patch.object(skills, "BACKUP", os.path.join(casa, "bk")),
+                  mock.patch.object(skills, "destinos",
+                                    lambda: [("claude", os.path.join(casa, ".claude", "skills"))])]
+        for x in self.p:
+            x.start()
+
+    def tearDown(self):
+        for x in self.p:
+            x.stop()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_manifesto_cabe_no_retrato(self):
+        a = skills._agente("ia-creator")
+        for n in a["skills"]:
+            self.assertTrue(os.path.isfile(os.path.join(RETRATO, n, "SKILL.md")), n)
+        for n in a["subagentes"]:
+            self.assertTrue(os.path.isfile(os.path.join(RETRATO, "_agentes", "ia-creator", "agents", n + ".md")), n)
+        self.assertTrue(set(a["exclusivas"]) <= set(a["skills"]))
+
+    def test_exclusivas_ficam_fora_do_botao_geral(self):
+        geral = set(skills.embutidas())
+        self.assertNotIn("samurai", geral)
+        self.assertNotIn("_agentes", geral)
+        self.assertIn("clone-ad-validado", geral)
+
+    def test_instala_tudo_e_e_idempotente(self):
+        r = skills.instalar_agente("ia-creator")
+        e = [a for a in skills.estado_agentes()["agentes"] if a["id"] == "ia-creator"][0]
+        self.assertTrue(e["instalado"], e["faltam"])
+        self.assertTrue(os.path.isfile(os.path.join(skills.DESTINO_AGENTES, "qc-visual.md")))
+        self.assertTrue(os.path.isfile(os.path.join(skills.DESTINO, "samurai", "SKILL.md")))
+        self.assertIn("/samurai", r["msg"])
+        self.assertEqual(skills.instalar_agente("ia-creator")["novas"], 0)
+
+    def test_subagente_mexido_pelo_aluno_nao_e_tocado(self):
+        skills.instalar_agente("ia-creator")
+        alvo = os.path.join(skills.DESTINO_AGENTES, "decupador.md")
+        with open(alvo, "a", encoding="utf-8") as f:
+            f.write("\nminha regra\n")
+        r = skills.instalar_agente("ia-creator")
+        self.assertIn("minha regra", ler(alvo))
+        self.assertTrue(any(f.get("subagente") == "decupador" and f["acao"].startswith("mantida")
+                            for f in r["feitos"]))
+        skills.instalar_agente("ia-creator", substituir=True)
+        self.assertNotIn("minha regra", ler(alvo))
+
+    def test_samurai_abre_com_a_triagem(self):
+        t = ler(os.path.join(RETRATO, "samurai", "SKILL.md"))
+        self.assertIn("O que vamos editar hoje?", t)
+        for peca in ("Microlead", "Upsell", "VSL", "Criativo (AD)", "Clonar um criativo validado"):
+            self.assertIn(peca, t)
 
 
 class SkillsNovas(unittest.TestCase):

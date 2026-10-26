@@ -1,15 +1,21 @@
 {
   "origem": "~/.claude/skills",
-  "sincronizado": "2026-10-14",
+  "sincronizado": "2026-10-26",
   "skills": {
     "advalidado-weightloss": "3667c72ce0574d81",
+    "analise-criativo-ficha": "6fc8e1eb181b9608",
     "avatar-vsl-video-prompts": "2b5c217f987d6bf4",
     "blackbelt-omni": "92bf9841442d048e",
     "boas-praticas-black-belt": "95c442d811a11fee",
+    "cinematic-blackbelt": "7bb99a4bceacad2e",
     "clone-ad-validado": "d53e1736cf920b9b",
-    "conferir-ads-por-frame": "d2d7e61896d23e18",
+    "conferir-ads-por-frame": "d1b658d89428c959",
+    "decupar-vsl-por-frame": "fc00893c9d057b46",
+    "dissecador-de-ads-atlas": "49190b00bab0f777",
+    "dissecador-de-vsl-atlas": "26280a1867e0b838",
     "editor-automatico-de-broll": "d80e3d73ed18db89",
     "editor-de-reels-do-jhon": "8cfe31b53f0edd44",
+    "editor-senior-dr": "95b7d86aab41b0a3",
     "hooks-meat-hook": "d5f1328093cbd923",
     "motion-design": "6bf10c50325d987a",
     "motion-omni-vsl": "51fe6a05cbed34f6",
@@ -17,10 +23,13 @@
     "photorealism-prompts": "e6154be491876126",
     "pixar3d": "ec9eb29621659989",
     "plataforma-ia-higgsfield": "7325db55af01502a",
+    "samurai": "4e2740249629cdc6",
     "skill-black-belt": "1122ed0c9b7be1c4",
     "storyboard-viral-3d": "76d199e6a4daaa3d",
+    "upsell-agente": "cb0e21d64656aba9",
     "vibe-motion": "77668e7d744997e1",
     "video-prompt-builder": "ff8aecfedf964fef",
-    "video-to-flow": "8fe438d2f2c8ffc6"
+    "video-to-flow": "8fe438d2f2c8ffc6",
+    "vsl-motion-ae": "439f8e6c731b88ee"
   }
 }

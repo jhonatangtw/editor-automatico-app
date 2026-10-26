@@ -89,14 +89,15 @@ const FONTES = {
   },
   ambiente: async (forcar) => {
     const q = forcar ? '?forcar=1' : '';
-    const [amb, plugin, ponte, sk] = await Promise.all([
+    const [amb, plugin, ponte, sk, ag] = await Promise.all([
       api('/api/ambiente' + q),
       api('/api/plugin').catch(() => null),
       api('/api/ponte').catch(() => null),
       api('/api/skills').catch(() => null),
+      api('/api/agentes').catch(() => null),
     ]);
     if (plugin && ponte) plugin.ponte = ponte;
-    return { ...amb, plugin, skills: sk };
+    return { ...amb, plugin, skills: sk, agentes: (ag && ag.agentes) || [] };
   },
 };
 
@@ -2449,6 +2450,7 @@ async function telaAmbiente() {
       instalador oficial. Ele pede a senha do seu Mac — é o instalador pedindo, não o app.</div>
       </div>`) : ''}
     ${sk ? cartaoSkills(sk) : ''}
+    ${(AMB.agentes || []).map(cartaoAgente).join('')}
     ${pl ? cartaoPlugin(pl) : ''}
     <div class="grupo-cab"><h2>Programas deste computador</h2>
       <p class="sub">Os essenciais precisam estar instalados. Os opcionais só valem para quem usa aquela ferramenta.</p></div>
@@ -2521,6 +2523,7 @@ async function telaAmbiente() {
   document.querySelectorAll('[data-inst]').forEach((b) => { b.onclick = () => rodar(b.dataset.inst); });
   pintarBarra('ambiente');
   ligarSkills();
+  ligarAgentes();
   ligarPlugin();
 }
 
@@ -2717,6 +2720,56 @@ function ligarSkills() {
       }, 600);
     }).catch((e) => { v.remove(); toast(e.message, true); });
   };
+}
+
+// Um agente é um PACOTE: as skills dele + os subagentes que ele despacha. Um
+// clique instala tudo — o aluno não precisa saber quais skills o agente usa.
+function cartaoAgente(a) {
+  const falta = a.faltam.length, novas = (a.atualizar || []).length;
+  const total = a.skills.length + a.subagentes.length;
+  const pendente = falta + novas;
+  return `
+    <div class="plugin">
+      <div class="selo-pl">◆</div>
+      <div style="flex:1;min-width:0">
+        <div class="pl-nome">${esc(a.nome)}</div>
+        <div class="pl-sub">${esc(a.descricao)}</div>
+        <div class="pl-sub">${falta
+          ? `<span style="color:var(--gold2)">${falta === total ? 'não instalado' : falta + ' de ' + total + ' faltando'}</span> — ${a.skills.length} skills e ${a.subagentes.length} subagentes`
+          : novas ? `<span style="color:var(--gold2)">${novas} com versão nova</span> no app`
+          : `instalado e em dia — digite <b>${esc(a.chamar)}</b> na conversa para começar`}</div>
+      </div>
+      ${pendente ? `<button class="bt principal" data-agente="${esc(a.id)}" data-modo="instalar">${falta ? 'Instalar agente' : 'Atualizar'}</button>`
+                 : `<button class="bt discreto" data-agente="${esc(a.id)}" data-modo="reinstalar">Reinstalar</button>`}
+    </div>`;
+}
+
+function ligarAgentes() {
+  document.querySelectorAll('[data-agente]').forEach((b) => {
+    b.onclick = () => {
+      const jaTem = b.dataset.modo === 'reinstalar';
+      const v = modal(`<h2>Instalando o agente</h2>
+        <p class="sub">${jaTem
+          ? 'Reinstalar troca as skills e os subagentes do agente pelas versões do app — inclusive os que você modificou (ficam guardados em ~/.editorblackbelt/skills-anteriores).'
+          : 'Vou instalar as skills e os subagentes de que o agente precisa. O que você modificou não é tocado.'}</p>
+        <div class="portao" id="log" style="max-height:160px;margin-top:10px">começando…</div>`);
+      post('/api/agentes/instalar', { id: b.dataset.agente, substituir: jaTem }).then((r) => {
+        const t = setInterval(async () => {
+          const st = await api('/api/tarefas/' + r.tarefa);
+          v.querySelector('#log').textContent = (st.log || []).slice(-4).join('\n') || 'trabalhando…';
+          if (st.estado === 'pronto') {
+            clearInterval(t); v.remove();
+            await revalidar('ambiente');
+            toast(st.resultado?.msg || 'Agente instalado.');
+          } else if (st.estado === 'erro') {
+            clearInterval(t); v.remove();
+            toast('Não consegui instalar o agente: ' + st.erro, true);
+            revalidar('ambiente');
+          }
+        }, 600);
+      }).catch((e) => { v.remove(); toast(e.message, true); });
+    };
+  });
 }
 
 // O plugin é a PONTE: sem ele o app não escreve uma linha na timeline. Por isso

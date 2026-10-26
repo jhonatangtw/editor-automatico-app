@@ -36,6 +36,15 @@ SKILLS="
   conferir-ads-por-frame
 "
 
+# Agentes (agentes/<id>/agente.json): as skills EXCLUSIVAS de cada um entram no
+# retrato também, mas o botão geral não as instala — só o cartão do agente.
+# Os subagentes (~/.claude/agents/<nome>.md) viajam em skills/_agentes/<id>/.
+# Skills sincronizadas do claude.ai moram em ~/.claude/skills/synced/<conta>/.
+EXCLUSIVAS=$(python3 -c "
+import json,glob
+print(' '.join(sorted({s for f in glob.glob('agentes/*/agente.json') for s in json.load(open(f))['exclusivas']})))")
+SKILLS="$SKILLS $EXCLUSIVAS"
+
 # Segunda origem: skills escritas DIRETO para os alunos (não moram no
 # ~/.claude/skills do autor). Só entram quando a pasta tem SKILL.md E o
 # arquivo `.pronta` — skill pela metade não viaja por acidente num sync feito
@@ -51,7 +60,12 @@ SKILLS_ALUNOS_LISTA="
 rm -rf skills; mkdir -p skills
 
 for s in $SKILLS; do
-  [ -d "$ORIGEM/$s" ] || { echo "x a skill '$s' nao esta instalada" >&2; exit 1; }
+  if [ ! -d "$ORIGEM/$s" ]; then
+    SYNC=$(ls -d "$ORIGEM"/synced/*/"$s" 2>/dev/null | head -1)
+    [ -n "$SYNC" ] || { echo "x a skill '$s' nao esta instalada" >&2; exit 1; }
+    rsync -a --exclude '__pycache__' --exclude '.DS_Store' --exclude '*.pyc' "$SYNC" skills/
+    printf "  %-30s %s\n" "$s" "$(du -sh skills/$s | cut -f1)  (synced)"; continue
+  fi
   # .venv/.git/node_modules: uma venv de skill sozinha passa de 400 MB e
   # entraria calada no .dmg. runs/ é trabalho de projeto, não é a skill.
   #
@@ -60,7 +74,7 @@ for s in $SKILLS; do
   # aluno: material de cliente não viaja. E nem serviria — cada um tem o seu.
   rsync -a --exclude '__pycache__' --exclude '.DS_Store' --exclude '*.pyc' \
         --exclude '.venv' --exclude '.git' --exclude 'node_modules' \
-        --exclude 'runs' --exclude 'assets/produto_*.png' --exclude '.editor-automatico.json' \
+        --exclude 'runs' --exclude '*.antes-*' --exclude 'assets/produto_*.png' --exclude '.editor-automatico.json' \
         "$ORIGEM/$s" skills/
   printf "  %-30s %s\n" "$s" "$(du -sh skills/$s | cut -f1)"
 done
@@ -79,6 +93,16 @@ for s in $SKILLS_ALUNOS_LISTA; do
   printf "  %-30s %s\n" "$s" "$(du -sh skills/$s | cut -f1)  (skills-alunos)"
 done
 
+for f in agentes/*/agente.json; do
+  id=$(basename "$(dirname "$f")"); mkdir -p "skills/_agentes/$id/agents"
+  cp "$f" "skills/_agentes/$id/"
+  for a in $(python3 -c "import json;print(' '.join(json.load(open('$f'))['subagentes']))"); do
+    [ -f "$HOME/.claude/agents/$a.md" ] || { echo "x subagente '$a' nao existe" >&2; exit 1; }
+    cp "$HOME/.claude/agents/$a.md" "skills/_agentes/$id/agents/"
+  done
+  printf "  %-30s %s\n" "agente $id" "$(ls skills/_agentes/$id/agents | wc -l | tr -d ' ') subagentes"
+done
+
 echo "  --- limpando e auditando"
 python3 limpar-skills.py skills
 
@@ -89,7 +113,7 @@ from nucleo.skills import hash_pasta
 d = {}
 for s in sorted(os.listdir("skills")):
     p = os.path.join("skills", s)
-    if not os.path.isdir(p):
+    if not os.path.isdir(p) or s.startswith("_"):
         continue
     d[s] = hash_pasta(p)     # o MESMO hash que o instalador usa para saber o que é nosso
 json.dump({"origem": "~/.claude/skills", "sincronizado": time.strftime("%Y-%m-%d"),

@@ -333,7 +333,10 @@ def process_video(path, root, out, cfg, framesdir):
         rec["flags"] = evaluate(info, {}, cfg)
         return rec
 
-    n = cfg["frames"] or max(12, min(18, round(info["dur"] / 12)))
+    # AD curto: 12-18 quadros. Vídeo longo (VSL): 1 a cada ~30 s, até 90.
+    # Para decupar plano a plano, use a skill decupar-vsl-por-frame.
+    d = info["dur"]
+    n = cfg["frames"] or (max(12, min(18, round(d / 12))) if d <= 180 else min(90, max(18, round(d / 30))))
     tmp = os.path.join(framesdir, name)
     os.makedirs(tmp, exist_ok=True)
     frames = extract_frames(path, info["dur"], n, tmp)

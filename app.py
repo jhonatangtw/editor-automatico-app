@@ -1165,6 +1165,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(ponte.estado())
             if caminho == "/api/skills":
                 return self._json(skills.estado())
+            if caminho == "/api/agentes":
+                return self._json(skills.estado_agentes())
             if caminho == "/api/ambiente/plano":
                 return self._json(preparar.plano(
                     com_opcionais=self.path.find("opcionais=0") < 0))
@@ -1343,6 +1345,13 @@ class Handler(BaseHTTPRequestHandler):
             if caminho == "/api/atualizacao/baixar":
                 tid = em_fundo("Baixando a atualização",
                                lambda log: atualizacao.baixar(ao_vivo=log))
+                return self._json({"tarefa": tid})
+            if caminho == "/api/agentes/instalar":
+                conta.exigir()
+                id_ = str(corpo.get("id") or "")
+                tid = em_fundo("Instalando o agente",
+                               lambda log: skills.instalar_agente(
+                                   id_, bool(corpo.get("substituir")), log))
                 return self._json({"tarefa": tid})
             if caminho == "/api/skills/instalar":
                 conta.exigir()

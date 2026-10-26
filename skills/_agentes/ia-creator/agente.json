@@ -1,0 +1,20 @@
+{
+  "id": "ia-creator",
+  "nome": "Agente IA Creator",
+  "descricao": "A agência de resposta direta dentro do Claude: do briefing ao criativo pronto — roteiro, ativos de IA (personagem, voz, avatar, b-roll), edição, clone de AD validado, dissecação e conferência quadro a quadro.",
+  "chamar": "/samurai",
+  "skills": [
+    "samurai", "editor-senior-dr", "boas-praticas-black-belt",
+    "photorealism-prompts", "pixar3d", "storyboard-viral-3d", "cinematic-blackbelt",
+    "video-prompt-builder", "video-to-flow", "avatar-vsl-video-prompts", "skill-black-belt",
+    "blackbelt-omni", "vibe-motion", "motion-omni-vsl", "vsl-motion-ae",
+    "editor-automatico-de-broll", "clone-ad-validado", "advalidado-weightloss", "hooks-meat-hook",
+    "upsell-agente", "conferir-ads-por-frame", "decupar-vsl-por-frame",
+    "dissecador-de-ads-atlas", "dissecador-de-vsl-atlas", "analise-criativo-ficha"
+  ],
+  "exclusivas": [
+    "samurai", "editor-senior-dr", "cinematic-blackbelt", "vsl-motion-ae", "upsell-agente",
+    "decupar-vsl-por-frame", "dissecador-de-ads-atlas", "dissecador-de-vsl-atlas", "analise-criativo-ficha"
+  ],
+  "subagentes": ["premiere-executor", "gerador-de-planos", "qc-visual", "decupador", "auditor-de-entrega"]
+}

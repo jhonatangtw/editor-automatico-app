@@ -1,0 +1,56 @@
+[
+  {
+    "name": "Goli_Organico",
+    "badge": "Goli · Orgânico VALIDADO",
+    "produto": "Goli 3-in-1 — WINNER ORGÂNICO validado (outra marca) · molde de decupagem p/ as copies do Sonnus",
+    "one_line": "Mulher ~30a, regata roxa, filmada dentro do carro (chuva na janela, câmera na mão) — estética orgânica TikTok. On-screen 'signs your body is missing something' + 'Magnesium deficiency… up to 73.8% of women'. Termina mostrando os 3 potes Goli (verde pre/pro/postbiotic, azul ashwagandha, vermelho ACV).",
+    "resumo_edicao": "Criativo ORGÂNICO cru no ângulo **checklist de sintomas → causa raiz (cortisol/magnésio)**. Abre com **rajada-dog-whistle** ('this is a sign of high cortisol… low sex drive… PCOS… waking up at 3 a.m.… high cortisol'), **invalida** o esforço ('you cannot outwork or out-eat high cortisol'), revela a **causa** (deficiência de magnésio, 73%) com **mecanismo simples** (fight-or-flight queima minerais) e **nomeia cada ingrediente com função** (3-in-1 gut, ashwagandha+L-teanina cortisol, ACV+B12 bloat). Fecha na **identidade** 'mom on the go' + **ancoragem de preço** (3x na loja) + bundle TikTok + frete grátis + 'link right here'. Zero produção — lê como amiga.",
+    "transcricao": "This is a sign of high cortisol. Low sex drive, high cortisol. PCOS symptoms, high cortisol. Waking up at 3 a.m. for no freaking reason, high cortisol. The list is literally long. And the problem is that you cannot outwork or out-eat high cortisol. It is a mineral deficiency and you need magnesium. Over 73% of women are deficient in magnesium and we don't even know it... a 3-in-1 pre-post-probiotic... Ashwagandha with L-theanine... apple cider vinegar with B12... I'm a mom on the go... Goli gave us all of that for these three gummies... in-store you'll pay three times the price... this bundle right here on TikTok... free shipping... I'm going to link them right here.",
+    "atencao": [
+      {
+        "sev": "plain",
+        "texto": "**Winner orgânico validado:** este criativo JÁ deu certo no orgânico — por isso é a fonte de decupagem (letra O). Decupar um winner comprovado de-risca o hook das copies do Sonnus."
+      },
+      {
+        "sev": "orange",
+        "texto": "**Outra marca (Goli)** — REFERÊNCIA de decupagem orgânica (letra O), NÃO um AD do Sonnus. Não republicar; usar como molde de estrutura/hook."
+      },
+      {
+        "sev": "orange",
+        "texto": "**Claims de mecanismo** ('high cortisol', 'deficiência de magnésio', PCOS) — ao adaptar p/ Sonnus, manter no eixo SONO e evitar claim de doença."
+      },
+      {
+        "sev": "yellow",
+        "texto": "**Estatística sem fonte** ('73% / 73.8%') — se reaproveitar o número, citar fonte ou suavizar."
+      },
+      {
+        "sev": "yellow",
+        "texto": "Bug de transcrição: 'ashwagandha' saiu como 'Ash Vagano'; 'L-theanine' como 'Althianina'. Conferir na fala."
+      },
+      {
+        "sev": "plain",
+        "texto": "PONTO DE OURO p/ Sonnus: o hook já inclui 'waking up at 3 a.m.' — a dor central do Sonnus. O checklist-dog-whistle é diretamente decupável para sono."
+      }
+    ],
+    "ficha": {
+      "tipo": "Vídeo UGC orgânico — Talking Head selfie no carro (câmera na mão)",
+      "plataforma": "TikTok (orgânico) — 'right here on TikTok', 'link them right here'",
+      "nicho": "Bem-estar feminino / cortisol / deficiência de magnésio",
+      "formato": "UGC orgânico cru + demo dos 3 potes",
+      "tom": "Casual + Didático + amiga/mãe atarefada",
+      "consciencia": "Problem/Solution-Aware (sintomas + causa + categoria)",
+      "sofisticacao": "Nível 3-4 (mecanismo cortisol/magnésio + ingredientes nomeados)",
+      "angulo": "Checklist de sintomas (dog whistle) → Causa Raiz (cortisol/magnésio)",
+      "framework": "Problema (checklist) → Invalidação → Mecanismo → Solução (ingredientes)",
+      "mup": "Cortisol alto por deficiência de magnésio: estresse constante (fight-or-flight) queima os minerais do corpo",
+      "mus": "3 ingredientes com função: 3-in-1 pre/post/probiotic (gut), ashwagandha+L-teanina (cortisol), ACV+B12 (bloat/açúcar)",
+      "publico": "Mulher 25-45 atarefada — postura pesquisadora, cansada de se culpar",
+      "deeper": "Parar de se culpar ('não é você, é o cortisol'); voltar a se sentir equilibrada e no controle",
+      "flow": {
+        "hook": "Rajada-checklist de sintomas, cada um selado com 'high cortisol'; inclui 'waking up at 3 a.m.'. Identificação + refrão memético.",
+        "corpo": "Invalida esforço/dieta → revela causa (magnésio, 73%) → mecanismo (estresse queima mineral) → 3 ingredientes nomeados com função.",
+        "close": "Identidade 'mom on the go' + ancoragem 3x (loja) + bundle TikTok + frete grátis + 'link right here'."
+      }
+    }
+  }
+]

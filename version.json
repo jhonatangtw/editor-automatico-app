@@ -1,6 +1,6 @@
 {
- "version": "0.24.2",
- "notes": "O Mac para de pedir a senha das chaves.\n\n• O aviso \"Editor Automático deseja acessar a chave\" não aparece mais a cada atualização. Nesta versão ele pode aparecer uma última vez por conta conectada — clique em Permitir Sempre e pronto.",
+ "version": "0.25.0",
+ "notes": "Novo: Agente IA Creator.\n\n• Na aba Ambiente tem um card novo, \"Agente IA Creator\". Um clique instala o agente e todas as skills e subagentes de que ele precisa.\n• Para usar, digite /samurai na conversa. Ele começa perguntando o que vamos editar hoje: microlead, upsell, VSL ou criativo do zero, ou clonar um criativo validado. Só executa depois que você confirma o plano.\n• Vêm junto: dissecador de ADs e de VSL, conferência de ADs e de VSL quadro a quadro, ficha técnica de criativo, upsell e o editor sênior de DR.",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",

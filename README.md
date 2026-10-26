@@ -235,6 +235,25 @@ os vídeos de uma pessoa específica, não são genéricas), `corte-viral` (prec
 YuNet e de subagentes em `~/.claude/agents`, que o app ainda não instala) e
 `motion-vox` (a fonte está sem os PNGs de asset).
 
+### Agente IA Creator (instalação à parte)
+
+Logo abaixo do card de skills fica o card **Agente IA Creator**. Um clique instala o
+agente inteiro: a skill `samurai` (o diretor, com os papéis IA Creator e Editor de
+Vídeo), as skills de que ele precisa e os 5 subagentes em `~/.claude/agents`
+(`premiere-executor`, `gerador-de-planos`, `qc-visual`, `decupador`,
+`auditor-de-entrega`). Para usar, digite `/samurai` na conversa. Ele abre perguntando
+**o que vamos editar hoje** (do zero: microlead, upsell, VSL ou criativo; ou clonar
+um criativo validado) e só executa depois de confirmar o plano.
+
+O manifesto mora em `agentes/ia-creator/agente.json`. As skills listadas em
+`exclusivas` (`samurai`, `editor-senior-dr`, `upsell-agente`, dissecadores,
+`decupar-vsl-por-frame`, `analise-criativo-ficha`, `cinematic-blackbelt`,
+`vsl-motion-ae`) viajam no retrato, mas o botão geral não as instala, só o card do
+agente. O `sincronizar-skills.sh` copia o manifesto e os subagentes para
+`skills/_agentes/<id>/`, que passa pela mesma limpeza e auditoria. A posse dos
+subagentes segue a regra das skills: o hash do que o app instalou fica em
+`~/.editorblackbelt/subagentes.json`, e um subagente mexido pelo aluno não é tocado.
+
 ⚠️ **Nunca sobrescreve uma skill que já existe.** Na máquina do autor as skills
 instaladas são a FONTE, e o retrato que viaja no app é sempre mais velho —
 sobrescrever ali seria apagar o original com uma cópia atrasada. "Reinstalar"
