@@ -1,0 +1,54 @@
+<template>
+  <style>
+    #cam-root { position: absolute; inset: 0; overflow: hidden; }
+    #cam-clip { position: absolute; inset: 0; overflow: hidden; }
+    #cam-xf { position: absolute; inset: 0; transform-origin: 540px 820px; }
+    #cam-punch { position: absolute; inset: 0; transform-origin: 540px 820px; }
+    #cam-vid { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; object-fit: cover; }
+  </style>
+  <div id="cam-root" data-composition-id="cam" data-width="1080" data-height="1920">
+    <div id="cam-clip">
+      <div id="cam-xf" data-layout-allow-overflow>
+        <div id="cam-punch">
+          <!-- o vídeo é o corte do aluno (proxy 30 fps), mudo: a voz vem da mixagem -->
+          <video id="cam-vid" class="clip" src="assets/video/fala.mp4" muted playsinline
+            data-start="0" data-duration="__DUR__" data-media-start="0" data-track-index="0"></video>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const tl = gsap.timeline({ paused: true });
+      const END = __DUR__;
+      // punch-ins no ENVOLTÓRIO do vídeo: [início, escala ao chegar, escala no próximo, duração do "snap"]
+      // snap rápido (batida) + deriva linear até o próximo — nunca para (sem "lapso")
+      const P = __PUNCH__;
+      for (let i = 0; i < P.length; i++) {
+        const [t, s0, s1, snap] = P[i];
+        const next = i + 1 < P.length ? P[i + 1][0] : END;
+        const prev = i > 0 ? P[i - 1][2] : s0;
+        if (snap > 0) tl.fromTo("#cam-punch", { scale: prev }, { scale: s0, duration: snap, ease: "power3.out", immediateRender: i === 0 }, t);
+        tl.fromTo("#cam-punch", { scale: s0 }, { scale: s1, duration: Math.max(0.05, next - t - snap), ease: "none", immediateRender: i === 0 && snap === 0 }, t + snap);
+      }
+      // modos de enquadramento: cheio / dividido (rosto sobe, painel embaixo) / pip (cartão no alto, fim)
+      const M = { cheio: { y: 0, scale: 1, clip: "inset(0px 0px 0px 0px round 0px)" },
+                  dividido: { y: -120, scale: 1, clip: "inset(0px 0px 0px 0px round 0px)" },
+                  pip: { y: -320, scale: 0.62, clip: "inset(190px 310px 1110px 310px round 36px)" } };
+      const L = __LAYOUT__;   // [[t, modo], ...] — o primeiro em t=0
+      const s0 = M[L[0][1]];
+      tl.fromTo("#cam-xf", { y: s0.y, scale: s0.scale }, { y: s0.y, scale: s0.scale, duration: 0.01, ease: "none" }, 0);
+      tl.fromTo("#cam-clip", { clipPath: s0.clip }, { clipPath: s0.clip, duration: 0.01, ease: "none" }, 0);
+      for (let i = 1; i < L.length; i++) {
+        const a = M[L[i - 1][1]], b = M[L[i][1]], t = L[i][0], d = L[i][1] === "pip" || L[i - 1][1] === "pip" ? 0.6 : 0.5;
+        tl.fromTo("#cam-xf", { y: a.y, scale: a.scale }, { y: b.y, scale: b.scale, duration: d, ease: "power3.inOut", immediateRender: false }, t);
+        if (a.clip !== b.clip) tl.fromTo("#cam-clip", { clipPath: a.clip }, { clipPath: b.clip, duration: d, ease: "power3.inOut", immediateRender: false }, t);
+        if (L[i][1] === "pip") {
+          const fim = i + 1 < L.length ? L[i + 1][0] : END;
+          tl.fromTo("#cam-xf", { y: b.y }, { y: b.y - 10, duration: Math.max(0.1, fim - t - d), ease: "none", immediateRender: false }, t + d);
+        }
+      }
+      window.__timelines["cam"] = tl;
+    })();
+  </script>
+</template>

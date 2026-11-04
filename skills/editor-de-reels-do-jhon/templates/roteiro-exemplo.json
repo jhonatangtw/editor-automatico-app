@@ -1,0 +1,47 @@
+{
+ "_leia": "MODELO comentado. Copie para roteiro.json e troque pelas palavras do SEU vídeo. Tempo = número em segundos OU \"palavra@segundos\" (início da palavra mais perto daquele tempo na transcricao.json; termine com > para o FIM da palavra). Guia completo: references/roteiro.md",
+ "duracao": null,
+ "layout": [[0, "cheio"], ["produto@6.2", "dividido"], ["nunca@41.2", "cheio"], ["link@57.6", "pip"]],
+ "punch_ins": "auto",
+ "musica": {"arquivo": "assets/musica/minha-trilha.mp3", "volume_db": -16},
+ "legenda": {"ligada": true, "ocultar": []},
+ "cenas": [
+  {
+   "id": "gancho", "ini": 0, "fim": 6.4,
+   "beats": [
+    {"linhas": [{"texto": "Eu parei de editar", "em": 0}, {"texto": "do zero.", "em": "zero@1.6", "destaque": true}]},
+    {"linhas": [{"partes": [{"texto": "E agora", "em": "agora@2.0"}, {"texto": "você", "em": "você@2.6"}]},
+                {"partes": [{"texto": "também", "em": "também@2.9"}, {"texto": "pode.", "em": "pode@3.2"}], "destaque": true}]},
+    {"linhas": [{"texto": "Hoje é de", "em": "hoje@4.4"}, {"texto": "de *vocês.*", "em": "vocês@5.0"}], "ate": "vocês@5.0>"}
+   ],
+   "visual": {"tipo": "hit", "linhas": ["Está", "no ar."], "em": "ar@5.6"}
+  },
+  {
+   "id": "produto", "ini": 6.1,
+   "beats": [
+    {"linhas": [{"texto": "Meu produto", "em": "produto@6.5"}, {"texto": "num painel só", "em": "painel@7.2", "destaque": true}]},
+    {"kicker": "dentro do", "linhas": [{"texto": "After", "em": "after@10.7"}, {"texto": "+ Premiere", "em": "premiere@11.9", "destaque": true}]}
+   ],
+   "visual": {"tipo": "telas", "passos": "auto", "itens": [
+    {"arquivo": "assets/telas/tela-1.png", "rotulo": ["App", "Tela inicial"]},
+    {"arquivo": "assets/telas/tela-2.png", "rotulo": ["Premiere", "Função X"]},
+    {"arquivo": "assets/telas/gravacao-1.mp4", "rotulo": ["After", "Função Y"]}
+   ]}
+  },
+  {
+   "id": "ia", "ini": 14.3,
+   "beats": [{"kicker": "E o melhor", "linhas": [{"texto": "Você pede em", "em": "pede@19.6"}, {"texto": "português", "em": "português@20.2", "destaque": true}]}],
+   "visual": {"tipo": "tela_unica", "arquivo": "assets/telas/gravacao-ia.mp4", "rotulo": "timeline montada"}
+  },
+  {
+   "id": "aprova", "ini": 25.9,
+   "beats": [{"linhas": [{"texto": "Nada entra", "em": "nada@28.6"}, {"texto": "sem você aprovar", "em": "aprovar@29.3", "destaque": true}]}],
+   "visual": {"tipo": "aprovacao", "titulo": ["Você", "aprova"], "status": ["aguardando o seu ok…", "nada entra sem você"], "carimbo": "aprovar@29.8"}
+  },
+  {
+   "id": "cta", "ini": 57.4,
+   "visual": {"tipo": "cta", "kicker": "Minha Marca", "linhas": ["Já pode", "baixar"], "url": "seusite.com.br",
+              "pilula": "Link na bio", "comentario": "ou comente PALAVRA", "comentario_em": "comentário@60.7"}
+  }
+ ]
+}

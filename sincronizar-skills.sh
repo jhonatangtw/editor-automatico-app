@@ -1,0 +1,136 @@
+#!/bin/bash
+# Copia as skills que viajam DENTRO do app.
+#
+# Elas continuam sendo autoradas em ~/.claude/skills — aqui vive um retrato,
+# para o app funcionar na máquina do editor, que não tem nenhuma delas. Rodar
+# isto antes de publicar mantém os dois em dia.
+#
+# ⚠️ Só entram as skills de PRODUÇÃO DE CRIATIVO. As outras da máquina do
+# autor não têm o que fazer no computador de um editor — e instalador que leva
+# tudo é instalador que ninguém baixa. Ficam de fora, de propósito:
+#   * as internas da casa (painel-hw-edicao, replicador-hw) — não são do aluno;
+#   * corte-viral — precisa de venv própria (3.10+), do modelo YuNet e de 8
+#     subagentes em ~/.claude/agents, pasta que o instalador ainda não instala;
+#   * motion-vox — a própria fonte continua sem os 16 PNGs de asset (o
+#     verificar.py dela reprova); entra quando o kit estiver completo;
+#   * motion-viral-jhon1 — é o motion dos Reels do PRÓPRIO autor (voz clonada
+#     dele, identidade visual dele, acervo no disco dele). Não é genérica;
+#   * gemini-omni — feita para os vídeos de uma pessoa específica;
+#   * cortar-aula — chama scripts que só existem na máquina do autor.
+#
+# real-sfx viaja SEM biblioteca, config e índice: os sons do autor são packs de
+# terceiros (repositório público) e o índice só traz caminho da máquina dele. O
+# aluno aponta a própria pasta com `setup.py init`.
+#
+# Depois de copiar, `limpar-skills.py` tira o que é do autor e do cliente
+# (caminhos, Drive, marcas, o registro de job) e AUDITA: se sobrar qualquer
+# coisa, este script para com erro e o retrato não é usado.
+#
+# `skills/` viaja na atualização leve: o CI põe a pasta no codigo.zip e o
+# app procura as skills primeiro ao lado do código em execução.
+set -e
+cd "$(dirname "$0")"
+ORIGEM="$HOME/.claude/skills"
+SKILLS="
+  skill-black-belt editor-automatico-de-broll hooks-meat-hook
+  blackbelt-omni motion-omni-vsl vibe-motion motion-design
+  photorealism-prompts video-prompt-builder avatar-vsl-video-prompts
+  pixar3d storyboard-viral-3d omni-flash-reverse video-to-flow
+  clone-ad-validado plataforma-ia-higgsfield boas-praticas-black-belt
+  conferir-ads-por-frame real-sfx earshot real-sound
+"
+
+# Agentes (agentes/<id>/agente.json): as skills EXCLUSIVAS de cada um entram no
+# retrato também, mas o botão geral não as instala — só o cartão do agente.
+# Os subagentes (~/.claude/agents/<nome>.md) viajam em skills/_agentes/<id>/.
+# Skills sincronizadas do claude.ai moram em ~/.claude/skills/synced/<conta>/.
+EXCLUSIVAS=$(python3 -c "
+import json,glob
+print(' '.join(sorted({s for f in glob.glob('agentes/*/agente.json') for s in json.load(open(f))['exclusivas']})))")
+SKILLS="$SKILLS $EXCLUSIVAS"
+
+# Segunda origem: skills escritas DIRETO para os alunos (não moram no
+# ~/.claude/skills do autor). Só entram quando a pasta tem SKILL.md E o
+# arquivo `.pronta` — skill pela metade não viaja por acidente num sync feito
+# por outro motivo. Quando a do Reels estiver pronta:
+#   touch "$HOME/Documents/03_Apps/Editor Black Belt/skills-alunos/editor-de-reels-do-jhon/.pronta"
+#   ./sincronizar-skills.sh && python3 gerar-guia.py && .venv/bin/python -m unittest discover -s testes
+ALUNOS="${SKILLS_ALUNOS:-$HOME/Documents/03_Apps/Editor Black Belt/skills-alunos}"
+SKILLS_ALUNOS_LISTA="
+  editor-de-reels-do-jhon advalidado-weightloss
+"
+
+[ -d "$ORIGEM" ] || { echo "x nao achei $ORIGEM" >&2; exit 1; }
+rm -rf skills; mkdir -p skills
+
+for s in $SKILLS; do
+  if [ ! -d "$ORIGEM/$s" ]; then
+    SYNC=$(ls -d "$ORIGEM"/synced/*/"$s" 2>/dev/null | head -1)
+    [ -n "$SYNC" ] || { echo "x a skill '$s' nao esta instalada" >&2; exit 1; }
+    rsync -a --exclude '__pycache__' --exclude '.DS_Store' --exclude '*.pyc' "$SYNC" skills/
+    printf "  %-30s %s\n" "$s" "$(du -sh skills/$s | cut -f1)  (synced)"; continue
+  fi
+  # .venv/.git/node_modules: uma venv de skill sozinha passa de 400 MB e
+  # entraria calada no .dmg. runs/ é trabalho de projeto, não é a skill.
+  #
+  # ⚠️ `motion-omni-vsl/assets/produto_*.png` são o RENDER DO PRODUTO DO CLIENTE
+  # do job em que a skill nasceu. O repositório é público e o app vai para todo
+  # aluno: material de cliente não viaja. E nem serviria — cada um tem o seu.
+  rsync -a --exclude '__pycache__' --exclude '.DS_Store' --exclude '*.pyc' \
+        --exclude '.venv' --exclude '.git' --exclude 'node_modules' \
+        --exclude 'runs' --exclude '*.antes-*' --exclude 'assets/produto_*.png' --exclude '.editor-automatico.json' \
+        --exclude '/real-sfx/config.json' --exclude '/real-sfx/library_index.json' --exclude '/real-sfx/vendor' \
+        --exclude '/real-sfx/tests' --exclude '/real-sfx/evals' \
+        "$ORIGEM/$s" skills/
+  printf "  %-30s %s\n" "$s" "$(du -sh skills/$s | cut -f1)"
+done
+
+for s in $SKILLS_ALUNOS_LISTA; do
+  if [ ! -f "$ALUNOS/$s/SKILL.md" ]; then
+    printf "  %-30s %s\n" "$s" "- ainda nao existe em skills-alunos (pulei)"; continue
+  fi
+  if [ ! -f "$ALUNOS/$s/.pronta" ]; then
+    printf "  %-30s %s\n" "$s" "- sem o arquivo .pronta (pulei)"; continue
+  fi
+  rsync -a --exclude '__pycache__' --exclude '.DS_Store' --exclude '*.pyc' \
+        --exclude '.venv' --exclude '.git' --exclude 'node_modules' \
+        --exclude 'runs' --exclude '.pronta' --exclude 'renders' --exclude '.editor-automatico.json' \
+        "$ALUNOS/$s" skills/
+  printf "  %-30s %s\n" "$s" "$(du -sh skills/$s | cut -f1)  (skills-alunos)"
+done
+
+for f in agentes/*/agente.json; do
+  id=$(basename "$(dirname "$f")"); mkdir -p "skills/_agentes/$id/agents"
+  cp "$f" "skills/_agentes/$id/"
+  for a in $(python3 -c "import json;print(' '.join(json.load(open('$f'))['subagentes']))"); do
+    [ -f "$HOME/.claude/agents/$a.md" ] || { echo "x subagente '$a' nao existe" >&2; exit 1; }
+    cp "$HOME/.claude/agents/$a.md" "skills/_agentes/$id/agents/"
+  done
+  printf "  %-30s %s\n" "agente $id" "$(ls skills/_agentes/$id/agents | wc -l | tr -d ' ') subagentes"
+done
+
+# As regras gerais de upsell moram na memória do autor, e o supervisor as lê:
+# viajam como referência da skill (a limpeza troca o caminho nos subagentes).
+REGRAS="$HOME/.claude/projects/-Users-$(whoami)/memory/regras-gerais-upsell.md"
+[ -f "$REGRAS" ] || { echo "x nao achei $REGRAS" >&2; exit 1; }
+cp "$REGRAS" skills/upsell-premium-916/references/REGRAS_GERAIS.md
+
+echo "  --- limpando e auditando"
+python3 limpar-skills.py skills
+
+python3 - <<'PY'
+import json, os, sys, time
+sys.path.insert(0, ".")
+from nucleo.skills import hash_pasta
+d = {}
+for s in sorted(os.listdir("skills")):
+    p = os.path.join("skills", s)
+    if not os.path.isdir(p) or s.startswith("_"):
+        continue
+    d[s] = hash_pasta(p)     # o MESMO hash que o instalador usa para saber o que é nosso
+json.dump({"origem": "~/.claude/skills", "sincronizado": time.strftime("%Y-%m-%d"),
+           "skills": d}, open("skills/FONTE.json", "w", encoding="utf-8"),
+          ensure_ascii=False, indent=2)
+print("  ---")
+print("  %d skills, %s no total" % (len(d), os.popen("du -sh skills | cut -f1").read().strip()))
+PY

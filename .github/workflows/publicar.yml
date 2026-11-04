@@ -1,0 +1,161 @@
+# Publica os DOIS instaladores a cada tag `vX.Y.Z`.
+#
+# O do Windows tem que nascer no Windows: o PyInstaller não faz build cruzado.
+# Antes disso, o app não tinha como existir fora do Mac — não por causa do
+# código, por causa da máquina de build.
+name: publicar
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -r requirements.txt pyinstaller
+      - uses: actions/setup-node@v4
+        with: {node-version: "20"}
+      # Os testes ANTES do build: instalador com defeito conhecido não sai.
+      # O jsdom vai numa pasta temporária do runner (os testes de tela o acham
+      # por JSDOM_DIR) — o repositório não tem package.json de propósito.
+      - name: testes
+        shell: bash
+        run: |
+          npm install --no-save --no-audit --no-fund --prefix "$RUNNER_TEMP/jsdom" jsdom@24.1.3
+          export JSDOM_DIR="$RUNNER_TEMP/jsdom/node_modules/jsdom"
+          python -m unittest discover -s testes
+          node --test testes/js/
+      - run: ./instalador/construir.sh
+      - name: nome fixo para o auto-update
+        run: |
+          mkdir -p entrega
+          cp "$(ls -t instalador/saida/*.dmg | head -1)" entrega/EditorAutomatico.dmg
+          # o .pkg (instala sem senha de admin) só sai fora de sandbox — aqui
+          # ele sai. Se um dia não sair, o .dmg segue sendo o canal e a Release
+          # não quebra por causa dele.
+          PKG=$(ls -t instalador/saida/*.pkg 2>/dev/null | head -1 || true)
+          if [ -n "$PKG" ]; then cp "$PKG" entrega/EditorAutomatico.pkg
+          else echo "::warning::o .pkg não foi gerado — Release sai só com o .dmg"; fi
+      - uses: actions/upload-artifact@v4
+        with: {name: mac, path: entrega/}
+
+  # ⚠️ `macos-latest` é arm64. Mac Intel NÃO roda binário arm64 — o Rosetta
+  # traduz Intel→ARM, nunca o contrário — então o Intel precisa do próprio
+  # runner. É build separado, não uma flag.
+  mac-intel:
+    # ⚠️ `macos-13` foi aposentado: o job fica na fila para sempre em vez de
+    # falhar. O runner Intel vivo é o `macos-15-intel`.
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -r requirements.txt pyinstaller
+      - run: ./instalador/construir.sh
+      - name: nomes fixos para o auto-update
+        run: |
+          mkdir -p entrega
+          cp "$(ls -t instalador/saida/*.dmg | head -1)" entrega/EditorAutomatico-Intel.dmg
+          PKG=$(ls -t instalador/saida/*.pkg 2>/dev/null | head -1 || true)
+          if [ -n "$PKG" ]; then cp "$PKG" entrega/EditorAutomatico-Intel.pkg; fi
+      - uses: actions/upload-artifact@v4
+        with: {name: mac-intel, path: entrega/}
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -r requirements.txt pyinstaller
+      - uses: actions/setup-node@v4
+        with: {node-version: "20"}
+      # Os testes ANTES do build: instalador com defeito conhecido não sai.
+      # O jsdom vai numa pasta temporária do runner (os testes de tela o acham
+      # por JSDOM_DIR) — o repositório não tem package.json de propósito.
+      # No Windows a suíte roda e fica no log, mas ainda não barra: ela nasceu
+      # num Mac e 5 testes supõem .dmg, /Volumes e caminho com ~ (medido
+      # 20/10/2026). Tirar o continue-on-error quando esses forem adaptados.
+      - name: testes
+        shell: bash
+        continue-on-error: true
+        run: |
+          npm install --no-save --no-audit --no-fund --prefix "$RUNNER_TEMP/jsdom" jsdom@24.1.3
+          export JSDOM_DIR="$RUNNER_TEMP/jsdom/node_modules/jsdom"
+          python -m unittest discover -s testes
+          node --test testes/js/
+      - name: NSIS
+        run: choco install nsis -y --no-progress
+      - run: powershell -ExecutionPolicy Bypass -File instalador\construir-windows.ps1
+      - run: |
+          mkdir entrega
+          copy instalador\saida\EditorAutomatico-Instalador.exe entrega\
+      - uses: actions/upload-artifact@v4
+        with: {name: windows, path: entrega/}
+
+  soltar:
+    needs: [mac, mac-intel, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: {path: entrega, merge-multiple: true}
+      # ATUALIZAÇÃO LEVE: um zip só com o código, para o app se atualizar sem
+      # reinstalar. O sha256 vai no version.json da RELEASE (não dentro do zip,
+      # que seria circular) e o app recusa pacote que chegue diferente.
+      - name: pacote de código
+        run: |
+          set -e
+          python3 - <<'PY'
+          import hashlib, json, os, zipfile
+          PULAR = {"__pycache__", ".git", ".venv", "build", "instalador", ".github"}
+          with zipfile.ZipFile("entrega/codigo.zip", "w", zipfile.ZIP_DEFLATED) as z:
+              z.write("app.py"); z.write("version.json")
+              for raiz in ("nucleo", "web", "skills"):
+                  for pasta, subs, arqs in os.walk(raiz):
+                      subs[:] = [d for d in subs if d not in PULAR]
+                      for a in arqs:
+                          if a.endswith((".pyc", ".DS_Store")):
+                              continue
+                          z.write(os.path.join(pasta, a))
+          dados = open("entrega/codigo.zip", "rb").read()
+          d = json.load(open("version.json", encoding="utf-8"))
+          d["codigo"] = "codigo.zip"
+          d["codigo_sha256"] = hashlib.sha256(dados).hexdigest()
+          json.dump(d, open("entrega/version.json", "w", encoding="utf-8"),
+                    ensure_ascii=False, indent=2)
+          print("codigo.zip: %.1f KB · sha %s" % (len(dados)/1024, d["codigo_sha256"][:12]))
+          PY
+
+      - name: a Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -e
+          test -f entrega/version.json
+          NOTAS=$(python3 -c "import json;print(json.load(open('version.json')).get('notes',''))")
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" entrega/* --clobber
+          else
+            gh release create "$TAG" entrega/* --title "$TAG" --notes "$NOTAS" --latest
+          fi
+      - name: conferir o que o app vai enxergar
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: |
+          set -e
+          for a in EditorAutomatico.dmg EditorAutomatico-Intel.dmg \
+                   EditorAutomatico-Instalador.exe codigo.zip version.json; do
+            code=$(curl -sIL -o /dev/null -w '%{http_code}' \
+              "https://github.com/${{ github.repository }}/releases/latest/download/$a")
+            echo "$a -> $code"
+            [ "$code" = "200" ] || exit 1
+          done

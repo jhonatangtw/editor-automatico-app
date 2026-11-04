@@ -1,0 +1,278 @@
+# Editor Automático
+
+App de mesa que edita criativo de b-roll do começo ao fim: decupa a fala, planeja
+onde entra cada insert, gera o visual, **monta na sua timeline do Premiere** e
+confere o resultado antes de liberar a exportação.
+
+Roda na sua máquina, com as suas contas. O material não sobe para lugar nenhum
+para ser transcrito — o Whisper roda local.
+
+## Instalar
+
+**macOS** — [Apple Silicon (M1/M2/M3…)](https://github.com/jhonatangtw/editor-automatico-app/releases/latest/download/EditorAutomatico.dmg) · [Intel](https://github.com/jhonatangtw/editor-automatico-app/releases/latest/download/EditorAutomatico-Intel.dmg)
+
+> Em dúvida: menu  → Sobre este Mac. Se disser **Chip Apple**, é o primeiro;
+> se disser **Processador Intel**, é o segundo. O app baixa o certo sozinho nas
+> atualizações seguintes.
+
+1. Abra o `.dmg` e arraste o **Editor Automático** para a pasta Aplicativos.
+2. Na primeira abertura: **botão direito no app → Abrir → Abrir**. O app não é
+   assinado com Developer ID, então o macOS avisa uma vez.
+
+**Windows** — [baixar o instalador](https://github.com/jhonatangtw/editor-automatico-app/releases/latest/download/EditorAutomatico-Instalador.exe)
+
+1. Rode o instalador. Ele **não pede senha de administrador** — instala em
+   `%LOCALAPPDATA%` e cria atalho no menu Iniciar e na área de trabalho.
+2. Na primeira execução o SmartScreen avisa (o instalador não é assinado):
+   **Mais informações → Executar assim mesmo**.
+
+Atualizações aparecem sozinhas dentro do app — pill **⬆ Atualizar** no rodapé da
+barra lateral, e cada sistema baixa o seu instalador.
+
+## Preparar a máquina com um botão
+
+Aba **Ambiente → Preparar esta máquina**. O app mostra antes o que vai fazer e
+depois instala tudo numa fila só, na ordem de dependência, reconferindo o disco
+entre um passo e outro:
+
+1. Homebrew (Mac) — abre o Terminal, que pede a senha do Mac; o app espera terminar;
+2. Node, FFmpeg, Whisper, Claude Code, Higgsfield CLI;
+3. os opcionais, se marcados — Codex, MiniMax, Anthropic CLI, HeyGen;
+4. as skills que faltam na pasta do Claude;
+5. o plugin do Premiere (baixa o instalador oficial e o roda no Terminal) e a ponte
+   com o painel.
+
+O que o app não instala (Premiere pelo Creative Cloud; winget pela Microsoft Store)
+aparece na lista como "por sua conta", não some. Se um Terminal não terminar a
+tempo, o passo fica como "aguardando" — clicar de novo retoma de onde parou, porque
+tudo que já está instalado é pulado.
+
+## O plugin do Premiere
+
+O app fala com o Premiere pela extensão **Editor Black Belt Tools PRO**. Sem ela
+o app planeja, gera e confere arquivo, mas não escreve na timeline.
+
+Instale por dentro do app: aba **Ambiente → Preparar esta máquina** (instala o
+plugin junto com o resto) ou, sozinho, pelo card **Instalar plugin no Premiere**. Ou
+baixe direto: [EditorBlackBeltToolsPRO-Instalador.zip](https://github.com/jhonatangtw/editor-black-belt-tools-pro/releases/latest/download/EditorBlackBeltToolsPRO-Instalador.zip).
+
+Depois de instalar, reabra o Premiere e deixe o painel aberto em
+**Janela → Extensões → Tools PRO**: a ponte só existe com o painel aberto.
+
+## As 12 etapas
+
+O app é uma máquina de estados. Cada etapa só roda com a anterior concluída, e
+as que gastam crédito exigem aprovação escrita — concluído pode ser automático,
+aprovado nunca é.
+
+| # | Etapa | Gasta |
+|---|---|---|
+| 1 | Análise inicial | |
+| 2 | Verificação da copy contra a fala | |
+| 3 | Marcação da timeline | |
+| 4 | **Aprovação do planejamento** (portão) | |
+| 5 | Criação dos avatares | crédito |
+| 6 | Imagens de b-roll | crédito |
+| 7 | Aprovação das imagens (uma a uma) | |
+| 8 | Animação dos b-rolls | crédito |
+| 9 | Aprovação dos vídeos (um a um) | |
+| 10 | Letterings, voz e legendas | crédito |
+| 11 | **Montagem no Premiere** | |
+| 12 | **Controle de qualidade** (portão) | |
+
+## Prévia das entregas na Conversa
+
+O que a IA entrega aparece dentro da própria conversa: imagens em grade (clique
+abre grande, com setas, Esc e contador "3 de 9"), vídeos com player na proporção
+certa e áudios com a forma da onda. Cada mídia tem **Mostrar no Finder**
+(no Windows, *Mostrar na pasta*), **Colocar na timeline** — que só escreve o
+pedido no campo; quem envia é você — e **Copiar caminho**.
+
+Link de entrega (Higgsfield, HeyGen) expira: o app **baixa para a pasta do
+projeto** (`media/imagens`, `media/videos`, `media/audio`) antes de mostrar, uma
+vez só, e do Higgsfield usa o `result_url`, nunca a miniatura. Conversa sem
+projeto pergunta onde salvar — nunca em pasta temporária, Downloads ou na pasta
+da conversa. Nada é gerado nem refeito sozinho.
+
+O app só serve arquivo de dentro das pastas do app, da pasta do job ligada a um
+projeto e da pasta de projeto escolhida (caminho resolvido antes de comparar;
+`..` e atalho para fora são recusados), sempre com o token da sessão.
+
+A barra do topo da Conversa (no app e no painel do Premiere) tem o título
+editável, **+ Nova** e **Histórico**, com busca pelo título ou pelo conteúdo.
+
+## Qual IA conduz a conversa
+
+O seletor fica embaixo do campo de mensagem, colado no compositor. Cada mensagem
+vai para a IA marcada, e a escolha fica guardada entre sessões.
+
+| | Como entra | O que ela alcança |
+|---|---|---|
+| **Claude** | sessão do Claude Code (assinatura) ou chave de API | pipeline completo, **mais** as skills e ferramentas que você já tem no Claude Code |
+| **ChatGPT** | `codex login` na sua conta (assinatura) ou chave de API | as ferramentas do app por MCP — sem as skills do Claude Code |
+
+Os dois passam pelos **mesmos portões**: se a IA tentar gerar b-roll antes da
+aprovação do planejamento, recebe a recusa e tem que explicar.
+
+Gerar mídia que gasta crédito é só pela ferramenta `etapa_rodar` do app. No
+Claude, os comandos diretos (`higgsfield generate`, `heygen`, `mmx`, `curl` para
+as APIs pagas e os MCPs de geração mais comuns) vão em `--disallowedTools`, que
+vale mesmo com `bypassPermissions` — conferido com um `higgsfield` falso no PATH.
+As skills empacotadas levam no topo um aviso dizendo o mesmo
+(`limpar-skills.py` põe o aviso em toda skill que ensina a gerar por fora). No
+ChatGPT (Codex) a trava ainda é só a regra escrita no contexto: o Codex não tem
+lista de bloqueio por linha de comando — falta testar as regras `.rules` dele.
+
+**Histórico por conversa e por provedor.** A tela mostra tudo o que foi
+conversado, com o nome de quem respondeu em cada resposta; mas cada IA só recebe
+de volta o que foi trocado com ela. Misturar faria uma responder sobre o que a
+outra fez como se tivesse feito — e ferramenta já executada não volta atrás.
+
+### Configurar o ChatGPT
+
+**Cada pessoa entra na conta dela**, como no Claude. Dois caminhos:
+
+**1. Assinatura (recomendado).** Instale o Codex CLI pela aba **Ambiente** e
+clique em **ChatGPT** no seletor → *Entrar com a conta do ChatGPT*. Abre o
+Terminal com `codex login`, você autoriza no navegador e pronto.
+
+⚠️ **Isto é dinheiro, não preferência.** Quem assina o ChatGPT já paga pelo
+modelo; usar chave de API cobraria de novo, por fora, pelo mesmo acesso. É a
+mesma regra do HeyGen: login de conta gasta a ASSINATURA, chave gasta a carteira
+de API.
+
+O app conversa por `codex exec --json`, com as ferramentas dele entregues por
+MCP e uma thread por conversa (`codex exec resume`), que é o que dá memória
+entre mensagens.
+
+⚠️ O app roda o Codex com `--dangerously-bypass-approvals-and-sandbox`. Não é
+descuido: sem flag de aprovação o Codex recusa TODA ferramenta, e o
+`codex exec resume` — que é o que dá memória — não aceita o flag estreito
+(`--approve-for-me`) nem herda a política da thread. É o mesmo nível de confiança
+que o app já dá ao Claude Code (`--permission-mode bypassPermissions`).
+
+**2. Chave de API (paga por uso).** Para quem prefere. A chave nunca fica no
+código nem no front-end; o app procura nesta ordem:
+
+1. **variável de ambiente** `OPENAI_API_KEY` — o jeito canônico;
+2. **`~/.editorblackbelt/.env`** (permissão 0600) — copie o `.env.example`;
+3. **shell de login**, perguntado na hora;
+4. **cofre do sistema**, se você colou a chave pelo próprio app.
+
+```bash
+cp .env.example ~/.editorblackbelt/.env
+chmod 600 ~/.editorblackbelt/.env
+# edite e preencha OPENAI_API_KEY
+```
+
+⚠️ O passo 2 existe por um motivo prático: **um `.app` aberto pelo Finder não
+herda o ambiente do shell**. `export OPENAI_API_KEY` no `.zshrc` é invisível
+para ele — sem o arquivo, "use variável de ambiente" só funcionaria para quem
+abre o app pelo terminal.
+
+Pelo app: clique em **ChatGPT** no seletor. Sem chave, ele abre o pedido, testa
+a credencial antes de aceitar e grava no `.env` acima.
+
+Opcionais: `OPENAI_MODEL` (se o modelo não existir na sua conta, o app procura o
+melhor equivalente e avisa qual usou) e `OPENAI_BASE_URL` (Azure ou proxy).
+
+### Os dois caminhos, e por que ambos existem
+
+O desenho é simétrico de propósito:
+
+| | Assinatura | Chave de API |
+|---|---|---|
+| Claude | `claude -p --session-id …` + MCP | API da Anthropic, tool use |
+| ChatGPT | `codex exec [resume] --json` + MCP | API da OpenAI, function calling + streaming |
+
+Pela assinatura o agente roda **de verdade** — com a memória dele, as
+ferramentas do app por MCP e, no caso do Claude, as skills que o usuário já tem
+instaladas. Por chave, o app conduz o laço de ferramentas ele mesmo.
+
+Nenhum dos quatro caminhos usa SDK: tudo é `urllib`. O app empacota com
+PyInstaller e cada dependência a mais é uma chance a mais de quebrar no pacote
+do aluno.
+
+## As skills que vêm dentro do app
+
+O Claude Code lê as skills de `~/.claude/skills`. Na máquina de quem as escreveu
+isso está cheio; na de um editor, vazio — então o mesmo app, com o mesmo Claude,
+respondia com um repertório completamente diferente conforme quem abria, e sem
+nenhum aviso.
+
+O app leva vinte (a lista sai de `skills/FONTE.json`) e as instala com um
+clique (aba **Ambiente**, card no topo — ou junto com tudo, em **Preparar esta
+máquina**):
+
+| Skill | Para quê |
+|---|---|
+| `editor-automatico-de-broll` | a régua da edição: punch, cadência, marcador, portão |
+| `editor-de-reels-do-jhon` | Reels de talking head do bruto ao vídeo pronto |
+| `clone-ad-validado` | clonar um AD que já vende trocando personagem e/ou copy |
+| `advalidado-weightloss` | clone de AD validado de emagrecimento, de ponta a ponta |
+| `hooks-meat-hook` | hooks novos no formato Meat Hook para ADs de saúde |
+| `conferir-ads-por-frame` | conferência (QA) de ADs prontos: imagem, legenda e fala |
+| `boas-praticas-black-belt` | armadilhas e receitas por ferramenta, antes de gerar |
+| `skill-black-belt` | pipeline de criativo de vídeo IA para direct response |
+| `avatar-vsl-video-prompts` | prompts de avatar falante (UGC / VSL) |
+| `photorealism-prompts` | prompts de imagem ultrarrealista |
+| `pixar3d` | personagens 3D estilo Pixar para criativo |
+| `storyboard-viral-3d` | storyboard cena a cena |
+| `video-prompt-builder` | shot list e prompts de vídeo |
+| `blackbelt-omni` | clipes de 10s no estilo Black Belt para o Omni Flash |
+| `omni-flash-reverse` | engenharia reversa de uma referência de motion |
+| `motion-omni-vsl` | lotes de overlay (cartelas, preço, garantia) para VSL |
+| `motion-design` | prompts de motion design a partir de galeria ou vídeo de referência |
+| `vibe-motion` | prompts de motion graphics para o Vibe Motion |
+| `video-to-flow` | vídeo pronto → workflow de edição no Google Flow |
+| `plataforma-ia-higgsfield` | montar uma plataforma web própria de geração com IA |
+
+As que ensinam a gerar por fora (`higgsfield generate`, `heygen`…) levam no
+topo o aviso de que, dentro do app, gerar é só pelas etapas do pipeline.
+
+Ficam de fora de propósito: `motion-viral-jhon1` e `gemini-omni` (feitas para
+os vídeos de uma pessoa específica, não são genéricas), `corte-viral` (precisa de venv própria, do modelo
+YuNet e de subagentes em `~/.claude/agents`, que o app ainda não instala) e
+`motion-vox` (a fonte está sem os PNGs de asset).
+
+### Agente IA Creator (instalação à parte)
+
+Logo abaixo do card de skills fica o card **Agente IA Creator**. Um clique instala o
+agente inteiro: a skill `samurai` (o diretor, com os papéis IA Creator e Editor de
+Vídeo), as skills de que ele precisa e os 5 subagentes em `~/.claude/agents`
+(`premiere-executor`, `gerador-de-planos`, `qc-visual`, `decupador`,
+`auditor-de-entrega`). Para usar, digite `/samurai` na conversa. Ele abre perguntando
+**o que vamos editar hoje** (do zero: microlead, upsell, VSL ou criativo; ou clonar
+um criativo validado) e só executa depois de confirmar o plano.
+
+O manifesto mora em `agentes/ia-creator/agente.json`. As skills listadas em
+`exclusivas` (`samurai`, `editor-senior-dr`, `upsell-agente`, dissecadores,
+`decupar-vsl-por-frame`, `analise-criativo-ficha`, `cinematic-blackbelt`,
+`vsl-motion-ae`) viajam no retrato, mas o botão geral não as instala, só o card do
+agente. O `sincronizar-skills.sh` copia o manifesto e os subagentes para
+`skills/_agentes/<id>/`, que passa pela mesma limpeza e auditoria. A posse dos
+subagentes segue a regra das skills: o hash do que o app instalou fica em
+`~/.editorblackbelt/subagentes.json`, e um subagente mexido pelo aluno não é tocado.
+
+⚠️ **Nunca sobrescreve uma skill que já existe.** Na máquina do autor as skills
+instaladas são a FONTE, e o retrato que viaja no app é sempre mais velho —
+sobrescrever ali seria apagar o original com uma cópia atrasada. "Reinstalar"
+guarda a sua cópia ao lado, com data, em vez de apagá-la.
+
+Para atualizar o retrato antes de publicar: `./sincronizar-skills.sh`.
+
+## Para quem vai mexer no código
+
+- `LEIA-ME.md` — arquitetura, decisões e as armadilhas que já custaram caro.
+- `MANUAL.md` — o manual do usuário.
+- A **regra de edição** (punch, cadência, marcador) mora na skill
+  `editor-automatico-de-broll`, não aqui. `nucleo/skill.py` importa a de lá.
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install pywebview keyring
+.venv/bin/python app.py
+```
+
+Publicar uma versão: edite `version.json`, commite e rode `./publicar.sh` — ele
+marca a tag e o GitHub Actions constrói os dois instaladores (o `.exe` só nasce
+numa máquina Windows; o PyInstaller não faz build cruzado).

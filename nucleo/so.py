@@ -1,0 +1,238 @@
+"""
+As diferenças entre Mac e Windows, num lugar só.
+
+O app nasceu no Mac e cada pedaço aprendeu o Mac por conta: `pgrep` para achar
+o Premiere, `osascript` para abrir Terminal, `brew` para instalar, `/Applications`
+para procurar programa. Espalhado assim, portar viraria caça a `if` escondido —
+e o pior tipo de bug de porte é o que só aparece na máquina do aluno.
+
+Regras:
+
+  * **`run`/`popen` resolvem o argv[0] antes de chamar.** No Windows, CLI de npm
+    é um `.cmd` — `["higgsfield", ...]` levanta FileNotFoundError enquanto
+    `higgsfield.cmd` na mão funciona. `shutil.which` acha o `.cmd` (PATHEXT), e
+    passar o caminho resolvido é o que faz o mesmo código servir nos dois.
+
+  * **Nada aqui levanta por sistema desconhecido.** Linux não é alvo, mas cair
+    num `KeyError` seria pior do que degradar.
+"""
+
+import os
+import platform
+import shutil
+import subprocess
+
+SISTEMA = platform.system()
+MAC = SISTEMA == "Darwin"
+WIN = SISTEMA == "Windows"
+
+# ⚠️ Windows: o console é cp1252 e o Python dos programas que o app abre
+# (Whisper, HyperFrames, scripts das skills) herda isso. Com nome de usuário
+# acentuado ("João Marcos") ou texto fora do cp1252, o `--help` do Whisper e a
+# própria transcrição quebram com UnicodeEncodeError dentro do argparse — o
+# programa está instalado, mas "não abre". UTF-8 para todo filho, de uma vez.
+if WIN:
+    os.environ.setdefault("PYTHONUTF8", "1")
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+
+# Onde o Adobe guarda as extensões CEP — é a casa do plugin do Premiere.
+# ⚠️ `os.path.expandvars` NÃO expande `%VAR%` fora do Windows (o posixpath só
+# entende `$VAR`), então um teste no Mac veria o literal `%APPDATA%` e passaria
+# mentindo. `os.environ` funciona igual nos dois.
+def _appdata():
+    return (os.environ.get("APPDATA")
+            or os.path.expanduser(r"~\AppData\Roaming"))
+
+
+CEP = (os.path.join(_appdata(), "Adobe", "CEP", "extensions") if WIN
+       else os.path.expanduser("~/Library/Application Support/Adobe/CEP/extensions"))
+
+# O gerenciador de pacotes de cada casa. `winget` vem no Windows 10/11.
+GERENCIADOR = "winget" if WIN else "brew"
+
+
+def onde(binario):
+    """`which` que enxerga `.cmd`/`.bat` no Windows.
+
+    ⚠️ **O Windows tem executável FALSO no PATH.** O "alias de execução de
+    aplicativo" põe um `python.exe` de 0 byte em `WindowsApps` que não roda
+    nada — só abre a Microsoft Store. O `which` acha, o app diria "Python
+    instalado", e a instalação do Whisper abriria uma vitrine de loja em vez de
+    instalar. Stub de tamanho zero não conta como instalado."""
+    achado = shutil.which(binario)
+    if achado and WIN and "windowsapps" in achado.lower():
+        try:
+            if os.path.getsize(achado) == 0:
+                return None
+        except OSError:
+            return None
+    return achado
+
+
+def resolver(cmd):
+    """Troca o argv[0] pelo caminho real. Lista igual se não achar — a mensagem
+    de erro do sistema é melhor do que uma minha inventada."""
+    if not cmd or not isinstance(cmd, (list, tuple)):
+        return cmd
+    achado = onde(cmd[0])
+    return [achado] + list(cmd[1:]) if achado else list(cmd)
+
+
+# ⚠️ **No Windows, subprocesso de app SEM console PISCA uma janela preta.**
+# Cada `tasklist`, cada `reg query`, cada CLI. O "Reconectar ao Tools PRO" faz
+# várias por segundo e a tela do aluno virou um estroboscópio de janelas
+# abrindo e fechando. `CREATE_NO_WINDOW` é o que resolve — e precisa valer para
+# TODA chamada, senão sobra uma piscando.
+def _calado(kw):
+    if WIN:
+        kw.setdefault("creationflags", subprocess.CREATE_NO_WINDOW)
+        # ⚠️ Saída em texto do filho é UTF-8 (Claude Code, npm, CLIs). Sem isso o
+        # Python do Windows decodifica em cp1252 e a resposta vira "NÃ£o",
+        # "sequÃªncias" na Conversa.
+        if (kw.get("text") or kw.get("universal_newlines")) and "encoding" not in kw:
+            kw["encoding"] = "utf-8"
+            kw.setdefault("errors", "replace")
+    return kw
+
+
+# ⚠️ Passar pelo `so.run/popen` dependia de quem escreve lembrar. ~20 chamadas
+# iam direto no `subprocess` — `codex login status` da checagem de contas (a
+# cada 15 s), `reg query` da ponte, ffprobe — e no Windows cada uma piscava um
+# terminal e lia a saída em cp1252 (acento virando "Ã£"). Agora vale para TODO
+# Popen do processo, inclusive `subprocess.run` direto. A marca evita embrulhar
+# de novo quando a atualização a quente recarrega o `nucleo`.
+if WIN and not getattr(subprocess.Popen.__init__, "_calado", False):
+    _popen_init = subprocess.Popen.__init__
+
+    def _popen_calado(self, *a, **kw):
+        _popen_init(self, *a, **_calado(kw))
+
+    _popen_calado._calado = True
+    subprocess.Popen.__init__ = _popen_calado
+
+
+def run(cmd, **kw):
+    return subprocess.run(resolver(cmd), **_calado(kw))
+
+
+def popen(cmd, **kw):
+    return subprocess.Popen(resolver(cmd), **_calado(kw))
+
+
+def abrir(caminho):
+    """Abre arquivo ou pasta no programa padrão do sistema."""
+    try:
+        if WIN:
+            os.startfile(caminho)          # noqa: S606 — é a API do Windows
+            return True
+        return subprocess.run(["open" if MAC else "xdg-open", caminho],
+                              capture_output=True).returncode == 0
+    except Exception:
+        return False
+
+
+def processos(padrao):
+    """Existe processo cujo nome/linha casa com o padrão?
+
+    Mac tem `pgrep -f`; Windows não. `tasklist` lista o executável, então o
+    padrão do Windows é o NOME do .exe, não a linha de comando inteira."""
+    try:
+        if WIN:
+            r = run(["tasklist", "/FI", "IMAGENAME eq %s" % padrao],
+                    capture_output=True, text=True, timeout=10)
+            return padrao.lower() in (r.stdout or "").lower()
+        r = subprocess.run(["pgrep", "-f", padrao], capture_output=True,
+                           text=True, timeout=8)
+        return bool([l for l in r.stdout.split() if l])
+    except Exception:
+        return False
+
+
+_VARS_CERT = ("SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE")
+
+
+def terminal(comando, titulo=""):
+    """Roda um comando num terminal DE VERDADE, com TTY.
+
+    ⚠️ Login de CLI por OAuth precisa de terminal. Disparado por Popen mudo, o
+    processo morre na hora e o app relata sucesso sobre um processo morto — foi
+    exatamente isso que fez os quatro botões de login não funcionarem."""
+    import shlex
+    # ⚠️ Abrir um terminal para um comando que não existe é pior do que não
+    # abrir: o aluno vê "command not found" e acha que o app quebrou. Foi o que
+    # aconteceu com o login do HeyGen numa máquina sem o CLI instalado.
+    if comando and not os.path.isabs(str(comando[0])) and not onde(comando[0]):
+        return {"ok": False, "falta": comando[0],
+                "msg": "O “%s” não está instalado nesta máquina. Instale pela aba "
+                       "Ambiente e volte aqui." % comando[0]}
+    try:
+        if WIN:
+            # o `start` é quem abre a janela VISÍVEL; este lançador some
+            r = subprocess.run(_linha_windows(comando, titulo), shell=True,
+                               capture_output=True, timeout=25,
+                               creationflags=subprocess.CREATE_NO_WINDOW)
+        else:
+            # ⚠️ O `rede.preparar()` aponta SSL_CERT_FILE para o certifi DENTRO do
+            # app, e o Terminal herda. Com o app aberto direto do .dmg/Downloads
+            # (AppTranslocation) o curl de lá não lê esse caminho e morre com
+            # "curl: (77) error setting certificate verify locations" — foi o que
+            # travou o Homebrew na máquina de um aluno. O Terminal usa o do sistema.
+            limpa = "unset SSL_CERT_FILE SSL_CERT_DIR REQUESTS_CA_BUNDLE CURL_CA_BUNDLE; "
+            linha = limpa + " ".join(shlex.quote(x) for x in comando)
+            script = ('tell application "Terminal"\n  activate\n  do script "%s"\n'
+                      'end tell' % linha.replace("\\", "\\\\").replace('"', '\\"'))
+            env = {k: v for k, v in os.environ.items() if k not in _VARS_CERT}
+            r = subprocess.run(["osascript", "-e", script], capture_output=True,
+                               text=True, timeout=25, env=env)
+        if r.returncode != 0:
+            return {"ok": False, "msg": (r.stderr or b"").decode("utf-8", "ignore")[:160]
+                    if isinstance(r.stderr, bytes) else (r.stderr or "")[:160]}
+        return {"ok": True,
+                "msg": "Abri o Terminal com o login%s. Autorize no navegador e "
+                       "volte aqui." % (" do " + titulo if titulo else "")}
+    except Exception as e:
+        return {"ok": False, "msg": str(e)[:160]}
+
+
+def _linha_windows(comando, titulo=""):
+    """A linha que o `cmd` recebe para abrir outro `cmd` com o comando dentro.
+
+    ⚠️ Duas armadilhas de aspas, e as duas já morderam:
+
+    1. **Escapar duas vezes.** Montar a linha com `list2cmdline` e passar numa
+       LISTA para o subprocess faz o Windows rodar o `list2cmdline` de novo: as
+       aspas viram `\"` literais e o cmd responde "não é reconhecido como um
+       comando interno ou externo" apontando para um arquivo que existe. Por
+       isso aqui a linha é montada UMA vez e vai como string, com `shell=True`.
+
+    2. **`cmd /k "caminho com espaço"` engole as aspas** quando o argumento
+       inteiro está entre elas — é regra do próprio cmd. `cmd /k call "..."`
+       não tem essa quirk, e por isso o `call` não é enfeite.
+
+    O primeiro argumento entre aspas depois do `start` é o TÍTULO da janela; sem
+    ele, o start trataria o caminho entre aspas como título e não rodaria nada.
+    """
+    alvo = subprocess.list2cmdline(resolver(comando))
+    return 'start "%s" cmd /k call %s' % (titulo or "Editor Automatico", alvo)
+
+
+def premiere():
+    """A versão do Premiere instalada, ou None."""
+    try:
+        if WIN:
+            for base in (os.environ.get("ProgramFiles", r"C:\Program Files"),
+                         os.environ.get("ProgramW6432", r"C:\Program Files")):
+                pasta = os.path.join(base, "Adobe")
+                if not os.path.isdir(pasta):
+                    continue
+                achados = sorted((n for n in os.listdir(pasta)
+                                  if n.startswith("Adobe Premiere Pro")), reverse=True)
+                if achados:
+                    return achados[0]
+            return None
+        for nome in sorted(os.listdir("/Applications"), reverse=True):
+            if nome.startswith("Adobe Premiere Pro"):
+                return nome
+    except Exception:
+        pass
+    return None

@@ -1,0 +1,49 @@
+<template>
+  <style>
+    #pn-root { position: absolute; inset: 0; overflow: hidden; }
+    /* véu no alto: deixa o lettering legível sobre parede clara */
+    #pn-top { position: absolute; left: 0; right: 0; top: 0; height: 760px;
+      background: linear-gradient(180deg, rgba(__FUNDO_RGB__, 0.92) 0%, rgba(__FUNDO_RGB__, 0.86) 30%, rgba(__FUNDO_RGB__, 0.55) 62%, rgba(__FUNDO_RGB__, 0) 100%); }
+    /* véu embaixo: legenda */
+    #pn-bot { position: absolute; left: 0; right: 0; top: 1200px; height: 720px;
+      background: linear-gradient(180deg, rgba(__FUNDO_RGB__, 0) 0%, rgba(__FUNDO_RGB__, 0.5) 40%, rgba(__FUNDO_RGB__, 0.78) 100%); }
+    /* painel de vidro de baixo (modo dividido): o rosto fica acima dele */
+    #pn-slide { position: absolute; left: 0; right: 0; top: 1010px; height: 910px; }
+    #pn-glass { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(__FUNDO_RGB__, 0.93) 0%, rgba(__FUNDO_RGB__, 0.97) 30%, __FUNDO__ 100%);
+      box-shadow: 0 -30px 60px rgba(0, 0, 0, 0.45); }
+    #pn-glow { position: absolute; left: 90px; right: 90px; top: 40px; height: 420px;
+      background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(__DESTAQUE_RGB__, 0.13) 0%, rgba(__DESTAQUE_RGB__, 0) 70%); }
+    #pn-line { position: absolute; left: 0; right: 0; top: 0; height: 2px;
+      background: linear-gradient(90deg, rgba(__DESTAQUE_RGB__, 0) 0%, rgba(__DESTAQUE_RGB__, 0.55) 25%, __DESTAQUE__ 50%, rgba(__DESTAQUE_RGB__, 0.55) 75%, rgba(__DESTAQUE_RGB__, 0) 100%);
+      box-shadow: 0 0 14px rgba(__DESTAQUE_RGB__, 0.55); }
+  </style>
+  <div id="pn-root" data-composition-id="painel" data-width="1080" data-height="1920">
+    <div id="pn-top"></div>
+    <div id="pn-bot"></div>
+    <div id="pn-slide" data-layout-allow-overflow>
+      <div id="pn-glass"></div>
+      <div id="pn-glow"></div>
+      <div id="pn-line"></div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const tl = gsap.timeline({ paused: true });
+      const END = __DUR__;
+      const L = __LAYOUT__;
+      const Y = { cheio: 940, dividido: 0, pip: 940 };
+      tl.fromTo("#pn-slide", { y: Y[L[0][1]] }, { y: Y[L[0][1]], duration: 0.01, ease: "none" }, 0);
+      let veu = L[0][1] === "pip" ? 0 : 1;
+      tl.fromTo(["#pn-top", "#pn-bot"], { opacity: veu }, { opacity: veu, duration: 0.01, ease: "none" }, 0);
+      for (let i = 1; i < L.length; i++) {
+        const a = L[i - 1][1], b = L[i][1], t = L[i][0];
+        if (Y[a] !== Y[b]) tl.fromTo("#pn-slide", { y: Y[a] }, { y: Y[b], duration: 0.5, ease: "power3.inOut", immediateRender: false }, t);
+        const v2 = b === "pip" ? 0 : 1;
+        if (v2 !== veu) tl.fromTo(["#pn-top", "#pn-bot"], { opacity: veu }, { opacity: v2, duration: 0.5, ease: "power2.inOut", immediateRender: false }, t + 0.1);
+        veu = v2;
+      }
+      tl.fromTo("#pn-glow", { opacity: 0.7, scaleX: 0.9 }, { opacity: 1, scaleX: 1.08, duration: END, ease: "none", immediateRender: false }, 0);
+      window.__timelines["painel"] = tl;
+    })();
+  </script>
+</template>

@@ -1,0 +1,8 @@
+{
+ "version": "0.26.1",
+ "notes": "Novo: som de verdade nos seus vídeos e a equipe de agentes completa.\n\n• Real SFX: o Claude coloca efeitos gravados reais, no quadro certo, a partir da SUA pasta de sons. Sem pasta, usa só os sons de interface que vêm junto.\n• Earshot (opcional, na aba Ambiente): o Claude mede e compara o áudio e gera o efeito que faltar. Ocupa cerca de 2 GB.\n• FFmpeg: o app avisa quando o seu não consegue escrever texto no vídeo e atualiza com um clique.\n• Agente IA Creator: novos especialistas em AD, microlead, VSL e upsell, mais o supervisor de regras e o caça-erro quadro a quadro. Use Atualizar no cartão do agente para receber.",
+ "repo": "jhonatangtw/editor-automatico-app",
+ "asset_mac": "EditorAutomatico.dmg",
+ "asset_win": "EditorAutomatico-Instalador.exe",
+ "asset_mac_intel": "EditorAutomatico-Intel.dmg"
+}

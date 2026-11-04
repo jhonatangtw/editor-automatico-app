@@ -1,0 +1,705 @@
+"""
+Preparar o ambiente — o app instala o que falta.
+
+Mandar o aluno abrir o Terminal e colar comando é onde a instalação morre.
+Aqui o app confere cada dependência, diz em português o que ela faz, e instala
+sozinho o que dá para instalar.
+
+O que NÃO dá para automatizar está marcado `manual` com o motivo — Premiere e
+Tools PRO precisam de instalador próprio, e prometer que o app resolve isso
+seria mentira que só aparece na máquina do aluno.
+"""
+
+import os
+import shutil
+import subprocess
+
+from . import hyperframes, so
+
+MAC, WIN = so.MAC, so.WIN
+
+CEP = os.path.join(so.CEP, "com.editorblackbelt.toolspro")
+
+# quem instala pacote nesta máquina. `winget` vem de fábrica no Windows 10/11;
+# o Homebrew, não — por isso ele é o único que o app manda instalar à mão.
+GERENCIADOR = so.GERENCIADOR
+
+
+def _tem(b):
+    return so.onde(b) is not None
+
+
+def _versao(cmd):
+    try:
+        r = so.run(cmd, capture_output=True, text=True, timeout=15)
+        # aviso em inglês antes da versão ("Warning: could not connect to a
+        # running Ollama instance") não é versão — e assustava o aluno
+        linhas = [l.strip() for l in ((r.stdout or "") + "\n" + (r.stderr or "")).splitlines()
+                  if l.strip() and not l.strip().lower().startswith("warning")]
+        return linhas[0][:60] if linhas else ""
+    except Exception:
+        return ""
+
+
+def _premiere():
+    return so.premiere()
+
+
+def _skills():
+    """Quantas das skills do app estão na pasta do Claude do usuário.
+
+    Sem isto a tela dizia "tudo pronto" enquanto o Claude do editor respondia
+    sem repertório nenhum — o mesmo app dando resultado diferente por máquina,
+    e sem aviso."""
+    from . import skills as sk
+    try:
+        e = sk.estado()
+        return {"ok": not e["faltam"], "rotulo": "%d de %d na pasta do Claude"
+                % (e["instaladas"], e["total"]), "faltam": e["faltam"]}
+    except Exception as e:
+        return {"ok": False, "rotulo": str(e)[:40], "faltam": []}
+
+
+def _regra():
+    """De onde sai a regra de edição. A tela dizia "tudo pronto" enquanto a peça
+    que decide a edição não existia na máquina — agora ela aparece na lista."""
+    from . import skill
+    try:
+        o = skill.origem()
+        return {"ok": skill.instalada(), "rotulo": o["rotulo"]}
+    except Exception as e:
+        return {"ok": False, "rotulo": str(e)[:40]}
+
+
+def _toolspro():
+    if not os.path.isdir(CEP):
+        return None
+    try:
+        import json
+        with open(os.path.join(CEP, "version.json"), encoding="utf-8") as f:
+            return json.load(f).get("version")
+    except Exception:
+        return "instalado"
+
+
+def _hyperframes():
+    """Vídeo em código (Reels premium). Opcional: só quem faz Reels precisa.
+    `tem` só vira verdade depois de um render de teste que funcionou — ver
+    nucleo/hyperframes.py."""
+    try:
+        e = hyperframes.estado()
+    except Exception as ex:
+        e = {"tem": False, "rotulo": str(ex)[:40], "instalavel": False}
+    item = {"id": "hyperframes", "nome": "HyperFrames (vídeo em código)", "tem": e["tem"],
+            "para": "Reels premium: legenda animada, cartões e cenas montados em código "
+                    "e renderizados aqui mesmo",
+            "essencial": False, "instalavel": e["instalavel"],
+            "versao": e.get("rotulo") or ""}
+    if e.get("versao"):
+        # instalado: dá para testar o render de novo e reparar sem desinstalar
+        item["acoes"] = ["testar", "reparar"]
+    return item
+
+
+def _ffmpeg():
+    """`which` não basta: o FFmpeg do Homebrew vem sem o filtro de texto (drawtext),
+    e as skills de som e as conferências por quadro escrevem o tempo no quadro.
+    O build que o app baixa tem. Quem tem o outro vê o botão de atualizar."""
+    item = {"id": "ffmpeg", "nome": "FFmpeg", "tem": _tem("ffmpeg"),
+            "para": "cortar, montar e exportar o vídeo",
+            "essencial": True, "instalavel": True,   # baixa direto, sem Homebrew/winget
+            "versao": _versao(["ffmpeg", "-version"])}
+    if item["tem"] and not _ffmpeg_tem_drawtext():
+        item["aviso"] = "Este FFmpeg não escreve texto no vídeo (falta o drawtext). Atualize para a versão do app."
+        item["acoes"] = ["atualizar"]
+    return item
+
+
+def _ffmpeg_tem_drawtext():
+    try:
+        r = so.run(["ffmpeg", "-hide_banner", "-filters"], capture_output=True, text=True, timeout=15)
+        return " drawtext " in (r.stdout or "")
+    except Exception:
+        return True   # não deu para perguntar: não acusa defeito que não viu
+
+
+def _earshot():
+    """Som por código e "ouvido" do Claude. Opcional: é pesado, e a skill real-sfx
+    trabalha sem ele."""
+    return {"id": "earshot", "nome": "Earshot (ouvir e gerar som)", "tem": _tem("earshot"),
+            "para": "o Claude medir e comparar áudio, e gerar o efeito que faltar "
+                    "(~1 GB, mais 1,1 GB de modelos no primeiro uso)",
+            "essencial": False, "instalavel": True,   # o uv traz o próprio Python
+            "versao": "instalado" if _tem("earshot") else ""}
+
+
+_WHISPER_OK = {}
+
+
+def _whisper_funciona(exe):
+    """Testa de verdade (importa o pacote), como o instalador faz no fim.
+    `which` sozinho mostrava ✓ com o ambiente do Whisper quebrado — e a
+    decupagem falhava culpando o áudio. Guarda por arquivo+data: importar o
+    torch leva segundos e a aba Ambiente reconfere toda hora."""
+    try:
+        chave = (exe, os.path.getmtime(exe))
+    except OSError:
+        return False
+    if chave in _WHISPER_OK:
+        return _WHISPER_OK[chave]
+    env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
+    cmd = [exe, "--help"]
+    try:
+        with open(exe, "rb") as f:
+            topo = f.readline().decode("utf-8", "ignore").strip()
+        if topo.startswith("#!") and os.path.isfile(topo[2:].strip().split(" ")[0]):
+            cmd = [topo[2:].strip().split(" ")[0], "-c", "import whisper"]
+    except OSError:
+        pass
+    try:
+        ok = subprocess.run(cmd, capture_output=True, text=True, timeout=90,
+                            env=env).returncode == 0
+    except Exception:
+        ok = False
+    _WHISPER_OK[chave] = ok
+    return ok
+
+
+def _whisper():
+    item = {"id": "whisper", "nome": "Whisper", "tem": False,
+            "para": "transcrever a fala palavra por palavra, sem subir nada",
+            "essencial": True,
+            "instalavel": True}   # o uv traz o próprio Python
+    exe = shutil.which("whisper")
+    if exe and _whisper_funciona(exe):
+        item["tem"] = True
+    elif exe:
+        item["aviso"] = "Whisper instalado mas quebrado — use Reparar."
+        item["acoes"] = ["reparar"]
+    return item
+
+
+def conferir(reler_path=True):
+    """O diagnóstico que a tela mostra. Cada item diz para que serve — sem isso
+    o aluno vê uma lista de nomes técnicos e não sabe o que é opcional.
+
+    ⚠️ Relê o PATH ANTES de procurar. O PATH era uma foto do arranque, e pasta
+    que ainda não existia ficava de fora dela — então o que fosse instalado com
+    o app aberto continuava invisível até fechar e abrir. Reconferir custa
+    décimo de milésimo de segundo e é o que faz "instalei" virar "instalado" na
+    mesma tela."""
+    if reler_path:
+        from . import caminho
+        caminho.recarregar()
+    brew = _tem(GERENCIADOR)
+    npm = _tem("npm")
+    itens = [
+        _ffmpeg(),
+        {"id": "ffprobe", "nome": "FFprobe", "tem": _tem("ffprobe"),
+         "para": "ler duração, formato e fps do bruto",
+         "essencial": True, "instalavel": True, "versao": ""},
+        _whisper(),
+        {"id": "node", "nome": "Node.js", "tem": _tem("npm"),
+         "para": "é por ele que Claude, Higgsfield e MiniMax se instalam",
+         "essencial": True, "instalavel": brew,
+         "versao": _versao(["node", "--version"]) if _tem("node") else ""},
+        {"id": "claude", "nome": "Claude Code", "tem": _tem("claude"),
+         "para": "é quem lê a fala e decide a edição — sem ele o app não pensa",
+         "essencial": True, "instalavel": npm,
+         "versao": _versao(["claude", "--version"]) if _tem("claude") else ""},
+        {"id": "codex", "nome": "Codex CLI (ChatGPT)", "tem": _tem("codex"),
+         "para": "falar com o ChatGPT pela SUA assinatura, sem pagar API à parte",
+         "essencial": False, "instalavel": npm,
+         "versao": _versao(["codex", "--version"]) if _tem("codex") else ""},
+        {"id": "higgsfield", "nome": "Higgsfield CLI", "tem": _tem("higgsfield"),
+         "para": "gerar imagem e b-roll",
+         "essencial": True, "instalavel": npm},
+        {"id": "heygen", "nome": "HeyGen CLI", "tem": _tem("heygen"),
+         "para": "avatar falante — o login por CLI gasta crédito de ASSINATURA, "
+                 "não a carteira de API",
+         "essencial": False, "instalavel": True},
+        {"id": "mmx", "nome": "MiniMax CLI", "tem": _tem("mmx"),
+         "para": "vídeo, imagem e música da MiniMax (voz não — é ElevenLabs)",
+         "essencial": False, "instalavel": npm},
+        {"id": "ant", "nome": "CLI da Anthropic", "tem": _tem("ant"),
+         "para": "entrar na conta Claude sem colar chave (opcional — dá para usar chave)",
+         "essencial": False, "instalavel": brew and not WIN,
+         "manual": ("No Windows, use a chave de API na tela de Contas."
+                    if WIN else None)},
+        _hyperframes(),
+        _earshot(),
+        {"id": "regra", "nome": "Regra de edição", "tem": _regra()["ok"],
+         "para": "onde entra o punch, a cadência e o marcador — vem dentro do app",
+         "essencial": True, "instalavel": False,
+         "manual": None if _regra()["ok"] else "Reinstale o app: ela vem junto.",
+         "versao": _regra()["rotulo"]},
+        {"id": "skills", "nome": "Skills do Claude", "tem": _skills()["ok"],
+         "para": "o repertório que o Claude usa — fotorrealismo, Pixar 3D, "
+                 "storyboard, prompts de vídeo e a edição de b-roll",
+         "essencial": False, "instalavel": False,
+         "manual": None if _skills()["ok"] else "Instale pelo botão no card acima.",
+         "versao": _skills()["rotulo"]},
+        {"id": "premiere", "nome": "Adobe Premiere Pro", "tem": bool(_premiere()),
+         "para": "receber a timeline montada",
+         "essencial": False, "manual": "Instale pelo Creative Cloud.",
+         "versao": _premiere() or ""},
+        {"id": "toolspro", "nome": "Tools PRO", "tem": bool(_toolspro()),
+         "para": "montar a timeline por dentro do Premiere",
+         "essencial": False,
+         "manual": "Instale pelo instalador do Editor Black Belt.",
+         "versao": _toolspro() or ""},
+    ]
+    faltam = [i for i in itens if not i["tem"] and i["essencial"]]
+    return {
+        "itens": [dict((k, v) for k, v in i.items() if v is not None) for i in itens],
+        "brew": brew,
+        "gerenciador": GERENCIADOR,
+        "sistema": so.SISTEMA,
+        "pronto": not faltam,
+        "faltam": [i["nome"] for i in faltam],
+        "so_manual": [i["nome"] for i in itens
+                      if not i["tem"] and i.get("manual")],
+    }
+
+
+# ---------------------------------------------------------------- instalar
+
+_WINGET = ["winget", "install", "-e", "--accept-package-agreements",
+           "--accept-source-agreements", "--id"]
+
+RECEITAS_MAC = {
+    "node":       [["brew", "install", "node"]],
+    "codex":      [["npm", "install", "-g", "@openai/codex"]],
+    "claude":     [["npm", "install", "-g", "@anthropic-ai/claude-code"]],
+    "ffmpeg":     [["brew", "install", "ffmpeg"]],
+    "ffprobe":    [["brew", "install", "ffmpeg"]],   # vem no mesmo pacote
+    # whisper: ver _instalar_whisper (uv, Python próprio) — pip3 --user quebrava
+    "higgsfield": [["npm", "install", "-g", "@higgsfield/cli"]],
+    "mmx":        [["npm", "install", "-g", "mmx-cli"]],
+    "ant":        [["brew", "tap", "anthropics/tap"],
+                   ["brew", "install", "anthropics/tap/ant"]],
+}
+
+# ⚠️ No Windows os CLI de npm viram `.cmd`. Quem chama tem que passar pelo
+# `so.run`, senão o Python levanta FileNotFoundError com o binário instalado.
+RECEITAS_WIN = {
+    "node":       [_WINGET + ["OpenJS.NodeJS.LTS"]],
+    "codex":      [["npm", "install", "-g", "@openai/codex"]],
+    "claude":     [["npm", "install", "-g", "@anthropic-ai/claude-code"]],
+    "ffmpeg":     [_WINGET + ["Gyan.FFmpeg"]],
+    "ffprobe":    [_WINGET + ["Gyan.FFmpeg"]],
+    "higgsfield": [["npm", "install", "-g", "@higgsfield/cli"]],
+    "mmx":        [["npm", "install", "-g", "mmx-cli"]],
+}
+
+RECEITAS = RECEITAS_WIN if WIN else RECEITAS_MAC
+
+
+BIN = os.path.expanduser("~/.editorblackbelt/bin")
+HEYGEN_REPO = "heygen-com/heygen-cli"
+
+
+def _instalar_heygen(ao_vivo=None):
+    """Baixa o binário oficial do HeyGen e põe em ~/.editorblackbelt/bin.
+
+    ⚠️ A receita antiga era `brew install heygen` — e essa fórmula NÃO EXISTE.
+    Nunca instalou nada em máquina nenhuma; na do aluno o app abriu um Terminal
+    que respondeu "command not found". O CLI se distribui por GitHub Releases,
+    um binário por plataforma, e é isso que dá para instalar sem depender de
+    Homebrew, de Node ou de qualquer outra coisa que o editor não tem."""
+    import json as _json
+    import platform as _plat
+    import tarfile
+    import urllib.request
+    import zipfile
+    from . import rede
+
+    diz = ao_vivo or (lambda _: None)
+    maquina = _plat.machine().lower()
+    arq = "arm64" if maquina in ("arm64", "aarch64") else "amd64"
+    sis = "windows" if WIN else "darwin"
+
+    diz("procurando a versão publicada do HeyGen…")
+    req = urllib.request.Request(
+        "https://api.github.com/repos/%s/releases/latest" % HEYGEN_REPO,
+        headers={"User-Agent": "EditorAutomatico", "Accept": "application/vnd.github+json"})
+    with urllib.request.urlopen(req, timeout=30, context=rede.contexto()) as r:
+        rel = _json.loads(r.read())
+
+    alvo = None
+    for a in rel.get("assets", []):
+        n = a["name"]
+        if sis in n and arq in n and n.endswith((".tar.gz", ".zip")):
+            alvo = a
+            break
+    if not alvo:
+        raise RuntimeError("Não achei o HeyGen para %s/%s na versão %s."
+                           % (sis, arq, rel.get("tag_name")))
+
+    diz("baixando %s…" % alvo["name"])
+    req = urllib.request.Request(alvo["browser_download_url"],
+                                 headers={"User-Agent": "EditorAutomatico"})
+    with urllib.request.urlopen(req, timeout=180, context=rede.contexto()) as r:
+        dados = r.read()
+
+    os.makedirs(BIN, exist_ok=True)
+    import io
+    diz("instalando em %s…" % BIN)
+    if alvo["name"].endswith(".zip"):
+        with zipfile.ZipFile(io.BytesIO(dados)) as z:
+            for n in z.namelist():
+                if os.path.basename(n).lower().startswith("heygen"):
+                    with z.open(n) as f, open(os.path.join(BIN, os.path.basename(n)), "wb") as g:
+                        g.write(f.read())
+    else:
+        with tarfile.open(fileobj=io.BytesIO(dados), mode="r:gz") as t:
+            for m in t.getmembers():
+                if m.isfile() and os.path.basename(m.name).lower().startswith("heygen"):
+                    f = t.extractfile(m)
+                    destino = os.path.join(BIN, os.path.basename(m.name))
+                    with open(destino, "wb") as g:
+                        g.write(f.read())
+                    os.chmod(destino, 0o755)
+
+    if BIN not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = os.environ.get("PATH", "") + os.pathsep + BIN
+    return {"ok": _tem("heygen"), "qual": "heygen", "versao": rel.get("tag_name")}
+
+
+FFMPEG_MAC = "https://ffmpeg.martin-riedl.de/redirect/latest/macos/%s/release/%s.zip"
+FFMPEG_WIN = ("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/"
+              "ffmpeg-master-latest-win64-gpl.zip")
+
+
+def _instalar_ffmpeg(ao_vivo=None):
+    """FFmpeg + FFprobe baixados DIRETO para ~/.editorblackbelt/bin.
+
+    ⚠️ Antes dependia do Homebrew (Mac) ou do winget (Windows). Aluno sem
+    Homebrew via a mensagem "cole isto no Terminal" e travava; winget sem a
+    loja atualizada falhava calado. O build estático não precisa de nada:
+    Mac em martin-riedl.de (arm64 e Intel, um zip por programa), Windows o
+    build oficial do BtbN no GitHub. Se o download falhar, cai no gerenciador
+    de pacotes como antes."""
+    import platform as _plat
+    import tempfile
+    import urllib.request
+    import zipfile
+    from . import rede
+
+    diz = ao_vivo or (lambda _: None)
+    os.makedirs(BIN, exist_ok=True)
+
+    def baixar(url, destino):
+        req = urllib.request.Request(url, headers={"User-Agent": "EditorAutomatico"})
+        with urllib.request.urlopen(req, timeout=600, context=rede.contexto()) as r, \
+                open(destino, "wb") as f:
+            total = int(r.headers.get("Content-Length") or 0)
+            feito, passo = 0, 0
+            while True:
+                bloco = r.read(1 << 20)
+                if not bloco:
+                    break
+                f.write(bloco)
+                feito += len(bloco)
+                if total and feito * 10 // total > passo:
+                    passo = feito * 10 // total
+                    diz("baixando… %d%%" % (passo * 10))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        if WIN:
+            diz("baixando o FFmpeg para Windows (~100 MB)…")
+            z = os.path.join(tmp, "ffmpeg.zip")
+            baixar(FFMPEG_WIN, z)
+            with zipfile.ZipFile(z) as zf:
+                for nome in zf.namelist():
+                    base = os.path.basename(nome).lower()
+                    if base in ("ffmpeg.exe", "ffprobe.exe"):
+                        with zf.open(nome) as src, open(os.path.join(BIN, base), "wb") as dst:
+                            shutil.copyfileobj(src, dst)
+        else:
+            arq = "arm64" if _plat.machine().lower() in ("arm64", "aarch64") else "amd64"
+            for prog in ("ffmpeg", "ffprobe"):
+                diz("baixando o %s para Mac (%s)…" % (prog, "chip Apple" if arq == "arm64" else "Intel"))
+                z = os.path.join(tmp, prog + ".zip")
+                baixar(FFMPEG_MAC % (arq, prog), z)
+                with zipfile.ZipFile(z) as zf:
+                    alvo = [n for n in zf.namelist() if os.path.basename(n) == prog]
+                    if not alvo:
+                        raise RuntimeError("o pacote do %s veio sem o programa dentro" % prog)
+                    with zf.open(alvo[0]) as src, open(os.path.join(BIN, prog), "wb") as dst:
+                        shutil.copyfileobj(src, dst)
+                exe = os.path.join(BIN, prog)
+                os.chmod(exe, 0o755)
+                subprocess.run(["xattr", "-d", "com.apple.quarantine", exe], capture_output=True)
+
+    from . import caminho
+    caminho.recarregar(com_shell=True)   # remonta: o do app passa na frente do antigo
+    for prog in ("ffmpeg", "ffprobe"):
+        exe = os.path.join(BIN, prog + (".exe" if WIN else ""))
+        cod, fim = _rodar([exe, "-version"], None)
+        if cod != 0:
+            raise RuntimeError("O %s baixou mas não abriu:\n%s" % (prog, fim))
+    diz("FFmpeg e FFprobe prontos.")
+    return {"ok": True, "qual": "ffmpeg"}
+
+
+def _rodar(cmd, ao_vivo=None, env=None, shell=False):
+    ao_vivo and ao_vivo("$ " + (cmd if shell else " ".join(cmd)))
+    proc = so.popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, bufsize=1, env=env, shell=shell)
+    saida = []
+    for linha in proc.stdout:
+        saida.append(linha.rstrip())
+        ao_vivo and ao_vivo(linha.rstrip()[:160])
+    proc.wait()
+    return proc.returncode, "\n".join(saida[-12:])
+
+
+def _achar_uv():
+    for c in (shutil.which("uv"), os.path.join(BIN, "uv.exe" if WIN else "uv"),
+              os.path.expanduser("~/.local/bin/uv"), os.path.expanduser("~/.cargo/bin/uv")):
+        if c and os.path.isfile(c):
+            return c
+    return None
+
+
+def _garantir_uv(diz):
+    uv = _achar_uv()
+    if not uv:
+        diz("instalando o uv (gerenciador de Python, uma vez só)…")
+        env = dict(os.environ, UV_INSTALL_DIR=BIN, UV_NO_MODIFY_PATH="1",
+                   INSTALLER_NO_MODIFY_PATH="1")
+        if WIN:
+            cod, fim = _rodar(["powershell", "-ExecutionPolicy", "ByPass", "-NoProfile", "-Command",
+                               "irm https://astral.sh/uv/install.ps1 | iex"], diz, env=env)
+        elif _tem(GERENCIADOR):
+            cod, fim = _rodar(["brew", "install", "uv"], diz)
+        else:
+            cod, fim = _rodar("curl -LsSf https://astral.sh/uv/install.sh | sh", diz,
+                              env=env, shell=True)
+        uv = _achar_uv()
+        if cod != 0 or not uv:
+            raise RuntimeError("Não consegui instalar o uv, que instala as ferramentas de Python. "
+                               "Confira a internet e tente de novo.\n" + fim)
+    return uv
+
+
+def _instalar_whisper(ao_vivo=None):
+    """Whisper num ambiente PRÓPRIO, com Python 3.12 baixado pelo uv.
+
+    ⚠️ A receita antiga era `pip3 install --user openai-whisper` e quebrava no
+    Mac do aluno: o pip3 do sistema é o Python 3.9 da Apple (pip 21, sem roda
+    para as dependências novas) ou o Python do Homebrew, que RECUSA instalar
+    fora de venv (PEP 668, "externally-managed-environment"). E mesmo quando
+    instalava, o binário caía em ~/Library/Python/3.x/bin, fora do PATH.
+    O uv resolve as três coisas: baixa o Python certo sozinho, isola o Whisper
+    num ambiente dele e põe o comando em ~/.editorblackbelt/bin, que o app já
+    enxerga. Não depende do Python que a máquina tem (ou não tem)."""
+    diz = ao_vivo or (lambda _: None)
+    os.makedirs(BIN, exist_ok=True)
+    uv = _garantir_uv(diz)
+    diz("instalando o Whisper com Python 3.12 próprio (baixa uns 300 MB na 1ª vez)…")
+    env = dict(os.environ, UV_TOOL_BIN_DIR=BIN)
+    cod, fim = _rodar([uv, "tool", "install", "--force", "--python", "3.12",
+                       "openai-whisper"], diz, env=env)
+    if cod != 0:
+        raise RuntimeError("A instalação do Whisper falhou. Tente de novo; se repetir, "
+                           "mande este final para o suporte:\n" + fim)
+    from . import caminho
+    caminho.recarregar(com_shell=False)
+    exe = shutil.which("whisper") or os.path.join(BIN, "whisper.exe" if WIN else "whisper")
+    # Conferência pelo próprio Python do Whisper (importa o pacote), não pelo
+    # `--help`: o texto de ajuda quebrava no console cp1252 do Windows mesmo com
+    # o Whisper instalado e funcionando.
+    env_u = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
+    cod, fim = 1, ""
+    try:
+        base = subprocess.run([uv, "tool", "dir"], capture_output=True, text=True,
+                              timeout=30).stdout.strip()
+        py = os.path.join(base, "openai-whisper", "Scripts" if WIN else "bin",
+                          "python.exe" if WIN else "python")
+        if os.path.isfile(py):
+            cod, fim = _rodar([py, "-c", "import whisper; print('whisper ok')"], None, env=env_u)
+    except Exception as e:
+        fim = str(e)
+    if cod != 0:
+        cod, fim2 = _rodar([exe, "--help"], None, env=env_u)
+        if cod != 0:
+            raise RuntimeError("O Whisper instalou mas não abriu:\n" + (fim2 or fim))
+    diz("Whisper pronto.")
+    return {"ok": True, "qual": "whisper"}
+
+
+# Quanto cada instalação precisa de disco livre (download + extraído), em GB.
+# Fixado num commit: é o que foi testado. Zip e não git+: Mac de editor costuma
+# não ter git, e Windows menos ainda.
+EARSHOT = ("earshot[mcp] @ https://github.com/Leonxlnx/earshot/archive/"
+           "591fa3e028032e6dce56620a20e932e35667e8d8.zip")
+
+
+def _instalar_earshot(ao_vivo=None):
+    diz = ao_vivo or (lambda _: None)
+    os.makedirs(BIN, exist_ok=True)
+    uv = _garantir_uv(diz)
+    diz("instalando o Earshot com Python 3.12 próprio (baixa ~1 GB)…")
+    env = dict(os.environ, UV_TOOL_BIN_DIR=BIN)
+    cod, fim = _rodar([uv, "tool", "install", "--force", "--python", "3.12", EARSHOT], diz, env=env)
+    if cod != 0:
+        raise RuntimeError("A instalação do Earshot falhou. Tente de novo; se repetir, "
+                           "mande este final para o suporte:\n" + fim)
+    from . import caminho
+    caminho.recarregar(com_shell=False)
+    if not _tem("earshot"):
+        raise RuntimeError("O Earshot instalou mas o comando não apareceu.")
+    diz("Earshot pronto. Os modelos (~1,1 GB) baixam no primeiro uso.")
+    return {"ok": True, "qual": "earshot"}
+
+
+ESPACO_GB = {"ffmpeg": 0.6, "ffprobe": 0.6, "whisper": 2.5, "earshot": 3.0, "hyperframes": 1.5,
+             "hyperframes-teste": 0.5, "node": 0.5, "claude": 0.5, "codex": 0.5,
+             "higgsfield": 0.2, "mmx": 0.2, "heygen": 0.2, "ant": 0.2}
+
+
+def _livre_gb():
+    try:
+        return shutil.disk_usage(os.path.expanduser("~")).free / 1e9
+    except Exception:
+        return None
+
+
+def _disco_cheio_msg(precisa=None):
+    livre = _livre_gb()
+    txt = "O disco deste computador está cheio"
+    if livre is not None:
+        txt += " (sobram %.1f GB" % livre + (", e esta instalação precisa de uns %.1f GB" % precisa if precisa else "") + ")"
+    return (txt + ". Libere espaço e clique em Instalar de novo: esvazie a Lixeira, apague downloads e "
+            "renders antigos" + (" ou rode a Limpeza de Disco do Windows" if WIN else "") +
+            ". Não é problema de internet.")
+
+
+def _parece_disco_cheio(texto):
+    t = str(texto).lower()
+    return ("errno 28" in t or "no space left" in t or "enospc" in t or "not enough space" in t
+            or "espaço insuficiente" in t or "disk full" in t)
+
+
+def instalar(qual, ao_vivo=None):
+    precisa = ESPACO_GB.get(qual)
+    livre = _livre_gb()
+    if precisa and livre is not None and livre < precisa + 0.5:
+        raise RuntimeError(_disco_cheio_msg(precisa))
+    try:
+        return _instalar(qual, ao_vivo)
+    except Exception as e:
+        if _parece_disco_cheio(e) or (getattr(e, "errno", None) == 28):
+            raise RuntimeError(_disco_cheio_msg(precisa)) from e
+        raise
+
+
+def _instalar(qual, ao_vivo=None):
+    if qual == "heygen":
+        return _instalar_heygen(ao_vivo)
+    if qual == "whisper":
+        return _instalar_whisper(ao_vivo)
+    if qual in ("ffmpeg", "ffprobe"):
+        try:
+            return dict(_instalar_ffmpeg(ao_vivo), qual=qual)
+        except Exception as e:
+            # sem internet para o build direto: tenta o gerenciador, como antes
+            ao_vivo and ao_vivo("download direto falhou (%s) — tentando o gerenciador de pacotes…" % e)
+            if not _tem(GERENCIADOR):
+                if _parece_disco_cheio(e) or getattr(e, "errno", None) == 28:
+                    raise RuntimeError(_disco_cheio_msg(ESPACO_GB["ffmpeg"])) from e
+                raise RuntimeError("Não consegui baixar o FFmpeg: %s. Confira a internet e tente de novo." % e)
+    if qual == "earshot":
+        return _instalar_earshot(ao_vivo)
+    if qual == "hyperframes":
+        return hyperframes.instalar(ao_vivo)
+    if qual == "hyperframes-teste":
+        r = hyperframes.testar(ao_vivo)
+        if not r.get("ok"):
+            raise RuntimeError(r.get("msg") or "o render de teste falhou")
+        return dict(r, qual=qual)
+    receita = RECEITAS.get(qual)
+    if not receita:
+        raise RuntimeError("Não sei instalar “%s” automaticamente." % qual)
+    if qual in ("ffmpeg", "ffprobe", "ant") and not _tem(GERENCIADOR):
+        if WIN:
+            raise RuntimeError(
+                "O winget não respondeu. Ele vem no Windows 10 e 11 pela loja "
+                "(App Installer) — abra a Microsoft Store, instale o "
+                "“Instalador de Aplicativo” e tente de novo.")
+        raise RuntimeError(
+            "Precisa do Homebrew. Cole isto no Terminal uma vez:\n"
+            '/bin/bash -c "$(curl -fsSL '
+            'https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"')
+
+    for cmd in receita:
+        ao_vivo and ao_vivo("$ " + " ".join(cmd))
+        proc = so.popen(cmd, stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT, text=True, bufsize=1)
+        for linha in proc.stdout:
+            ao_vivo and ao_vivo(linha.rstrip()[:160])
+        proc.wait()
+        if proc.returncode != 0:
+            raise RuntimeError("Falhou em: " + " ".join(cmd))
+
+    # o PATH do processo já rodando não vê o que acabou de ser instalado
+    novos = ([os.path.join(os.environ.get("APPDATA") or "", "npm"),
+              os.path.join(os.environ.get("LOCALAPPDATA") or "",
+                           "Microsoft", "WinGet", "Links")] if WIN else
+             ["/opt/homebrew/bin", "/usr/local/bin",
+              os.path.expanduser("~/.npm-global/bin"),
+              os.path.expanduser("~/Library/Python/3.9/bin")])
+    os.environ["PATH"] = os.pathsep.join(
+        [os.environ.get("PATH", "")] + novos)
+    shutil.which.cache_clear() if hasattr(shutil.which, "cache_clear") else None
+    # e a releitura completa: o instalador pode ter escrito uma linha nova no
+    # perfil do shell, e é de lá que sai o PATH de verdade do usuário
+    from . import caminho
+    caminho.recarregar(com_shell=True)
+    return {"ok": _tem(qual), "qual": qual}
+
+
+def instalar_gerenciador():
+    """Instala o que instala o resto.
+
+    Mandar o aluno "colar isto no Terminal" é onde a instalação morre — e no Mac
+    sem Homebrew o app fica sem FFmpeg, que é a peça essencial. O instalador do
+    Homebrew PRECISA de terminal de verdade: ele pede a senha de administrador,
+    e um Popen mudo morreria esperando uma senha que ninguém vê para digitar."""
+    if WIN:
+        return {"ok": False, "loja": True,
+                "msg": "No Windows o winget vem pela Microsoft Store: instale o "
+                       "“Instalador de Aplicativo” e volte aqui."}
+    if _tem("brew"):
+        return {"ok": True, "ja_tinha": True, "msg": "O Homebrew já está instalado."}
+    # ⚠️ O `$(curl …)` precisa ser expandido por um shell DE FORA e chegar ao
+    # bash como o script. Passado como argumento do bash, o `so.terminal` o põe
+    # entre aspas simples e o bash tenta rodar o script inteiro como UM nome de
+    # comando ("/bin/bash: …: command not found") — o botão nunca instalou nada.
+    r = so.terminal(
+        ["/bin/zsh", "-c",
+         '/bin/bash -c "$(curl -fsSL '
+         'https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'],
+        "Homebrew")
+    if r.get("ok"):
+        r["msg"] = ("Abri o Terminal com o instalador do Homebrew. Ele vai pedir a "
+                    "SENHA DO SEU MAC — é o instalador oficial pedindo, não o app. "
+                    "Quando terminar, volte aqui e clique em Instalar o que falta.")
+    return r
+
+
+def instalar_tudo(ao_vivo=None):
+    d = conferir()
+    feitos, erros = [], []
+    for i in d["itens"]:
+        if i["tem"] or not i["essencial"] or i.get("manual"):
+            continue
+        try:
+            ao_vivo and ao_vivo("▸ instalando " + i["nome"])
+            instalar(i["id"], ao_vivo)
+            feitos.append(i["nome"])
+        except Exception as e:
+            erros.append("%s: %s" % (i["nome"], e))
+    return {"instalados": feitos, "erros": erros, "estado": conferir()}

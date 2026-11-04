@@ -1,0 +1,122 @@
+"""O Whisper não pode voltar a depender do pip3 da máquina (quebrava no Mac do aluno)."""
+import os
+import unittest
+from unittest import mock
+
+from nucleo import ambiente
+
+
+class TestWhisperInstalacao(unittest.TestCase):
+    def test_receitas_nao_usam_pip(self):
+        for receitas in (ambiente.RECEITAS_MAC, ambiente.RECEITAS_WIN):
+            self.assertNotIn("whisper", receitas)
+
+    def test_instalar_whisper_passa_pelo_uv(self):
+        with mock.patch.object(ambiente, "_instalar_whisper", return_value={"ok": True}) as f:
+            self.assertEqual(ambiente.instalar("whisper"), {"ok": True})
+            f.assert_called_once()
+
+    def test_uv_instala_com_python_proprio_no_bin_do_app(self):
+        chamadas = []
+
+        def falso(cmd, ao_vivo=None, env=None, shell=False):
+            chamadas.append((cmd, env or {}))
+            return 0, ""
+        with mock.patch.object(ambiente, "_achar_uv", return_value="/x/uv"), \
+             mock.patch.object(ambiente, "_rodar", side_effect=falso), \
+             mock.patch("shutil.which", return_value="/x/whisper"):
+            ambiente._instalar_whisper()
+        cmd, env = chamadas[0]
+        self.assertEqual(cmd[:3], ["/x/uv", "tool", "install"])
+        self.assertIn("3.12", cmd)
+        self.assertEqual(env.get("UV_TOOL_BIN_DIR"), ambiente.BIN)
+
+    def test_item_sempre_instalavel(self):
+        itens = {i["id"]: i for i in ambiente.conferir(reler_path=False)["itens"]} \
+            if isinstance(ambiente.conferir(reler_path=False), dict) else \
+            {i["id"]: i for i in ambiente.conferir(reler_path=False)}
+        self.assertTrue(itens["whisper"]["instalavel"])
+
+
+class TestWhisperDeVerdade(unittest.TestCase):
+    """`which` só não basta: ambiente quebrado aparece como quebrado."""
+
+    def setUp(self):
+        ambiente._WHISPER_OK.clear()
+        import tempfile
+        self.tmp = tempfile.mkdtemp()
+        self.exe = os.path.join(self.tmp, "whisper")
+        with open(self.exe, "w") as f:
+            f.write("#!/bin/sh\n")
+
+    def _item(self, codigo):
+        with mock.patch("shutil.which", return_value=self.exe), \
+             mock.patch("subprocess.run", return_value=mock.Mock(returncode=codigo)):
+            return ambiente._whisper()
+
+    def test_quebrado_pede_reparar(self):
+        i = self._item(1)
+        self.assertFalse(i["tem"])
+        self.assertEqual(i["aviso"], "Whisper instalado mas quebrado — use Reparar.")
+        self.assertIn("reparar", i["acoes"])
+        self.assertNotIn("manual", i)      # senão o Preparar pularia o conserto
+
+    def test_funcionando(self):
+        self.assertTrue(self._item(0)["tem"])
+
+    def test_decupar_nao_culpa_o_audio(self):
+        from nucleo import decupar
+        m = decupar._motivo("Traceback...\nModuleNotFoundError: No module named 'whisper'")
+        self.assertIn("Reparar", m)
+        self.assertNotIn("áudio", m)
+        self.assertIn("áudio", decupar._motivo("RuntimeError: bad file"))
+        self.assertTrue(decupar._ruido("UserWarning: FP16 is not supported on CPU; using FP32 instead"))
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+class TestFFmpegInstalacao(unittest.TestCase):
+    def test_ffmpeg_vai_pelo_download_direto(self):
+        with mock.patch.object(ambiente, "_instalar_ffmpeg", return_value={"ok": True, "qual": "ffmpeg"}) as f:
+            self.assertEqual(ambiente.instalar("ffprobe")["qual"], "ffprobe")
+            f.assert_called_once()
+
+    def test_ffmpeg_sempre_instalavel_mesmo_sem_homebrew(self):
+        with mock.patch.object(ambiente, "_tem", return_value=False):
+            r = ambiente.conferir(reler_path=False)
+            itens = {i["id"]: i for i in (r["itens"] if isinstance(r, dict) else r)}
+        self.assertTrue(itens["ffmpeg"]["instalavel"])
+        self.assertTrue(itens["ffprobe"]["instalavel"])
+
+    def test_sem_internet_e_sem_gerenciador_explica(self):
+        with mock.patch.object(ambiente, "_instalar_ffmpeg", side_effect=OSError("sem rede")), \
+             mock.patch.object(ambiente, "_tem", return_value=False):
+            with self.assertRaises(RuntimeError) as c:
+                ambiente.instalar("ffmpeg")
+        self.assertIn("internet", str(c.exception))
+
+
+class TestDiscoCheio(unittest.TestCase):
+    def test_recusa_antes_de_baixar_quando_falta_espaco(self):
+        with mock.patch.object(ambiente, "_livre_gb", return_value=0.3), \
+             mock.patch.object(ambiente, "_instalar") as f:
+            with self.assertRaises(RuntimeError) as c:
+                ambiente.instalar("ffmpeg")
+            f.assert_not_called()
+        self.assertIn("disco", str(c.exception).lower())
+        self.assertIn("não é problema de internet", str(c.exception).lower())
+
+    def test_errno_28_vira_mensagem_de_disco(self):
+        with mock.patch.object(ambiente, "_livre_gb", return_value=50.0), \
+             mock.patch.object(ambiente, "_instalar", side_effect=OSError(28, "No space left on device")):
+            with self.assertRaises(RuntimeError) as c:
+                ambiente.instalar("hyperframes")
+        self.assertIn("cheio", str(c.exception))
+
+    def test_com_espaco_segue_normal(self):
+        with mock.patch.object(ambiente, "_livre_gb", return_value=50.0), \
+             mock.patch.object(ambiente, "_instalar", return_value={"ok": True}) as f:
+            self.assertEqual(ambiente.instalar("whisper"), {"ok": True})
+            f.assert_called_once()

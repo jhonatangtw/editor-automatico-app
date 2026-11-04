@@ -1,0 +1,27 @@
+<template>
+  <style>
+    #bg-root { position: absolute; inset: 0; overflow: hidden; background: __FUNDO__; }
+    #bg-ground { position: absolute; inset: 0; background: radial-gradient(ellipse 85% 55% at 50% 52%, __FUNDO2__ 0%, __FUNDO__ 100%); }
+    #bg-glow { position: absolute; left: -260px; top: 420px; width: 1600px; height: 1300px;
+      background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(__DESTAQUE_RGB__, 0.16) 0%, rgba(__DESTAQUE_RGB__, 0.06) 38%, rgba(__DESTAQUE_RGB__, 0) 70%); }
+    #bg-top { position: absolute; left: 140px; top: -260px; width: 800px; height: 760px;
+      background: radial-gradient(ellipse 50% 60% at 50% 0%, rgba(__DESTAQUE_RGB__, 0.14) 0%, rgba(__DESTAQUE_RGB__, 0.04) 45%, rgba(__DESTAQUE_RGB__, 0) 75%);
+      clip-path: polygon(36% 0%, 64% 0%, 100% 100%, 0% 100%); filter: blur(30px); }
+    #bg-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse 75% 60% at 50% 50%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.55) 100%); }
+  </style>
+  <div id="bg-root" data-composition-id="bg" data-width="1080" data-height="1920">
+    <div id="bg-ground"></div>
+    <div id="bg-glow" data-layout-allow-overflow></div>
+    <div id="bg-top" data-layout-allow-overflow></div>
+    <div id="bg-vignette"></div>
+  </div>
+  <script>
+    (function () {
+      const tl = gsap.timeline({ paused: true });
+      // deriva lenta e constante (ease none: o mundo nunca congela)
+      tl.fromTo("#bg-glow", { x: -70, y: 40, scale: 1 }, { x: 70, y: -60, scale: 1.08, duration: __DUR__, ease: "none" }, 0);
+      tl.fromTo("#bg-top", { x: 30, opacity: 0.8 }, { x: -30, opacity: 1, duration: __DUR__, ease: "none" }, 0);
+      window.__timelines["bg"] = tl;
+    })();
+  </script>
+</template>

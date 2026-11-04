@@ -1,0 +1,888 @@
+"""
+O chat — quem conduz o pipeline em linguagem natural.
+
+Princípio que não se negocia: **o chat não fura o portão.**
+
+O modelo interpreta o que a pessoa quis e chama a ação; quem decide se a ação
+pode acontecer continua sendo o `pipeline.py`. Se o Claude tentar gerar b-roll
+antes da aprovação do planejamento, recebe o mesmo "não" que o botão receberia,
+com a mesma mensagem. A conversa é uma porta nova para as mesmas travas — não
+um atalho por fora delas.
+
+E o contrário também vale: aprovar POR ESCRITO é aprovação de verdade. "pode
+gerar" no chat vira registro em `aprovacoes` com o nome de quem falou, a hora e
+a frase exata que autorizou. Sem isso o registro mentiria sobre como a decisão
+foi tomada.
+
+Segredo nunca entra aqui. As chaves vivem no cofre do sistema (`chaves.py`) e
+não são passadas ao modelo em hipótese alguma — o histórico do chat fica em
+disco, no projeto, e projeto vai para o Drive.
+"""
+
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+
+from . import (adobe, chaves, claude as conta_claude, conversas, gerar,  # noqa: F401
+               pipeline, projetos, so)
+
+MODELO = "claude-opus-5"
+
+SISTEMA = """Você conduz o Editor Automático, um app de edição de criativos de vídeo.
+
+Fala português do Brasil, direto, sem enrolação. Você é o operador do app: o
+usuário conversa com você e você opera as ferramentas.
+
+ANTES de qualquer tarefa nova, chame `ver_adobe`. Você precisa saber se o Premiere
+ou o After Effects está aberto, qual projeto está carregado, qual sequência está
+ativa e se a ponte do Tools PRO responde. Mostre isso ao usuário e peça confirmação
+antes de mexer em qualquer coisa.
+
+Se nenhum programa da Adobe estiver aberto, diga isso e peça para ele abrir o
+Premiere (ou o After Effects) com o projeto. Se houver várias sequências e nenhuma
+ativa, liste as opções na conversa e pergunte qual usar. Nunca escolha por ele.
+
+Tudo acontece nesta conversa. Não existe outra tela nem formulário: se faltar
+informação — o caminho de um vídeo, a copy, o nome do job — pergunte aqui mesmo.
+
+O trabalho é um pipeline de 12 etapas com aprovação obrigatória entre cada uma.
+Você NUNCA pula etapa e NUNCA gera nada que gaste crédito sem o usuário ter
+aprovado a etapa anterior. As ferramentas recusam sozinhas se você tentar — mas
+não tente: explique ao usuário o que falta.
+
+Antes de qualquer geração que gaste crédito, diga quanto vai custar e em qual
+motor, e espere o "pode" do usuário. Se ele pedir para economizar, mostre os
+motores mais baratos com o preço de cada um.
+
+Quando uma etapa termina, resuma o que saiu em duas ou três linhas e diga o que
+o usuário pode fazer: aprovar, pedir de novo, ou mudar alguma coisa.
+
+Não invente resultado. Se uma ferramenta falhou, diga o que falhou e o que fazer.
+Nunca peça chave de API nem senha pelo chat — isso se resolve na aba Contas."""
+
+FERRAMENTAS = [
+    {"name": "ver_adobe",
+     "description": "Estado do Adobe AGORA: Premiere/After Effects aberto, qual projeto, "
+                    "quais sequências, qual está ativa, e se a ponte do Tools PRO responde. "
+                    "Chame isto antes de começar qualquer tarefa.",
+     "input_schema": {"type": "object", "properties": {}, "required": []}},
+
+    {"name": "criar_projeto",
+     "description": "Cria um projeto de trabalho a partir do caminho do vídeo do body "
+                    "(o bruto do avatar falante). Use quando o usuário indicar o arquivo. "
+                    "Se ele não disse o caminho, pergunte antes.",
+     "input_schema": {"type": "object", "properties": {
+         "video": {"type": "string", "description": "caminho do arquivo de vídeo"},
+         "nome": {"type": "string", "description": "nome do job, opcional"},
+     }, "required": ["video"]}},
+
+    {"name": "ver_estado",
+     "description": "Estado atual do projeto: as 12 etapas, status de cada uma, "
+                    "o que está liberado e o que está travado e por quê. "
+                    "Use antes de agir quando não tiver certeza de onde o projeto está.",
+     "input_schema": {"type": "object", "properties": {}, "required": []}},
+
+    {"name": "rodar_etapa",
+     "description": "Executa uma etapa. Recusa se a anterior não estiver aprovada. "
+                    "Etapas que gastam crédito (avatar, imagens, animacao, acabamento) "
+                    "só devem ser chamadas depois do usuário autorizar explicitamente.",
+     "input_schema": {"type": "object", "properties": {
+         "etapa": {"type": "string", "description":
+                   "analise|copy|marcacao|plano|avatar|imagens|img_ok|animacao|vid_ok|acabamento"},
+         "motor": {"type": "string", "description": "id do motor, quando a etapa gera mídia"},
+         "texto": {"type": "string", "description": "a copy, na etapa 'copy'"},
+         "descricao": {"type": "string", "description": "o personagem, na etapa 'avatar'"},
+     }, "required": ["etapa"]}},
+
+    {"name": "aprovar_etapa",
+     "description": "Registra a aprovação do usuário e libera a etapa seguinte. "
+                    "Só chame quando o usuário disser claramente que aprova. "
+                    "Em 'frase' copie o que ele escreveu, palavra por palavra.",
+     "input_schema": {"type": "object", "properties": {
+         "etapa": {"type": "string"},
+         "frase": {"type": "string", "description": "o que o usuário escreveu ao aprovar"},
+     }, "required": ["etapa", "frase"]}},
+
+    {"name": "rejeitar_etapa",
+     "description": "Marca a etapa como rejeitada com o motivo dado pelo usuário.",
+     "input_schema": {"type": "object", "properties": {
+         "etapa": {"type": "string"}, "motivo": {"type": "string"},
+     }, "required": ["etapa", "motivo"]}},
+
+    {"name": "julgar_item",
+     "description": "Aprova, rejeita ou manda regerar UMA imagem ou vídeo, nas etapas "
+                    "de aprovação por item (img_ok e vid_ok). Só os aprovados seguem.",
+     "input_schema": {"type": "object", "properties": {
+         "etapa": {"type": "string"}, "item": {"type": "string"},
+         "acao": {"type": "string", "description": "aprovou|rejeitou|regerar"},
+         "motivo": {"type": "string"},
+     }, "required": ["etapa", "item", "acao"]}},
+
+    {"name": "ver_motores",
+     "description": "Catálogo de motores do Higgsfield com o preço real de cada um e "
+                    "quantos créditos o usuário tem. Use quando ele perguntar de custo "
+                    "ou pedir para economizar.",
+     "input_schema": {"type": "object", "properties": {
+         "tipo": {"type": "string", "description": "imagem|video"},
+     }, "required": ["tipo"]}},
+]
+
+
+# ---------------------------------------------------------------- execução
+
+def _executar(pid, nome, entrada, quem):
+    """Roda a ferramenta que o modelo pediu. TODA passa pelo pipeline —
+    o modelo não tem caminho por fora."""
+
+    if nome == "ver_adobe":
+        return adobe.estado()
+
+    if nome == "criar_projeto":
+        caminho = os.path.expanduser((entrada.get("video") or "").strip())
+        if not caminho:
+            return {"erro": "Sem caminho de vídeo. Pergunte ao usuário qual arquivo usar."}
+        if not os.path.isfile(caminho):
+            return {"erro": "Esse arquivo não existe: " + caminho}
+        p = projetos.criar(entrada.get("nome") or os.path.splitext(
+            os.path.basename(caminho))[0], caminho)
+        return {"criado": p["id"], "job": p["plano"]["job"],
+                "fonte": p["plano"]["fonte"],
+                "aviso": "Projeto criado. A conversa continua nele."}
+
+    if pid is None:
+        return {"erro": "Ainda não há projeto. Pergunte ao usuário qual vídeo usar "
+                        "e chame criar_projeto antes."}
+
+    est = projetos.estado_pipeline(pid)
+
+    if nome == "ver_estado":
+        pnl = pipeline.painel(est)
+        return {"etapas": [{"n": e["n"], "id": e["id"], "nome": e["nome"],
+                            "status": e["rotulo"], "gasta_credito": e["gasta"],
+                            "liberada": e["pode"], "travada_porque": e["bloqueio"]}
+                           for e in pnl["etapas"]],
+                "etapa_atual": pnl["atual"],
+                "concluidas": "%d de %d" % (pnl["concluidas"], pnl["total"])}
+
+    if nome == "ver_motores":
+        q = len([b for b in projetos.ler(pid)["plano"].get("beats", [])
+                 if b.get("tipo") == "insert"]) or 1
+        ops = (gerar.opcoes_imagem(q) if entrada.get("tipo") == "imagem"
+               else gerar.opcoes_video({"inicio": 0, "fim": 5}, False, q))
+        return {"opcoes": ops, "saldo_creditos": gerar.saldo(), "itens": q}
+
+    if nome == "rodar_etapa":
+        from app import rota_etapa_iniciar          # importa tarde: evita ciclo
+        eid = entrada["etapa"]
+        corpo = {k: v for k, v in entrada.items() if k != "etapa" and v is not None}
+        try:
+            r = rota_etapa_iniciar(pid, eid, corpo)
+        except pipeline.Bloqueado as e:
+            # a recusa volta pro modelo com a razão — ele explica ao usuário
+            return {"recusado": True, "porque": str(e)}
+        if r.get("longa"):
+            return {"rodando": True, "tarefa": r["tarefa"],
+                    "aviso": "Está gerando. Avise o usuário e não chame de novo."}
+        d = pipeline.situacao(projetos.estado_pipeline(pid), eid)["dados"]
+        return {"pronto": True, "aguardando_aprovacao": True,
+                "resultado": _resumir(eid, d)}
+
+    if nome == "aprovar_etapa":
+        try:
+            pipeline.aprovar(est, entrada["etapa"], quem,
+                             "pelo chat: " + entrada.get("frase", ""))
+        except pipeline.Bloqueado as e:
+            return {"recusado": True, "porque": str(e)}
+        projetos.gravar_pipeline(pid, est)
+        return {"aprovada": entrada["etapa"], "proxima": pipeline.proxima(est)}
+
+    if nome == "rejeitar_etapa":
+        pipeline.rejeitar(est, entrada["etapa"], quem, entrada.get("motivo", ""))
+        projetos.gravar_pipeline(pid, est)
+        return {"rejeitada": entrada["etapa"]}
+
+    if nome == "julgar_item":
+        try:
+            pipeline.julgar_item(est, entrada["etapa"], entrada["item"],
+                                 entrada["acao"], quem, entrada.get("motivo", ""))
+        except pipeline.Bloqueado as e:
+            return {"recusado": True, "porque": str(e)}
+        projetos.gravar_pipeline(pid, est)
+        return {"saldo": pipeline.saldo_itens(est, entrada["etapa"])}
+
+    return {"erro": "ferramenta desconhecida: " + nome}
+
+
+def _resumir(eid, d):
+    """O que volta pro modelo. Enxuto de propósito: mandar o dado inteiro
+    enche o contexto de ruído e o modelo passa a resumir JSON em vez de falar
+    com a pessoa."""
+    if eid == "analise":
+        return {k: d.get(k) for k in ("formato", "geometria", "duracao", "alertas")}
+    if eid == "copy":
+        return {"cobertura": d.get("cobertura"), "graves": d.get("graves"),
+                "repeticoes": len(d.get("repeticoes") or []),
+                "veredito": d.get("veredito"),
+                "primeiras": (d.get("divergencias") or [])[:6]}
+    if eid == "marcacao":
+        return {"por_cor": d.get("por_cor"), "cobertura": d.get("cobertura"),
+                "sem_fala": d.get("sem_fala")}
+    if eid == "plano":
+        return {"liberado_pela_regra": d.get("liberado_pela_regra"),
+                "a_gerar": d.get("a_gerar"), "custo": d.get("custo_previsto"),
+                "portao": (d.get("portao") or "")[-900:]}
+    if "itens" in d:
+        return {"gerados": len(d["itens"]), "motor": d.get("motor"),
+                "custo_gasto": d.get("custo_gasto"),
+                "ids": [i.get("id") for i in d["itens"]]}
+    return d
+
+
+# ---------------------------------------------------------------- histórico
+
+def historico(cid=None):
+    """As mensagens de UMA conversa. Sem id, a mais recente — é o que o app
+    reabre quando você volta."""
+    if not cid:
+        lista = conversas.listar()
+        cid = lista[0]["id"] if lista else None
+    return conversas.mensagens(cid) if cid else []
+
+
+def _gravar(cid, msgs):
+    conversas.gravar_mensagens(cid, msgs)
+
+
+# ---------------------------------------------------------------- cliente
+
+class SemAcesso(RuntimeError):
+    pass
+
+
+MENSAGENS = "https://api.anthropic.com/v1/messages"
+
+
+def _pedir_anthropic(corpo):
+    """Uma chamada à API do Claude, em HTTP puro.
+
+    ⚠️ Isto usava o SDK `anthropic` — que NUNCA esteve no requirements.txt. No
+    app empacotado o import estourava `ModuleNotFoundError`, e o caminho da
+    chave de API simplesmente não existia para quem instalou pelo instalador.
+    Ninguém tinha batido porque todo mundo entra pela sessão. Agora o app não
+    carrega SDK nenhum: nem o da Anthropic, nem o da OpenAI.
+
+    Os cabeçalhos vêm do `claude.py`, que já sabe montar chave de API OU token
+    de conta — reescrever aqui daria duas verdades sobre a mesma credencial."""
+    import urllib.error
+    import urllib.request
+
+    from . import rede
+
+    cab, origem = conta_claude._cabecalhos()
+    if not cab:
+        raise SemAcesso("Sem credencial do Claude. Vá em Contas.")
+    cab = dict(cab, **{"Content-Type": "application/json"})
+
+    req = urllib.request.Request(MENSAGENS, method="POST",
+                                 data=json.dumps(corpo).encode("utf-8"),
+                                 headers=cab)
+    try:
+        with urllib.request.urlopen(req, timeout=300, context=rede.contexto()) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        try:
+            d = json.loads(e.read().decode("utf-8", "ignore"))
+            msg = ((d.get("error") or {}).get("message") or "").strip()
+        except Exception:
+            msg = ""
+        if e.code == 401:
+            raise SemAcesso("A credencial do Claude foi recusada (%s). Reconecte "
+                            "na aba Contas." % origem)
+        if e.code == 400 and "credit balance" in msg.lower():
+            raise SemAcesso(
+                "A conta de API do Claude está sem crédito. ⚠️ Se você tem "
+                "assinatura, troque o método para “sessão do Claude Code” — um "
+                "perfil do `ant` costuma estar apontando para outra org.")
+        if e.code == 429:
+            raise SemAcesso("A Anthropic recusou por limite de uso. " + msg)
+        if e.code in (500, 502, 503, 529):
+            raise SemAcesso("A Anthropic está fora do ar agora. Tente em alguns minutos.")
+        raise SemAcesso("A Anthropic recusou (HTTP %s). %s" % (e.code, msg))
+    except Exception as e:
+        raise SemAcesso("Não consegui falar com a Anthropic: " + rede.explicar(e))
+
+
+# ---------------------------------------------------------------- sessão
+#
+# O caminho da assinatura NÃO é uma API paralela: é o próprio Claude Code.
+#
+# Antes eu amarrava o modelo a um contrato JSON com seis ações. Isso desligava
+# tudo que ele sabe fazer — as skills que o usuário já tem instaladas, o Bash, o
+# Read, o raciocínio. Agora ele roda como sessão de verdade e recebe as
+# ferramentas DESTE app por MCP, ao lado das dele. Quem escolhe o que usar é ele.
+#
+# `--session-id` fixo por projeto guarda o contexto entre mensagens: fechar o app
+# e voltar continua a mesma conversa, com memória do que já foi feito.
+
+RAIZ_APP = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _sessao_id(cid):
+    """Um id de sessão estável por CONVERSA — é o que dá memória a ela."""
+    import uuid
+    arq = conversas.caminho(cid, "sessao.txt")
+    try:
+        with open(arq, encoding="utf-8") as f:
+            v = f.read().strip()
+        if v:
+            return v, True          # já existe: retomar
+    except Exception:
+        pass
+    novo_id = str(uuid.uuid4())
+    os.makedirs(os.path.dirname(arq), exist_ok=True)
+    with open(arq, "w", encoding="utf-8") as f:
+        f.write(novo_id)
+    return novo_id, False
+
+
+def comando_mcp():
+    """Como subir o servidor MCP deste app.
+
+    Empacotado, `sys.executable` É o binário do app — ele se relança com --mcp.
+    Em desenvolvimento é o Python do venv com o script. Errar isso significa
+    Claude sem ferramenta nenhuma, com a tela dizendo que está tudo certo."""
+    if getattr(sys, "frozen", False):
+        return sys.executable, ["--mcp"]
+    return sys.executable, [os.path.join(RAIZ_APP, "app.py"), "--mcp"]
+
+
+def _mcp_config():
+    cmd, args = comando_mcp()
+    return json.dumps({"mcpServers": {"editor": {"command": cmd, "args": args}}})
+
+
+_mcp_cache = {}
+
+
+def mcp_vivo(forcar=False):
+    """O servidor MCP sobe e responde? Sem isto o Claude fica SEM as ferramentas
+    do app — que foi exatamente o que aconteceu no app empacotado, com a tela
+    dizendo que estava tudo conectado."""
+    # ⚠️ Isto SOBE UM PROCESSO. A tela do Adobe chamava a cada pesquisa, e o
+    # laço do "Reconectar" pesquisa seis vezes seguidas — seis servidores MCP
+    # subindo e morrendo por clique. O resultado não muda de minuto a minuto.
+    import time as _t
+    if not forcar and _mcp_cache.get("q") and _t.time() - _mcp_cache["q"][0] < 120:
+        return _mcp_cache["q"][1]
+
+    cmd, args = comando_mcp()
+    try:
+        p = so.run(
+            [cmd] + args, input='{"jsonrpc":"2.0","id":1,"method":"tools/list"}\n',
+            capture_output=True, text=True, timeout=30,
+            env=conta_claude.ambiente_isolado())
+        for linha in (p.stdout or "").splitlines():
+            try:
+                d = json.loads(linha)
+            except Exception:
+                continue
+            t = (d.get("result") or {}).get("tools")
+            if t:
+                r = {"ok": True, "ferramentas": len(t),
+                     "nomes": [x["name"] for x in t]}
+                _mcp_cache["q"] = (_t.time(), r)
+                return r
+        r = {"ok": False, "msg": "O servidor de ferramentas não respondeu."}
+    except Exception as e:
+        r = {"ok": False, "msg": str(e)[:140]}
+    _mcp_cache["q"] = (_t.time(), r)
+    return r
+
+
+# Regra do Jhon (0.22.1). Mídia fora da pasta do projeto vira mídia OFFLINE no
+# Premiere quando o projeto muda de lugar ou a pasta temporária é limpa — e a
+# IA, sem ninguém dizer, salva no scratchpad ou em Downloads. Vai no contexto
+# de TODA conversa, nos dois provedores (o Codex e o ChatGPT leem este mesmo
+# `_contexto_ambiente`).
+REGRA_PASTA = ("Todo arquivo baixado ou gerado (Higgsfield, HeyGen, ElevenLabs, renders, "
+               "downloads) é salvo na pasta do projeto ativo, organizado por tipo. Nunca em "
+               "pasta temporária, Downloads ou fora do projeto. Antes de importar no "
+               "Premiere, confira se o arquivo está dentro da pasta do projeto.")
+
+# Legenda no Premiere (0.22.1). A Conversa já tentou insertClip com um .srt,
+# disse que "captionTracks não existe na API" e mandou o usuário arrastar à
+# mão. O que não existe é LER a legenda nativa; CRIAR existe e o Tools PRO
+# 1.8.1 tem ferramenta pronta para isso.
+REGRA_LEGENDA = ("Legenda no Premiere: para faixa de legenda nativa a partir de .srt, use "
+                 "`pr_legenda_nativa_criar` (Tools PRO ≥ 1.8.1); para legenda estilizada/animada, "
+                 "`pr_legendas_mogrt_aplicar`. Se essas ferramentas não existirem, use "
+                 "`pr_extendscript` (Modo avançado) com `importFiles` + `seq.createCaptionTrack(item,0)` "
+                 "(tente também `(item,0,3)` e `(item)`), SRT com quebra de linha LF salvo na pasta "
+                 "do projeto. Nunca diga que não existe API para criar legenda; o que não existe é "
+                 "LER legenda nativa. Nunca use insertClip com .srt.")
+
+
+def _contexto_ambiente(pid):
+    """O que o Claude recebe de graça a cada mensagem. Sem isto ele começaria
+    cego e gastaria turno perguntando o que já dá para saber."""
+    linhas = ["Você é o agente do Editor Automático, um app de edição de criativos "
+              "de vídeo. Fale português do Brasil, direto.",
+              "",
+              "As ferramentas do MCP `editor` operam o app: estado do Adobe, "
+              "ExtendScript no Premiere, o pipeline de 12 etapas e a geração de mídia. "
+              "Use também suas próprias skills e ferramentas quando fizerem sentido — "
+              "cortar silêncio, marcar VSL, conferir b-roll, o que o usuário pedir.",
+              "",
+              "REGRAS QUE NÃO SE NEGOCIAM:",
+              "- Nada que gaste crédito sem o usuário autorizar explicitamente antes. "
+              "As ferramentas recusam sozinhas, mas não tente: explique o que falta.",
+              "- Antes de mexer no Adobe, confira `adobe_estado` e mostre ao usuário.",
+              "- Se faltar informação, pergunte aqui na conversa.",
+              "- Nunca peça chave de API nem senha — isso se resolve na aba Contas.",
+              "- " + REGRA_PASTA,
+              "- " + REGRA_LEGENDA,
+              "- Quando entregar mídia, escreva o CAMINHO COMPLETO de cada arquivo na "
+              "resposta: a conversa mostra a prévia (imagem, vídeo, áudio) a partir dele.",
+              ""]
+
+    # ⚠️ Dizer QUE os programas existem, e ONDE. Sem isto o modelo responde que
+    # o `higgsfield` não está instalado numa máquina onde ele está — o app
+    # reconstrói o PATH (um .app aberto pelo Finder não herda o do shell), mas
+    # ninguém tinha contado isso ao modelo.
+    from . import so as _so
+    ferramentas = []
+    for nome, para in (("higgsfield", "gerar imagem e b-roll"),
+                       ("heygen", "avatar falante"),
+                       ("mmx", "MiniMax: vídeo, imagem e música"),
+                       ("ffmpeg", "cortar, montar e exportar"),
+                       ("ffprobe", "ler duração, formato e fps"),
+                       ("whisper", "transcrever a fala"),
+                       ("codex", "o CLI do ChatGPT"),
+                       ("claude", "o CLI do Claude")):
+        onde = _so.onde(nome)
+        if onde:
+            ferramentas.append("- `%s` (%s) em %s" % (nome, para, onde))
+    if ferramentas:
+        linhas.append("PROGRAMAS DE LINHA DE COMANDO JÁ INSTALADOS E LOGADOS "
+                      "(use direto pelo terminal, não pergunte se existem):")
+        linhas += ferramentas
+        linhas.append("GERAR MÍDIA QUE GASTA CRÉDITO (imagem, vídeo, avatar, voz) é SÓ pela "
+                      "ferramenta `etapa_rodar` do MCP `editor`, que passa pela aprovação "
+                      "do usuário. `higgsfield generate`, `heygen` e `mmx` direto no "
+                      "terminal estão bloqueados — mesmo que uma skill mande rodar. "
+                      "Preço e saldo: `motores_listar`.")
+        linhas.append("")
+
+    try:
+        a = adobe.estado()
+        linhas.append("AMBIENTE AGORA:")
+        linhas.append("- Premiere: %s | After Effects: %s"
+                      % ("aberto" if a["apps"]["premiere"] else "fechado",
+                         "aberto" if a["apps"]["aftereffects"] else "fechado"))
+        linhas.append("- Ponte Tools PRO: %s" % (a.get("painel") or "sem painel aberto"))
+        if a.get("projeto"):
+            linhas.append("- Projeto Adobe: %s" % a["projeto"])
+            linhas.append("- Sequência ativa: %s" % (a.get("ativa") or "nenhuma"))
+            if a.get("sequencias"):
+                linhas.append("- Sequências: %s"
+                              % ", ".join(x["nome"] for x in a["sequencias"][:10]))
+        if a.get("aviso"):
+            linhas.append("- Atenção: %s" % a["aviso"])
+        try:
+            t = adobe.timeline()
+            r = t["resumo"]
+            linhas.append("- TIMELINE ATIVA já lida: %s, %ss, %d clipes em %dV/%dA, "
+                          "%d marcadores. Use `timeline_ler` para o detalhe — NÃO peça "
+                          "caminho de .prproj nem vídeo exportado."
+                          % (t["sequencia"], t["duracao"], r["clipes"],
+                             r["trilhas_video"], r["trilhas_audio"], r["marcadores"]))
+        except Exception:
+            pass
+    except Exception:
+        linhas.append("AMBIENTE: não consegui ler o Adobe agora.")
+
+    if pid:
+        try:
+            p = projetos.ler(pid)
+            est = projetos.estado_pipeline(pid)
+            pnl = pipeline.painel(est)
+            linhas += ["",
+                       "PROJETO DE TRABALHO: %s (id `%s`)" % (p["plano"].get("job"), pid),
+                       "- Body: %s" % p["plano"]["fonte"]["body"],
+                       "- Pasta: %s" % projetos.dir_projeto(pid),
+                       "- Mídia nova deste projeto vai em %s (imagens/, videos/, audio/)"
+                       % os.path.join(projetos.dir_projeto(pid), "media"),
+                       "- Pipeline: %d de %d etapas concluídas; agora em `%s`"
+                       % (pnl["concluidas"], pnl["total"], pnl["atual"])]
+            travadas = [e for e in pnl["etapas"] if not e["pode"] and e["bloqueio"]]
+            if travadas:
+                linhas.append("- Travado: %s — %s"
+                              % (travadas[0]["nome"], travadas[0]["bloqueio"]))
+            if pnl["aprovacoes"]:
+                linhas.append("- Últimas aprovações: %s"
+                              % "; ".join("%s %s" % (x["acao"], x["etapa"])
+                                          for x in [a for a in pnl["aprovacoes"]
+                                                    if not a.get("invalidada")][:4]))
+            linhas.append("- Passe `projeto: \"%s\"` nas ferramentas do pipeline." % pid)
+        except Exception:
+            pass
+    else:
+        linhas += ["", "Ainda não há projeto de trabalho. Se o usuário quiser editar "
+                       "um criativo, pergunte o caminho do vídeo e use `projeto_criar`.",
+                   "Sem projeto, NÃO salve mídia em pasta temporária nem em Downloads: "
+                   "pergunte antes em qual pasta de projeto salvar."]
+    return "\n".join(linhas)
+
+
+def _casa(cid):
+    """O diretório de trabalho da sessão.
+
+    ⚠️ A sessão do Claude Code é PRESA AO DIRETÓRIO. Um `.app` aberto pelo Finder
+    roda a partir de `/`, então uma sessão criada em outro lugar some no
+    `--resume` ("No conversation found with session ID"). Fixar a casa aqui é o
+    que dá continuidade real à conversa."""
+    d = conversas.dir_conversa(cid)
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _resumo_entrada(nome, entrada):
+    """O que a tela mostra ao lado do nome da ferramenta."""
+    from .leitor_stream import resumo_entrada
+    return resumo_entrada(entrada)
+
+
+def _resumo_saida(bruto):
+    """Uma linha do que a ferramenta devolveu."""
+    from .leitor_stream import resumo_saida
+    return resumo_saida(bruto)
+
+
+def _esquema_ruim(bruto):
+    """A API recusou por causa do ESQUEMA de uma ferramenta.
+
+    Acontece quando algum servidor MCP de fora (ou um plugin) declara um
+    `input_schema` que a API da Anthropic não aceita — `oneOf`/`allOf`/`anyOf`
+    no topo. Uma ferramenta ruim derruba a conversa INTEIRA, mesmo que ela não
+    tenha nada a ver com o que o usuário pediu."""
+    b = (bruto or "").lower()
+    return "input_schema" in b or ("tools." in b and "schema" in b)
+
+
+def _etapa(ao_vivo, texto):
+    """Diz à tela em que ponto a rodada está, ANTES de existir qualquer passo.
+
+    O trecho entre o Enter e o primeiro evento da IA (conferir o Adobe, abrir o
+    CLI, o modelo começar a responder) pode levar dezenas de segundos — e era
+    exatamente aí que a tela ficava muda e parecia travada."""
+    if ao_vivo:
+        ao_vivo({"tipo": "etapa", "texto": texto})
+
+
+# O CLI aceita `--include-partial-messages` (texto letra a letra)? Começa
+# acreditando que sim; se o `claude` instalado for velho e recusar a flag, a
+# rodada é refeita sem ela e a resposta fica guardada até o app fechar.
+PARCIAIS = {"aceita": True}
+
+
+def _recusou_parciais(bruto):
+    b = (bruto or "").lower()
+    return "include-partial-messages" in b and ("unknown" in b or "error" in b)
+
+
+FERRAMENTAS_LIBERADAS = [
+    "mcp__editor", "mcp__toolspro-pr", "mcp__toolspro-ae",
+    "Bash", "Read", "Write", "Edit", "MultiEdit", "Glob", "Grep",
+    "WebFetch", "WebSearch", "TodoWrite", "NotebookEdit", "Task",
+]
+
+
+# ⚠️ O que a IA NÃO pode rodar sozinha: tudo que gasta crédito. O bypass de
+# permissões libera o Bash inteiro — e as skills ensinam `higgsfield generate
+# create` direto, pulando os portões do pipeline. Regra de bloqueio vale mesmo
+# no bypass. Gerar mídia paga é SÓ pela ferramenta `etapa_rodar` do MCP editor.
+_APIS_PAGAS = ["higgsfield.ai", "api.heygen.com", "upload.heygen.com",
+               "api.elevenlabs.io", "fal.run", "fal.ai", "klingai.com",
+               "api.minimax", "minimaxi.com"]
+FERRAMENTAS_BLOQUEADAS = (
+    ["Bash(higgsfield generate*)", "Bash(higgsfield *create*)",
+     "Bash(heygen*)", "Bash(mmx*)",
+     # caminho completo, `npx`, `bash -c "..."` e afins
+     "Bash(*higgsfield generate*)", "Bash(*higgsfield *create*)",
+     "Bash(*heygen *)", "Bash(*/mmx *)", "Bash(npx mmx*)"]
+    + ["Bash(curl *%s*)" % h for h in _APIS_PAGAS]
+    + ["Bash(wget *%s*)" % h for h in _APIS_PAGAS]
+    # servidores MCP de geração que o usuário tenha instalado por fora
+    + ["mcp__higgsfield", "mcp__heygen", "mcp__elevenlabs", "mcp__fal",
+       "mcp__minimax", "mcp__hwstudio"]
+)
+
+
+def argumentos_claude(texto, contexto, sid, retomar, pid=None, parciais=True,
+                      so_nossas=False):
+    """Monta a linha do `claude -p`. Separado para o teste conferir as travas."""
+    cmd = ["claude", "-p", texto,
+           "--output-format", "stream-json", "--verbose"]
+    if parciais:
+        cmd.append("--include-partial-messages")
+    cmd += ["--mcp-config", _mcp_config(),
+            "--append-system-prompt", contexto,
+            "--permission-mode", "bypassPermissions",
+            # ⚠️ No Windows o bypass sozinho não liberou as ferramentas do Tools
+            # PRO ("a permissão para pr_sequencias_listar não foi concedida").
+            # Liberação explícita por servidor MCP + as ferramentas de trabalho.
+            "--allowedTools", ",".join(FERRAMENTAS_LIBERADAS),
+            "--disallowedTools", ",".join(FERRAMENTAS_BLOQUEADAS),
+            "--add-dir", RAIZ_APP]
+    if pid:
+        cmd += ["--add-dir", projetos.dir_projeto(pid)]
+    cmd += (["--resume", sid] if retomar else ["--session-id", sid])
+    if so_nossas:
+        # ⚠️ Só as ferramentas DESTE app. Isola a conversa de servidor MCP de
+        # terceiro com esquema inválido. Não é o padrão de propósito: no caminho
+        # normal o Claude usa também o Tools PRO do usuário, e isso é capacidade
+        # que ninguém quer perder por precaução.
+        cmd.append("--strict-mcp-config")
+    return cmd
+
+
+def _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=False, _so_nossas=False,
+                   controle=None):
+    """Uma mensagem para a sessão do Claude Code.
+
+    Cada passo sai por `ao_vivo` NA HORA em que acontece — pensamento, chamada de
+    ferramenta, resultado e o texto enquanto é escrito. Quem traduz o stream-json
+    em passo é o `leitor_stream` (testado com uma gravação real do CLI).
+
+    Devolve (fala, passos, uso)."""
+    from .leitor_stream import LeitorClaude
+    sid, retomar = _sessao_id(cid)
+    _etapa(ao_vivo, "conferindo o Adobe")
+    contexto = _contexto_ambiente(pid)
+    if controle:
+        controle.conferir()
+    parciais = PARCIAIS["aceita"]
+    cmd = argumentos_claude(texto, contexto, sid, retomar, pid=pid,
+                            parciais=parciais, so_nossas=_so_nossas)
+
+    _etapa(ao_vivo, "abrindo o Claude Code")
+    proc = so.popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True, bufsize=1, cwd=_casa(cid),
+                            env=conta_claude.ambiente_isolado())
+    if controle:
+        controle.vincular(proc)
+    _etapa(ao_vivo, "esperando o Claude responder")
+
+    from . import midia as _midia
+    leitor = LeitorClaude(ao_vivo, midias=_midia.detectar_permitidas)
+    for linha in proc.stdout:
+        if leitor.linha(linha) == "init":
+            _etapa(ao_vivo, "Claude conectado, pensando")
+
+    proc.wait()
+    if controle:
+        controle.encerrou(proc)      # encerrado por Cancelar: não é erro
+    passos = leitor.finalizar()
+    erro = leitor.erro
+    bruto_erro = (erro or "") + " " + ((proc.stderr.read() if proc.stderr else "") or "")
+    for cano in (proc.stdout, proc.stderr):
+        try:
+            cano and cano.close()
+        except Exception:
+            pass
+
+    # CLI antigo, sem a flag do texto ao vivo: refaz do jeito de antes
+    if parciais and not passos and proc.returncode != 0 and _recusou_parciais(bruto_erro):
+        PARCIAIS["aceita"] = False
+        return _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=_tentou_de_novo,
+                              _so_nossas=_so_nossas, controle=controle)
+
+    if "no conversation found" in bruto_erro.lower() and not _tentou_de_novo:
+        try:
+            os.remove(conversas.caminho(cid, "sessao.txt"))
+        except Exception:
+            pass
+        ao_vivo and ao_vivo({"tipo": "aviso", "texto": "retomando em sessão nova…"})
+        return _sessao_claude(cid, pid, texto, ao_vivo, _tentou_de_novo=True,
+                              controle=controle)
+
+    # ferramenta de terceiro com esquema inválido: refaz só com as nossas, em
+    # vez de devolver um erro que o usuário não tem como consertar sozinho
+    if _esquema_ruim(bruto_erro) and not _so_nossas:
+        ao_vivo and ao_vivo({"tipo": "aviso", "texto":
+            "Um servidor MCP de fora mandou uma ferramenta com esquema que a API "
+            "recusa. Seguindo só com as ferramentas do app."})
+        return _sessao_claude(cid, pid, texto, ao_vivo,
+                              _tentou_de_novo=_tentou_de_novo, _so_nossas=True,
+                              controle=controle)
+
+    if erro:
+        raise SemAcesso(conta_claude._humano(erro))
+    if proc.returncode != 0 and not passos:
+        raise SemAcesso(conta_claude._humano(bruto_erro or "falha ao falar com o Claude"))
+
+    return leitor.fala(), passos, leitor.uso
+
+
+def _passos_guardados(passos):
+    """Os passos que vão para o histórico — AGORA COM o texto, na ordem.
+
+    Antes o texto era tirado daqui e a tela desenhava "todas as ferramentas,
+    depois a resposta". A tela nova intercala como aconteceu (texto, ação,
+    texto). `content` continua com a fala inteira: é o que volta para a IA e o
+    que as conversas antigas têm."""
+    return [p for p in passos if p.get("tipo") != "parcial"
+            and not (p.get("tipo") == "texto" and not (p.get("texto") or "").strip())]
+
+
+def falar(cid, texto, anexos=None, quem="usuário", ao_vivo=None, provedor=None,
+          controle=None):
+    """Uma rodada de conversa, com a IA que o usuário escolheu.
+
+    No Claude por 'sessao' isto é uma mensagem para a sessão do Claude Code —
+    com contexto, memória, skills e ferramentas. O app não interpreta nem filtra
+    nada: só entrega o ambiente junto e guarda o que voltou. No ChatGPT é a API
+    oficial com as MESMAS ferramentas do app, por function calling.
+
+    Cada mensagem guarda com QUAL IA ela foi trocada. A tela mostra todas — o
+    histórico não some ao trocar de provedor — mas cada uma só recebe de volta o
+    que foi conversado com ela. Misturar faria uma responder sobre o que a outra
+    fez como se tivesse feito, e ferramenta executada não volta atrás.
+
+    `controle` (nucleo.cancelar) deixa a tela encerrar a rodada — só nos
+    caminhos que rodam um processo (sessão do Claude Code e do Codex)."""
+    from . import ia
+    _etapa(ao_vivo, "preparando a conversa")
+    provedor = provedor or ia.escolhido()
+    if provedor not in ia.PROVEDORES:
+        raise SemAcesso("IA desconhecida: " + str(provedor))
+
+    if not cid:
+        cid = conversas.criar()
+    pid = conversas.meta(cid).get("projeto")
+    msgs = conversas.mensagens(cid)
+    conteudo = texto or ""
+    if anexos:
+        conteudo += "\n\nArquivos anexados:\n" + "\n".join("- " + a for a in anexos)
+    msg_usuario = {"role": "user", "content": conteudo, "provedor": provedor,
+                   "quando": time.time()}
+    if anexos:
+        # a tela desenha miniatura/chip a partir daqui; o `content` continua com
+        # a lista em texto, que é o que a IA lê
+        msg_usuario["texto"] = texto or ""
+        msg_usuario["anexos"] = list(anexos)
+    msgs.append(msg_usuario)
+
+    if provedor == "chatgpt":
+        # assinatura primeiro: quem já paga o ChatGPT não devia pagar de novo
+        # por uso de API para falar com o mesmo modelo.
+        if ia.metodo_chatgpt() == "sessao":
+            from . import codex_sessao
+            resposta, passos, _thread = codex_sessao.conversar(
+                cid, pid, conteudo, ao_vivo, controle=controle)
+            modelo = "codex (assinatura)"
+        else:
+            from . import openai_chat
+            _etapa(ao_vivo, "esperando o ChatGPT responder")
+            resposta, passos, pid, modelo = openai_chat.conversar(
+                cid, pid, msgs, quem, ao_vivo)
+        msgs.append({"role": "assistant", "content": resposta or "(sem resposta)",
+                     "passos": _passos_guardados(passos),
+                     "provedor": "chatgpt", "modelo": modelo, "quando": time.time()})
+        if not pid:
+            recentes = projetos.listar()
+            if recentes:
+                pid = recentes[0]["id"]
+                conversas.gravar_meta(cid, projeto=pid)
+        _gravar(cid, msgs)
+        return {"mensagens": msgs, "conversa": cid, "projeto": pid,
+                "provedor": "chatgpt"}
+
+    metodo = conta_claude.metodo()
+    if metodo is None:
+        raise SemAcesso("Escolha como entrar no Claude, na aba Contas.")
+
+    if metodo == "sessao":
+        resposta, passos, uso = _sessao_claude(cid, pid, conteudo, ao_vivo,
+                                               controle=controle)
+        m = {"role": "assistant", "content": resposta or "(sem resposta)",
+             "passos": _passos_guardados(passos),
+             "provedor": "claude", "quando": time.time()}
+        if uso:
+            m["uso"] = uso
+        msgs.append(m)
+        # o projeto pode ter nascido durante a conversa: amarra os dois
+        if not pid:
+            recentes = projetos.listar()
+            if recentes:
+                pid = recentes[0]["id"]
+                conversas.gravar_meta(cid, projeto=pid)
+        _gravar(cid, msgs)
+        return {"mensagens": msgs, "conversa": cid, "projeto": pid,
+                "provedor": "claude"}
+
+    _etapa(ao_vivo, "esperando o Claude responder")
+    return _laco_api(cid, pid, msgs, quem, ao_vivo)
+
+
+def _laco_api(cid, pid, msgs, quem, ao_vivo):
+    """Caminho da chave de API — tool use pela API, sem SDK."""
+    contexto = _contexto_ambiente(pid)
+    api_msgs = [{"role": m["role"], "content": m["content"]}
+                for m in msgs if m.get("role") in ("user", "assistant")
+                and m.get("provedor") in (None, "claude")]
+
+    for _ in range(12):
+        r = _pedir_anthropic({"model": MODELO, "max_tokens": 8000,
+                              "system": SISTEMA + "\n\n" + contexto,
+                              "tools": FERRAMENTAS, "messages": api_msgs})
+        blocos = r.get("content") or []
+        api_msgs.append({"role": "assistant", "content": blocos})
+
+        def _texto(bs):
+            return "".join(b.get("text", "") for b in bs if b.get("type") == "text")
+
+        if r.get("stop_reason") != "tool_use":
+            msgs.append({"role": "assistant", "content": _texto(blocos),
+                         "provedor": "claude", "quando": time.time()})
+            break
+
+        parcial = _texto(blocos).strip()
+        if parcial:
+            msgs.append({"role": "assistant", "content": parcial,
+                         "provedor": "claude", "quando": time.time()})
+
+        resultados = []
+        for b in blocos:
+            if b.get("type") != "tool_use":
+                continue
+            nome, entrada = b.get("name"), b.get("input") or {}
+            i = None
+            if ao_vivo:
+                i = 0
+                ao_vivo({"tipo": "ferramenta", "nome": nome,
+                         "resumo": _resumo_entrada(nome, entrada), "estado": "rodando"})
+            try:
+                saida, erro = _executar(pid, nome, entrada, quem), False
+                if saida.get("criado") and not pid:
+                    pid = saida["criado"]
+            except Exception as e:
+                saida, erro = {"erro": str(e)}, True
+            if ao_vivo:
+                ao_vivo({"tipo": "ferramenta", "nome": nome,
+                         "resumo": _resumo_entrada(nome, entrada),
+                         "estado": "erro" if erro else "ok",
+                         "saida": _resumo_saida(saida), "indice": i, "atualiza": True})
+            msgs.append({"role": "ferramenta", "nome": nome, "entrada": entrada,
+                         "saida": saida, "provedor": "claude", "quando": time.time()})
+            resultados.append({"type": "tool_result", "tool_use_id": b.get("id"),
+                               "content": json.dumps(saida, ensure_ascii=False,
+                                                     default=str)[:6000],
+                               "is_error": erro})
+        api_msgs.append({"role": "user", "content": resultados})
+
+    _gravar(cid, msgs)
+    return {"mensagens": msgs, "conversa": cid, "projeto": pid, "provedor": "claude"}

@@ -1,0 +1,75 @@
+"""BlackBeltEdit (beta): achar e abrir o app sem nunca levantar exceção."""
+
+import os
+import tempfile
+import unittest
+from unittest import mock
+
+from nucleo import blackbeltedit
+
+
+class TestBlackBeltEdit(unittest.TestCase):
+    def test_sem_app_instalado_diz_isso(self):
+        with mock.patch.object(blackbeltedit, "_lugares", return_value=["/nao/existe/BlackBeltEdit.app"]):
+            e = blackbeltedit.estado()
+            self.assertFalse(e["instalado"])
+            self.assertTrue(e["beta"])
+            r = blackbeltedit.abrir()
+            self.assertFalse(r["ok"])
+            self.assertIn("não está instalado", r["msg"] if blackbeltedit.so.MAC else "não está instalado")
+
+    def test_le_versao_do_info_plist(self):
+        import plistlib
+        with tempfile.TemporaryDirectory() as d:
+            app = os.path.join(d, "BlackBeltEdit.app")
+            os.makedirs(os.path.join(app, "Contents"))
+            with open(os.path.join(app, "Contents", "Info.plist"), "wb") as f:
+                plistlib.dump({"CFBundleShortVersionString": "0.8.0"}, f)
+            with mock.patch.object(blackbeltedit, "_lugares", return_value=[app]):
+                e = blackbeltedit.estado()
+                if blackbeltedit.so.MAC:
+                    self.assertTrue(e["instalado"])
+                    self.assertEqual(e["versao"], "0.8.0")
+
+    def test_arquivo_inexistente_nao_abre(self):
+        with mock.patch.object(blackbeltedit, "localizar", return_value="/Applications/BlackBeltEdit.app"):
+            r = blackbeltedit.abrir("/nao/existe.fcproj")
+            self.assertFalse(r["ok"])
+
+    def test_mac_intel_nao_e_suportado(self):
+        falso = mock.Mock(stdout="0\n")
+        with mock.patch.object(blackbeltedit.so, "MAC", True), \
+             mock.patch("platform.machine", return_value="x86_64"), \
+             mock.patch("subprocess.run", return_value=falso):
+            e = blackbeltedit.estado()
+            self.assertFalse(e["suportado"])
+            self.assertEqual(e["msg"], "Por enquanto só para Mac com chip Apple.")
+            r = blackbeltedit.instalar()
+            self.assertFalse(r["ok"])
+            self.assertIn("chip Apple", r["msg"])
+
+    def test_chip_apple_sob_rosetta_e_suportado(self):
+        with mock.patch.object(blackbeltedit.so, "MAC", True), \
+             mock.patch("platform.machine", return_value="x86_64"), \
+             mock.patch("subprocess.run", return_value=mock.Mock(stdout="1\n")):
+            self.assertTrue(blackbeltedit.estado()["suportado"])
+
+    def test_arm64_e_suportado(self):
+        with mock.patch.object(blackbeltedit.so, "MAC", True), \
+             mock.patch("platform.machine", return_value="arm64"):
+            self.assertTrue(blackbeltedit.chip_apple())
+
+    def test_windows_nao_e_suportado(self):
+        with mock.patch.object(blackbeltedit.so, "MAC", False):
+            self.assertFalse(blackbeltedit.estado()["suportado"])
+
+    def test_plist_quebrado_nao_derruba(self):
+        with tempfile.TemporaryDirectory() as d:
+            os.makedirs(os.path.join(d, "Contents"))
+            with open(os.path.join(d, "Contents", "Info.plist"), "wb") as f:
+                f.write(b"\x00lixo")
+            self.assertEqual(blackbeltedit._versao(d), "")
+
+
+if __name__ == "__main__":
+    unittest.main()

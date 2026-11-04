@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Decupagem — __TITULO__</title>
+<style>
+:root{--bg:#0e1014;--card:#171a21;--card2:#1d212a;--ink:#e8e9ee;--mute:#99a0ac;--line:#272c36;
+--corte:#ffc400;--cob:#8c95a3;--tempo:#5ac8ff;--star:#ff5c8a;--ok:#3ddc97}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,"Segoe UI",Roboto,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:minmax(320px,44%) 1fr;height:100vh}
+.left{border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.right{display:flex;flex-direction:column;min-height:0}
+.top{padding:12px 16px;border-bottom:1px solid var(--line)}
+h1{font-size:16px;margin:0}.st{color:var(--mute);font-size:12px;margin-top:2px}
+.player{background:#000;position:relative}
+.player video{width:100%;display:block;max-height:46vh;background:#000}
+.player .nov{padding:40px 16px;color:var(--mute);text-align:center;font-size:13px}
+.atual{padding:12px 16px;overflow:auto;flex:1;min-height:0}
+.atual .tc{font-size:22px;font-weight:700;color:var(--corte);font-variant-numeric:tabular-nums}
+.atual .fala{font-size:15px;margin:8px 0}.atual .tela{color:#cfe8ff;font-size:13px}
+.atual .tela b{color:var(--tempo)}
+.atual textarea{width:100%;min-height:64px;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:8px;margin-top:8px;resize:vertical}
+.linha{position:relative;height:38px;background:var(--card);border-top:1px solid var(--line);border-bottom:1px solid var(--line);cursor:pointer}
+.linha i{position:absolute;top:6px;width:2px;height:26px;border-radius:1px;opacity:.85}
+.linha i.CORTE,.linha i.INICIO{background:var(--corte)}.linha i.COBERTURA,.linha i.INTERVALO{background:var(--cob);top:14px;height:10px}
+.linha i.TEMPO{background:var(--tempo);top:2px;height:34px}.linha i.star{background:var(--star);top:0;height:38px;width:3px}
+.linha .cab{position:absolute;top:0;bottom:0;width:2px;background:#fff;pointer-events:none}
+.linha .hov{position:absolute;bottom:42px;transform:translateX(-50%);background:#000;border:1px solid var(--line);border-radius:6px;padding:4px;display:none;z-index:5;pointer-events:none}
+.linha .hov img{width:200px;display:block;border-radius:3px}.linha .hov span{font-size:12px;color:var(--corte)}
+.bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line)}
+.bar button,.bar select{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer}
+.bar button.on{border-color:var(--corte);color:var(--corte)}
+.bar input[type=search]{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:4px 10px;flex:1;min-width:160px}
+.bar .cnt{color:var(--mute);font-size:12px;margin-left:auto}
+.lista{overflow:auto;flex:1;min-height:0;padding:12px 16px;display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(var(--tam,240px),1fr));grid-auto-rows:max-content;align-content:start}
+.lista.modo-lista{grid-template-columns:1fr}
+.q{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--cob);border-radius:8px;overflow:hidden;cursor:pointer;position:relative}
+.q.CORTE,.q.INICIO{border-top-color:var(--corte)}.q.TEMPO{border-top-color:var(--tempo)}
+.q.sel{outline:2px solid #fff;outline-offset:1px}.q img{width:100%;display:block;aspect-ratio:16/9;object-fit:cover;background:#000}
+.q .meta{padding:6px 8px;display:flex;gap:6px;align-items:center}
+.q .meta b{font-variant-numeric:tabular-nums;color:var(--corte)}.q .meta small{color:var(--mute)}
+.q .st2{margin-left:auto;background:none;border:0;font-size:18px;line-height:1;cursor:pointer;color:var(--mute);padding:0 2px}
+.q.starred .st2{color:var(--star)}
+.q .fl{padding:0 8px 8px;font-size:12px;color:#c9ccd4;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.q .tl{padding:0 8px 8px;font-size:11px;color:#cfe8ff}
+.modo-lista .q{display:grid;grid-template-columns:260px 1fr}.modo-lista .q .fl{-webkit-line-clamp:unset}
+.q .nota{padding:0 8px 8px;font-size:12px;color:var(--star)}
+mark{background:#ffc40055;color:inherit;border-radius:2px}
+.lb{position:fixed;inset:0;background:#000d;display:none;align-items:center;justify-content:center;z-index:20;flex-direction:column;gap:10px;padding:20px}
+.lb.on{display:flex}.lb img{max-width:96vw;max-height:78vh;border-radius:6px}
+.lb .cap{max-width:900px;text-align:center}.lb .cap b{color:var(--corte)}
+.lb .nav{position:absolute;top:50%;transform:translateY(-50%);background:#0008;border:1px solid var(--line);border-radius:50%;width:48px;height:48px;font-size:22px;cursor:pointer}
+.lb .prev{left:16px}.lb .next{right:16px}.lb .x{position:absolute;top:14px;right:18px;background:none;border:0;font-size:28px;cursor:pointer}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ok);color:#000;padding:8px 14px;border-radius:6px;font-weight:600;display:none;z-index:30}
+.ajuda{color:var(--mute);font-size:12px;padding:6px 16px;border-top:1px solid var(--line)}
+.ajuda kbd{background:var(--card2);border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:11px}
+@media (max-width:900px){.app{grid-template-columns:1fr;height:auto}.left{border-right:0}.lista{max-height:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <section class="left">
+    <div class="top"><h1>Decupagem quadro a quadro — <span id="tit"></span></h1><div class="st" id="stats"></div></div>
+    <div class="player" id="player"></div>
+    <div class="linha" id="linha"><div class="cab" id="cab"></div><div class="hov" id="hov"><img alt=""><span></span></div></div>
+    <div class="atual" id="atual"></div>
+    <div class="ajuda"><kbd>←</kbd><kbd>→</kbd> quadro · <kbd>espaço</kbd> play · <kbd>S</kbd> estrela · <kbd>Enter</kbd> ampliar · <kbd>/</kbd> buscar · <kbd>F</kbd> seguir vídeo</div>
+  </section>
+  <section class="right">
+    <div class="bar">
+      <button data-f="todos" class="on">Todos</button>
+      <button data-f="corte">Cortes</button>
+      <button data-f="tempo">Pedidos</button>
+      <button data-f="tela">Com texto na tela</button>
+      <button data-f="star">★ Marcados</button>
+      <input type="search" id="busca" placeholder="buscar na fala, na tela ou nas notas…">
+      <button id="modo" title="grade / lista">▦</button>
+      <input type="range" id="tam" min="160" max="420" value="240" title="tamanho">
+      <button id="seguir" title="lista acompanha o vídeo">Seguir</button>
+      <select id="exp"><option value="">Exportar…</option><option value="copiar">Copiar marcados</option>
+        <option value="csv">Marcados .csv</option><option value="json">Tudo + notas .json</option></select>
+      <span class="cnt" id="cnt"></span>
+    </div>
+    <div class="lista" id="lista"></div>
+  </section>
+</div>
+<div class="lb" id="lb"><button class="x" id="lbx">×</button><button class="nav prev" id="lbp">‹</button>
+  <img id="lbi" alt=""><div class="cap" id="lbc"></div><button class="nav next" id="lbn">›</button></div>
+<div class="toast" id="toast"></div>
+<script>
+const D = __DADOS__;
+const Q = D.quadros, CHAVE = 'decupagem:' + D.titulo;
+let marcas = {}; try { marcas = JSON.parse(localStorage.getItem(CHAVE) || '{}'); } catch (e) {}
+const salvar = () => { try { localStorage.setItem(CHAVE, JSON.stringify(marcas)); } catch (e) {} };
+const $ = s => document.querySelector(s), esc = s => (s || '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+let filtro = 'todos', busca = '', sel = 0, seguir = false, visiveis = [];
+
+$('#tit').textContent = D.titulo; $('#stats').textContent = D.stats;
+const vid = D.video ? Object.assign(document.createElement('video'), {src: D.video, controls: true, preload: 'metadata'}) : null;
+if (vid) { $('#player').appendChild(vid); vid.onerror = () => { $('#player').innerHTML = '<div class="nov">Não achei o vídeo em <code>' + esc(D.video) + '</code>.<br>Os quadros funcionam igual; para tocar, deixe o vídeo nesse caminho.</div>'; }; }
+else $('#player').innerHTML = '<div class="nov">Sem vídeo vinculado — navegue pelos quadros.</div>';
+
+// linha do tempo
+const linha = $('#linha'), dur = D.info.dur || 1;
+function desenharLinha() {
+  linha.querySelectorAll('i').forEach(x => x.remove());
+  Q.forEach((q, k) => { const i = document.createElement('i'); i.className = q.motivo + (marcas[q.n]?.s ? ' star' : '');
+    i.style.left = (q.t / dur * 100) + '%'; linha.appendChild(i); });
+}
+const posT = e => { const r = linha.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * dur; };
+const idxDe = t => { let k = 0; for (let i = 0; i < Q.length; i++) if (Q[i].t <= t) k = i; return k; };
+linha.onmousemove = e => { const t = posT(e), q = Q[idxDe(t)], h = $('#hov'); h.style.display = 'block';
+  h.style.left = (t / dur * 100) + '%'; h.querySelector('img').src = q.arquivo; h.querySelector('span').textContent = '#' + q.n + ' ' + q.timecode; };
+linha.onmouseleave = () => $('#hov').style.display = 'none';
+linha.onclick = e => { const t = posT(e); irPara(idxDe(t), true); if (vid) vid.currentTime = t; };
+
+function hi(s) { if (!busca) return esc(s); const r = new RegExp('(' + busca.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi'); return esc(s).replace(r, '<mark>$1</mark>'); }
+function passa(q) {
+  const m = marcas[q.n] || {};
+  if (filtro === 'corte' && !(q.motivo === 'CORTE' || q.motivo === 'INICIO')) return false;
+  if (filtro === 'tempo' && q.motivo !== 'TEMPO') return false;
+  if (filtro === 'tela' && !q.texto_tela) return false;
+  if (filtro === 'star' && !m.s) return false;
+  if (busca) { const txt = (q.fala + ' ' + q.texto_tela + ' ' + (m.nota || '')).toLowerCase(); if (!txt.includes(busca.toLowerCase())) return false; }
+  return true;
+}
+function render() {
+  visiveis = Q.map((q, k) => k).filter(k => passa(Q[k]));
+  $('#lista').innerHTML = visiveis.map(k => { const q = Q[k], m = marcas[q.n] || {};
+    return `<div class="q ${q.motivo}${m.s ? ' starred' : ''}${k === sel ? ' sel' : ''}" data-k="${k}">
+      <img loading="lazy" decoding="async" src="${q.arquivo}" alt="quadro ${q.n}">
+      <div><div class="meta"><b>${q.timecode}</b><small>#${q.n} · ${q.motivo.toLowerCase()} · até ${q.ate}</small><button class="st2" title="marcar (S)">★</button></div>
+      ${q.fala ? `<div class="fl">${hi(q.fala)}</div>` : ''}${q.texto_tela ? `<div class="tl">na tela: ${hi(q.texto_tela)}</div>` : ''}
+      ${m.nota ? `<div class="nota">✎ ${hi(m.nota)}</div>` : ''}</div></div>`; }).join('');
+  const n = Object.values(marcas).filter(m => m.s).length;
+  $('#cnt').textContent = visiveis.length + ' de ' + Q.length + ' quadros · ' + n + ' ★';
+  desenharLinha(); mostrarAtual();
+}
+function mostrarAtual() {
+  const q = Q[sel]; if (!q) return; const m = marcas[q.n] || {};
+  $('#atual').innerHTML = `<div class="tc">${q.timecode} <small style="font-size:13px;color:var(--mute)">#${q.n} · ${q.motivo.toLowerCase()} · plano até ${q.ate}</small></div>
+    <div class="fala">${q.fala ? esc(q.fala) : '<i style="color:var(--mute)">— sem fala neste trecho —</i>'}</div>
+    ${q.texto_tela ? `<div class="tela"><b>Na tela:</b> ${esc(q.texto_tela)}</div>` : ''}
+    <textarea id="nota" placeholder="nota sobre este quadro (fica salva neste navegador)">${esc(m.nota || '')}</textarea>`;
+  $('#nota').oninput = e => { marcas[q.n] = {...(marcas[q.n] || {}), nota: e.target.value}; salvar(); };
+  $('#cab').style.left = (q.t / dur * 100) + '%';
+}
+function irPara(k, rolar) {
+  sel = Math.max(0, Math.min(Q.length - 1, k));
+  document.querySelectorAll('.q.sel').forEach(x => x.classList.remove('sel'));
+  const el = document.querySelector(`.q[data-k="${sel}"]`); if (el) { el.classList.add('sel'); if (rolar) el.scrollIntoView({block: 'nearest', behavior: 'smooth'}); }
+  mostrarAtual(); if ($('#lb').classList.contains('on')) abrirLb();
+}
+function proximo(d) { const pos = visiveis.indexOf(sel); const alvo = pos < 0 ? visiveis[0] : visiveis[Math.max(0, Math.min(visiveis.length - 1, pos + d))]; if (alvo !== undefined) { irPara(alvo, true); if (vid && !seguir) vid.currentTime = Q[alvo].t; } }
+function estrela(k) { const q = Q[k]; marcas[q.n] = {...(marcas[q.n] || {}), s: !(marcas[q.n] || {}).s}; salvar(); render(); }
+function abrirLb() { const q = Q[sel]; $('#lbi').src = q.arquivo; $('#lbc').innerHTML = `<b>${q.timecode}</b> · #${q.n} ${q.motivo.toLowerCase()}<br>${esc(q.fala)}${q.texto_tela ? '<br><span style="color:#cfe8ff">na tela: ' + esc(q.texto_tela) + '</span>' : ''}`; $('#lb').classList.add('on'); }
+
+$('#lista').onclick = e => { const c = e.target.closest('.q'); if (!c) return; const k = +c.dataset.k;
+  if (e.target.classList.contains('st2')) { estrela(k); return; }
+  irPara(k, false); if (vid) { vid.currentTime = Q[k].t; } };
+$('#lista').ondblclick = () => abrirLb();
+document.querySelectorAll('.bar [data-f]').forEach(b => b.onclick = () => { document.querySelectorAll('.bar [data-f]').forEach(x => x.classList.remove('on')); b.classList.add('on'); filtro = b.dataset.f; render(); });
+$('#busca').oninput = e => { busca = e.target.value.trim(); render(); };
+$('#modo').onclick = () => { $('#lista').classList.toggle('modo-lista'); };
+$('#tam').oninput = e => $('#lista').style.setProperty('--tam', e.target.value + 'px');
+$('#seguir').onclick = () => { seguir = !seguir; $('#seguir').classList.toggle('on', seguir); };
+if (vid) vid.ontimeupdate = () => { $('#cab').style.left = (vid.currentTime / dur * 100) + '%'; if (seguir) { const k = idxDe(vid.currentTime); if (k !== sel) irPara(k, true); } };
+$('#lbx').onclick = () => $('#lb').classList.remove('on'); $('#lbp').onclick = () => proximo(-1); $('#lbn').onclick = () => proximo(1);
+$('#lb').onclick = e => { if (e.target.id === 'lb') $('#lb').classList.remove('on'); };
+function toast(t) { const x = $('#toast'); x.textContent = t; x.style.display = 'block'; setTimeout(() => x.style.display = 'none', 1800); }
+function baixar(nome, txt, tipo) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], {type: tipo})); a.download = nome; a.click(); }
+$('#exp').onchange = e => { const v = e.target.value; e.target.value = ''; const sts = Q.filter(q => marcas[q.n]?.s);
+  if (v === 'copiar') { if (!sts.length) return toast('Nenhum quadro marcado');
+    const txt = sts.map(q => `#${q.n} ${q.timecode}–${q.ate} | ${q.fala}${q.texto_tela ? ' | tela: ' + q.texto_tela : ''}${marcas[q.n].nota ? ' | nota: ' + marcas[q.n].nota : ''}`).join('\n');
+    navigator.clipboard.writeText(txt).then(() => toast(sts.length + ' quadros copiados'), () => baixar('marcados.txt', txt, 'text/plain')); }
+  if (v === 'csv') { const lin = [['n','timecode','ate','motivo','fala','texto_tela','nota','arquivo']].concat(sts.map(q => [q.n, q.timecode, q.ate, q.motivo, q.fala, q.texto_tela, marcas[q.n].nota || '', q.arquivo]));
+    baixar('marcados.csv', lin.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n'), 'text/csv'); }
+  if (v === 'json') baixar('decupagem-com-notas.json', JSON.stringify(Q.map(q => ({...q, marcado: !!marcas[q.n]?.s, nota: marcas[q.n]?.nota || ''})), null, 1), 'application/json'); };
+document.onkeydown = e => {
+  if (e.target.matches('input,textarea')) { if (e.key === 'Escape') e.target.blur(); return; }
+  if (e.key === 'ArrowRight' || e.key === 'j') { e.preventDefault(); proximo(1); }
+  else if (e.key === 'ArrowLeft' || e.key === 'k') { e.preventDefault(); proximo(-1); }
+  else if (e.key === ' ' && vid) { e.preventDefault(); vid.paused ? vid.play() : vid.pause(); }
+  else if (e.key === 's' || e.key === 'S') estrela(sel);
+  else if (e.key === 'Enter') abrirLb();
+  else if (e.key === 'Escape') $('#lb').classList.remove('on');
+  else if (e.key === '/') { e.preventDefault(); $('#busca').focus(); }
+  else if (e.key === 'f' || e.key === 'F') $('#seguir').click();
+};
+render(); irPara(0, false);
+</script>
+</body>
+</html>
