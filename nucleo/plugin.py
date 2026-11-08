@@ -53,6 +53,11 @@ def estado():
     d = {"instalado": tem, "pasta": CEP, "pagina": PAGINA,
          "ultima": None, "notas": None, "tem_nova": False, "erro": None,
          "zip": BASE + ASSET}
+    if tem:
+        try:
+            d["legendas"] = legendas_estado()
+        except Exception:
+            d["legendas"] = None
     try:
         import json
         r = json.loads(atualizacao._pegar(BASE + "version.json"))
@@ -141,3 +146,148 @@ def instalar(ao_vivo=None):
     return {"ok": True, "pasta": pasta, "instalador": alvo,
             "msg": "O instalador do plugin abriu no Terminal. Quando ele terminar, "
                    "FECHE e reabra o Premiere e abra Janela > Extensões > Tools PRO."}
+
+
+# ------------------------------------------------ painel "Tools PRO Legendas"
+# O Tools PRO 1.8.3+ traz um SEGUNDO painel, UXP, que mexe nas legendas nativas
+# do Premiere (Janela > Plug-ins UXP > Tools PRO Legendas). O painel CEP tenta
+# instalá-lo sozinho 8 s depois de abrir (js/uxp-companheiro.js), mas isso
+# falha calado em máquina de aluno (Premiere velho, CEP aberto pouco tempo,
+# erro do instalador da Adobe que só vai para o log). Aqui é o mesmo caminho —
+# o instalador de plug-ins da Adobe (UPIA) com o .ccx que veio DENTRO do
+# plugin instalado — só que num botão, com o motivo na tela quando falha.
+#
+# ⚠️ O UPIA instala versões LADO A LADO e o Premiere segue na mais velha; cada
+# `--remove` tira UMA. Remove em laço antes de instalar, igual ao companheiro.
+
+LEGENDAS = "Tools PRO Legendas"
+UPIA = (r"C:\Program Files\Common Files\Adobe\Adobe Desktop Common\RemoteComponents"
+        r"\UPI\UnifiedPluginInstallerAgent\UnifiedPluginInstallerAgent.exe" if so.WIN
+        else "/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents"
+             "/UPI/UnifiedPluginInstallerAgent/UnifiedPluginInstallerAgent.app"
+             "/Contents/MacOS/UnifiedPluginInstallerAgent")
+MARCA_LEGENDAS = os.path.join(os.path.expanduser("~"), ".editorblackbelt", "uxp-legendas.json")
+PREMIERE_MINIMO = (25, 6)
+
+
+def _ccx():
+    p = os.path.join(CEP, "uxp", "ToolsPROLegendas.ccx")
+    return p if os.path.isfile(p) else None
+
+
+def _versao_ccx():
+    try:
+        import json
+        with open(os.path.join(CEP, "uxp", "legendas", "manifest.json"), encoding="utf-8") as f:
+            return json.load(f).get("version")
+    except Exception:
+        return None
+
+
+def _upia(*args, timeout=120):
+    r = so.run([UPIA] + list(args), capture_output=True, text=True, timeout=timeout)
+    return (r.stdout or "") + (r.stderr or "")
+
+
+def _numeros(v):
+    import re
+    return tuple(int(x) for x in re.findall(r"\d+", str(v or ""))[:2])
+
+
+def _premiere_versao():
+    """(versão legível, atende ao mínimo? True/False/None quando não dá pra saber)."""
+    nome = so.premiere()
+    if not nome:
+        return None, None
+    if so.MAC:
+        import plistlib
+        plist = os.path.join("/Applications", nome, nome + ".app", "Contents", "Info.plist")
+        try:
+            with open(plist, "rb") as f:
+                v = plistlib.load(f).get("CFBundleShortVersionString")
+            return v, _numeros(v) >= PREMIERE_MINIMO
+        except Exception:
+            pass
+    # Windows (e Mac sem plist): só o ano da pasta. 2026+ = 26.x; 2025 pode ser
+    # 25.0 a 25.6, aí só o UPIA sabe; 2024 ou antes não tem UXP de painel.
+    ano = _numeros(nome)
+    if not ano:
+        return nome, None
+    ano = ano[0]
+    return nome, (True if ano >= 2026 else None if ano == 2025 else False)
+
+
+def legendas_instalada():
+    """Versão do painel de legendas que o Premiere enxerga, ou None."""
+    if not os.path.isfile(UPIA):
+        return None
+    try:
+        for linha in _upia("--list", "all", timeout=20).splitlines():
+            if LEGENDAS.lower() in linha.lower():
+                partes = linha.split()
+                return partes[-1] if partes else "instalado"
+    except Exception:
+        pass
+    return None
+
+
+def legendas_estado():
+    pr, ok = _premiere_versao()
+    return {"instalada": legendas_instalada(), "disponivel": _versao_ccx(),
+            "tem_ccx": bool(_ccx()), "tem_upia": os.path.isfile(UPIA),
+            "premiere": pr, "premiere_ok": ok}
+
+
+def instalar_legendas(ao_vivo=None):
+    diz = ao_vivo or (lambda _: None)
+    ccx = _ccx()
+    if not instalado():
+        raise RuntimeError("Instale primeiro o plugin do Premiere (Tools PRO) — "
+                           "o painel de legendas vem dentro dele.")
+    if not ccx:
+        raise RuntimeError("O seu Tools PRO é antigo e não traz o painel de legendas. "
+                           "Clique em Atualizar no cartão do plugin e tente de novo.")
+    pr, ok = _premiere_versao()
+    if ok is False:
+        raise RuntimeError("O painel de legendas precisa do Premiere 25.6 (2025) ou mais novo, "
+                           "e o seu é %s. Atualize o Premiere pelo Creative Cloud." % pr)
+    if not os.path.isfile(UPIA):
+        # Sem o instalador da Adobe por linha de comando, o .ccx aberto com dois
+        # cliques cai no Creative Cloud, que instala do mesmo jeito.
+        so.abrir(ccx)
+        return {"ok": True, "manual": True,
+                "msg": "Abri o instalador do painel no Creative Cloud. Confirme lá, "
+                       "depois feche e abra o Premiere e vá em Janela > Plug-ins UXP > "
+                       "Tools PRO Legendas."}
+
+    diz("tirando versões antigas do painel…")
+    for _ in range(10):
+        try:
+            if "successful" not in _upia("--remove", LEGENDAS).lower():
+                break
+        except Exception:
+            break
+
+    diz("instalando o painel de legendas…")
+    saida = _upia("--install", ccx)
+    if "successful" not in saida.lower():
+        fim = " ".join(saida.strip().splitlines()[-3:])[:300]
+        dica = ""
+        if ok is None:
+            dica = (" Se o seu Premiere for anterior à versão 25.6, atualize pelo "
+                    "Creative Cloud — o painel não roda nele.")
+        raise RuntimeError("O instalador da Adobe recusou: %s.%s" % (fim or "sem resposta", dica))
+
+    # mesma marca do painel CEP, para ele não reinstalar por cima no próximo boot
+    try:
+        import json
+        from datetime import datetime, timezone
+        os.makedirs(os.path.dirname(MARCA_LEGENDAS), exist_ok=True)
+        with open(MARCA_LEGENDAS, "w", encoding="utf-8") as f:
+            json.dump({"versao": _versao_ccx(),
+                       "em": datetime.now(timezone.utc).isoformat()}, f)
+    except Exception:
+        pass
+    return {"ok": True, "versao": _versao_ccx(),
+            "msg": "Painel de legendas instalado. Feche e abra o Premiere e vá em "
+                   "Janela > Plug-ins UXP > Tools PRO Legendas."}

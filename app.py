@@ -1361,6 +1361,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"tarefa": tid})
             if caminho == "/api/ponte/preparar":
                 return self._json(ponte.preparar())
+            if caminho == "/api/plugin/legendas":
+                tid = em_fundo("Instalando o painel de legendas",
+                               lambda log: plugin.instalar_legendas(log))
+                return self._json({"tarefa": tid})
             if caminho == "/api/plugin/instalar":
                 tid = em_fundo("Instalando o plugin do Premiere",
                                lambda log: plugin.instalar(log))

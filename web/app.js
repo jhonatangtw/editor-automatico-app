@@ -2793,6 +2793,7 @@ function cartaoPlugin(pl) {
           conexão, então o app não consegue escrever na timeline.</div>` : ''}
         ${tem && pl.ponte && pl.ponte.tem_debug ? `<div class="pl-sub" style="color:var(--ok)">
           ponte preparada na porta ${pl.ponte.porta}</div>` : ''}
+        ${tem ? linhaLegendas(pl.legendas) : ''}
       </div>
       ${tem && pl.ponte && !pl.ponte.tem_debug
         ? `<button class="bt principal" id="pl-ponte">Preparar a ponte</button>` : ''}
@@ -2801,7 +2802,57 @@ function cartaoPlugin(pl) {
     </div>`;
 }
 
+// O painel "Tools PRO Legendas" (UXP) vem dentro do plugin, mas é o
+// instalador de plug-ins da Adobe que o coloca no Premiere — e quando isso
+// falha sozinho o aluno só vê que o item não está no menu Janela.
+function linhaLegendas(lg) {
+  if (!lg) return '';
+  const pronto = lg.instalada && (!lg.disponivel || lg.instalada === lg.disponivel);
+  const txt = !lg.tem_ccx
+    ? 'Painel de legendas: atualize o plugin para receber.'
+    : lg.premiere_ok === false
+      ? `Painel de legendas: precisa do Premiere 25.6 ou mais novo (o seu é ${esc(lg.premiere || '?')}).`
+      : pronto
+        ? `Painel de legendas v${esc(lg.instalada)} instalado — Janela › Plug-ins UXP › Tools PRO Legendas.`
+        : lg.instalada
+          ? `Painel de legendas v${esc(lg.instalada)} — tem a v${esc(lg.disponivel)} para instalar.`
+          : 'Painel de legendas não instalado no Premiere.';
+  const botao = lg.tem_ccx && lg.premiere_ok !== false
+    ? `<button class="bt ${pronto ? 'discreto' : 'principal'}" id="pl-legendas"
+         style="margin-left:8px;padding:3px 10px;font-size:12px">${pronto ? 'Reinstalar' : 'Instalar painel de legendas'}</button>`
+    : '';
+  return `<div class="pl-sub" style="margin-top:6px;color:${pronto ? 'var(--ok)' : 'var(--ouro)'}">${txt}${botao}</div>`;
+}
+
+function ligarLegendas() {
+  const b = document.getElementById('pl-legendas');
+  if (!b) return;
+  b.onclick = () => {
+    const v = modal(`<h2>Painel de legendas</h2>
+      <p class="sub">Instalando o <b>Tools PRO Legendas</b> pelo instalador de plug-ins da Adobe.
+      Leva até um minuto. Depois, feche e abra o Premiere e vá em
+      <b>Janela &gt; Plug-ins UXP &gt; Tools PRO Legendas</b>.</p>
+      <div class="portao" id="log" style="max-height:200px">começando…</div>`);
+    post('/api/plugin/legendas').then((r) => {
+      const t = setInterval(async () => {
+        const st = await api('/api/tarefas/' + r.tarefa);
+        v.querySelector('#log').textContent = (st.log || []).slice(-3).join('\n') || 'trabalhando…';
+        if (st.estado === 'pronto') {
+          clearInterval(t); v.remove();
+          toast(st.resultado?.msg || 'Painel de legendas instalado.');
+          revalidar('ambiente');
+        } else if (st.estado === 'erro') {
+          clearInterval(t); v.remove();
+          toast('Não consegui instalar o painel de legendas: ' + st.erro, true);
+          revalidar('ambiente');
+        }
+      }, 900);
+    }).catch((e) => { v.remove(); toast(e.message, true); });
+  };
+}
+
 function ligarPlugin() {
+  ligarLegendas();
   const pb = document.getElementById('pl-ponte');
   if (pb) pb.onclick = async () => { await prepararPonte(); };
   const b = document.getElementById('pl-instalar');
