@@ -1,6 +1,6 @@
 {
- "version": "0.26.1",
- "notes": "Novo: som de verdade nos seus vídeos e a equipe de agentes completa.\n\n• Real SFX: o Claude coloca efeitos gravados reais, no quadro certo, a partir da SUA pasta de sons. Sem pasta, usa só os sons de interface que vêm junto.\n• Earshot (opcional, na aba Ambiente): o Claude mede e compara o áudio e gera o efeito que faltar. Ocupa cerca de 2 GB.\n• FFmpeg: o app avisa quando o seu não consegue escrever texto no vídeo e atualiza com um clique.\n• Agente IA Creator: novos especialistas em AD, microlead, VSL e upsell, mais o supervisor de regras e o caça-erro quadro a quadro. Use Atualizar no cartão do agente para receber.",
+ "version": "0.26.2",
+ "notes": "Novo: instalar o painel de legendas por um botão.\n\n• Na aba Ambiente, o cartão do plugin mostra se o painel Tools PRO Legendas está no seu Premiere. Se não estiver, clique em Instalar painel de legendas, depois feche e abra o Premiere e vá em Janela > Plug-ins UXP > Tools PRO Legendas.\n• Se não der para instalar, o app explica o motivo (Premiere anterior à 25.6, plugin desatualizado ou recusa do instalador da Adobe).",
  "repo": "jhonatangtw/editor-automatico-app",
  "asset_mac": "EditorAutomatico.dmg",
  "asset_win": "EditorAutomatico-Instalador.exe",
